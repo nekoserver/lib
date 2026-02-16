@@ -1,0 +1,1 @@
+<!--#exec cmd="date | sort -n | sed s/\"$\"/\"<br>\"/" -->

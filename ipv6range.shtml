@@ -1,0 +1,1 @@
+<!--#exec cmd="python3 -c 'import os,ipaddress; ip=os.environ.get(\"HTTP_X_FORWARDED_FOR\",\"\").split(\",\")[0].strip(); a=ipaddress.ip_address(ip); print(ip+\",\"+str(ipaddress.ip_network(ip+\"/64\",strict=False)) if a.version==6 else ip' 2>/dev/null || echo N/A" -->

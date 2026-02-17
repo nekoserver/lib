@@ -69,11 +69,41 @@
       font-weight: bold;
       border-radius: 50%;
     }
+    td.has-schedule {
+      background: #c8f0d0;
+      cursor: pointer;
+    }
+    td.today.has-schedule {
+      background: #3a7bd5;
+    }
     .today-label {
       text-align: center;
       margin-top: 1rem;
       color: #555;
       font-size: 0.9rem;
+    }
+    .tooltip {
+      position: fixed;
+      background: #333;
+      color: #fff;
+      padding: 0.5rem 0.75rem;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      z-index: 1000;
+      white-space: pre-line;
+      max-width: 220px;
+      display: none;
+      pointer-events: none;
+      line-height: 1.6;
+    }
+    .tooltip::after {
+      content: '';
+      position: absolute;
+      top: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      border: 6px solid transparent;
+      border-top-color: #333;
     }
   </style>
 </head>
@@ -94,11 +124,94 @@
   </table>
   <div class="today-label" id="today-label"></div>
 </div>
+<div class="tooltip" id="tooltip"></div>
 
 <script>
   const now = new Date();
   let viewYear  = now.getFullYear();
   let viewMonth = now.getMonth(); // 0-indexed
+
+  // スケジュールデータ [{year, month(0-indexed), day, timeRange, desc}]
+  let allSchedules = [];
+
+  // schedule.txt を読み込んでパース
+  async function loadSchedule() {
+    try {
+      const resp = await fetch('schedule.txt');
+      const text = await resp.text();
+      const lines = text.split('\n');
+      const seen = new Set();
+      const entries = [];
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed) continue;
+        // 「""」を含む行（説明が空）はスキップ
+        if (trimmed.includes('""')) continue;
+        // YYYY-MM-DD HH:MM-HH:MM "説明" の形式にマッチ
+        const m = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})\s+(\d+:\d+-\d+:\d+)\s+"(.+)"$/);
+        if (!m) continue;
+        const [, yr, mo, dy, timeRange, desc] = m;
+        // 重複削除
+        const key = yr + '-' + mo + '-' + dy + '-' + timeRange + '-' + desc;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        entries.push({
+          year: parseInt(yr),
+          month: parseInt(mo) - 1, // 0-indexed
+          day: parseInt(dy),
+          timeRange: timeRange,
+          desc: desc
+        });
+      }
+
+      // 時間の早い順にソート
+      entries.sort(function(a, b) {
+        if (a.year  !== b.year)  return a.year  - b.year;
+        if (a.month !== b.month) return a.month - b.month;
+        if (a.day   !== b.day)   return a.day   - b.day;
+        return a.timeRange.localeCompare(b.timeRange);
+      });
+
+      allSchedules = entries;
+    } catch (e) {
+      console.warn('schedule.txt の読み込みに失敗しました:', e);
+    }
+    render();
+  }
+
+  // 表示月のスケジュールを日付ごとにまとめる
+  function buildScheduleMap(year, month) {
+    var map = {};
+    for (var i = 0; i < allSchedules.length; i++) {
+      var e = allSchedules[i];
+      if (e.year === year && e.month === month) {
+        if (!map[e.day]) map[e.day] = [];
+        map[e.day].push(e.timeRange + ' ' + e.desc);
+      }
+    }
+    return map;
+  }
+
+  var tooltip = document.getElementById('tooltip');
+
+  function showTooltip(td, text) {
+    tooltip.textContent = text;
+    tooltip.style.display = 'block';
+    var rect = td.getBoundingClientRect();
+    var ttW = tooltip.offsetWidth;
+    var ttH = tooltip.offsetHeight;
+    var left = rect.left + rect.width / 2 - ttW / 2;
+    var top  = rect.top - ttH - 10;
+    left = Math.max(4, Math.min(left, window.innerWidth - ttW - 4));
+    if (top < 4) top = rect.bottom + 10;
+    tooltip.style.left = left + 'px';
+    tooltip.style.top  = top  + 'px';
+  }
+
+  function hideTooltip() {
+    tooltip.style.display = 'none';
+  }
 
   function render() {
     const today = new Date();
@@ -109,6 +222,8 @@
     document.getElementById('title').textContent =
       viewYear + '年 ' + (viewMonth + 1) + '月';
 
+    const scheduleMap = buildScheduleMap(viewYear, viewMonth);
+
     // 当月の1日と末日
     const firstDay = new Date(viewYear, viewMonth, 1).getDay(); // 0=Sun
     const lastDate = new Date(viewYear, viewMonth + 1, 0).getDate();
@@ -118,6 +233,7 @@
 
     const tbody = document.getElementById('calendar-body');
     tbody.innerHTML = '';
+    hideTooltip();
 
     let date = 1;
     let nextDate = 1;
@@ -129,7 +245,6 @@
 
       for (let col = 0; col < 7; col++) {
         const td = document.createElement('td');
-        const cellIndex = row * 7 + col;
 
         if (!started && col < firstDay) {
           // 前月の日
@@ -153,6 +268,19 @@
           } else if (col === 6) {
             td.className = 'saturday';
           }
+
+          // スケジュールがある日は背景を薄い緑色にしてツールチップを設定
+          const schedules = scheduleMap[date];
+          if (schedules) {
+            td.classList.add('has-schedule');
+            (function(cell, text) {
+              cell.addEventListener('click', function(e) {
+                e.stopPropagation();
+                showTooltip(cell, text);
+              });
+            })(td, schedules.join('\n'));
+          }
+
           date++;
         }
         tr.appendChild(td);
@@ -169,6 +297,9 @@
       '今日: ' + todayY + '年' + (todayM + 1) + '月' + todayD + '日';
   }
 
+  // クリックでツールチップを閉じる
+  document.addEventListener('click', hideTooltip);
+
   document.getElementById('prev').addEventListener('click', function() {
     viewMonth--;
     if (viewMonth < 0) { viewMonth = 11; viewYear--; }
@@ -181,7 +312,7 @@
     render();
   });
 
-  render();
+  loadSchedule();
 </script>
 </body>
 </html>

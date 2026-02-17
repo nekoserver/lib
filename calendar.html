@@ -73,6 +73,10 @@
       background: #c8f0d0;
       cursor: pointer;
     }
+    td.has-schedule.past {
+      background: #d8d8d8;
+      cursor: pointer;
+    }
     td.today.has-schedule {
       background: #3a7bd5;
     }
@@ -269,10 +273,14 @@
             td.className = 'saturday';
           }
 
-          // スケジュールがある日は背景を薄い緑色にしてツールチップを設定
+          // スケジュールがある日は背景を薄い緑色（過去日は薄い灰色）にしてツールチップを設定
+          const isPast = (viewYear < todayY) ||
+                         (viewYear === todayY && viewMonth < todayM) ||
+                         (viewYear === todayY && viewMonth === todayM && date < todayD);
           const schedules = scheduleMap[date];
           if (schedules) {
             td.classList.add('has-schedule');
+            if (isPast) td.classList.add('past');
             (function(cell, text) {
               cell.addEventListener('click', function(e) {
                 e.stopPropagation();

@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>カレンダー</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      display: flex;
+      justify-content: center;
+      padding: 2rem;
+      background: #f5f5f5;
+    }
+    .calendar {
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+      padding: 1.5rem;
+      min-width: 320px;
+    }
+    .calendar-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1rem;
+    }
+    .calendar-header h2 {
+      margin: 0;
+      font-size: 1.2rem;
+    }
+    .calendar-header button {
+      background: none;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      cursor: pointer;
+      padding: 0.25rem 0.75rem;
+      font-size: 1rem;
+    }
+    .calendar-header button:hover {
+      background: #eee;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    th {
+      color: #555;
+      font-weight: normal;
+      padding: 0.4rem;
+      text-align: center;
+      font-size: 0.85rem;
+    }
+    th:first-child { color: #e55; }
+    th:last-child  { color: #55e; }
+    td {
+      text-align: center;
+      padding: 0.4rem;
+      border-radius: 50%;
+      cursor: default;
+      font-size: 0.95rem;
+    }
+    td.sunday    { color: #e55; }
+    td.saturday  { color: #55e; }
+    td.other-month { color: #ccc; }
+    td.today {
+      background: #3a7bd5;
+      color: #fff !important;
+      font-weight: bold;
+      border-radius: 50%;
+    }
+    .today-label {
+      text-align: center;
+      margin-top: 1rem;
+      color: #555;
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+<body>
+<div class="calendar">
+  <div class="calendar-header">
+    <button id="prev">&lt;</button>
+    <h2 id="title"></h2>
+    <button id="next">&gt;</button>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>日</th><th>月</th><th>火</th><th>水</th><th>木</th><th>金</th><th>土</th>
+      </tr>
+    </thead>
+    <tbody id="calendar-body"></tbody>
+  </table>
+  <div class="today-label" id="today-label"></div>
+</div>
+
+<script>
+  const now = new Date();
+  let viewYear  = now.getFullYear();
+  let viewMonth = now.getMonth(); // 0-indexed
+
+  function render() {
+    const today = new Date();
+    const todayY = today.getFullYear();
+    const todayM = today.getMonth();
+    const todayD = today.getDate();
+
+    document.getElementById('title').textContent =
+      viewYear + '年 ' + (viewMonth + 1) + '月';
+
+    // 当月の1日と末日
+    const firstDay = new Date(viewYear, viewMonth, 1).getDay(); // 0=Sun
+    const lastDate = new Date(viewYear, viewMonth + 1, 0).getDate();
+
+    // 前月の末日
+    const prevLastDate = new Date(viewYear, viewMonth, 0).getDate();
+
+    const tbody = document.getElementById('calendar-body');
+    tbody.innerHTML = '';
+
+    let date = 1;
+    let nextDate = 1;
+    let started = false;
+
+    for (let row = 0; row < 6; row++) {
+      const tr = document.createElement('tr');
+      let hasCurrentMonth = false;
+
+      for (let col = 0; col < 7; col++) {
+        const td = document.createElement('td');
+        const cellIndex = row * 7 + col;
+
+        if (!started && col < firstDay) {
+          // 前月の日
+          const d = prevLastDate - firstDay + col + 1;
+          td.textContent = d;
+          td.className = 'other-month' + (col === 0 ? ' sunday' : col === 6 ? ' saturday' : '');
+        } else if (date > lastDate) {
+          // 翌月の日
+          td.textContent = nextDate++;
+          td.className = 'other-month' + (col === 0 ? ' sunday' : col === 6 ? ' saturday' : '');
+        } else {
+          started = true;
+          hasCurrentMonth = true;
+          td.textContent = date;
+
+          const isToday = (viewYear === todayY && viewMonth === todayM && date === todayD);
+          if (isToday) {
+            td.className = 'today';
+          } else if (col === 0) {
+            td.className = 'sunday';
+          } else if (col === 6) {
+            td.className = 'saturday';
+          }
+          date++;
+        }
+        tr.appendChild(td);
+      }
+
+      tbody.appendChild(tr);
+      // 6行目で当月の日が含まれなければ描画しない
+      if (row === 5 && !hasCurrentMonth) break;
+      if (date > lastDate && row >= 4) break;
+    }
+
+    // 今日の日付ラベル
+    document.getElementById('today-label').textContent =
+      '今日: ' + todayY + '年' + (todayM + 1) + '月' + todayD + '日';
+  }
+
+  document.getElementById('prev').addEventListener('click', function() {
+    viewMonth--;
+    if (viewMonth < 0) { viewMonth = 11; viewYear--; }
+    render();
+  });
+
+  document.getElementById('next').addEventListener('click', function() {
+    viewMonth++;
+    if (viewMonth > 11) { viewMonth = 0; viewYear++; }
+    render();
+  });
+
+  render();
+</script>
+</body>
+</html>

@@ -8,11 +8,44 @@
     body {
       font-family: sans-serif;
       display: flex;
-      justify-content: center;
-      padding: 2rem;
+      flex-direction: column;
+      align-items: center;
+      padding: 0;
       background: #f5f5f5;
     }
+    .month-nav {
+      display: flex;
+      width: 100%;
+      overflow-x: auto;
+      background: #fff;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      flex-shrink: 0;
+    }
+    .month-nav button {
+      flex: 0 0 auto;
+      height: 80px;
+      padding: 0 1rem;
+      border: none;
+      border-right: 1px solid #e0e0e0;
+      background: #fff;
+      cursor: pointer;
+      font-size: 0.9rem;
+      white-space: nowrap;
+      transition: background 0.2s;
+    }
+    .month-nav button:hover {
+      background: #e8e8e8;
+    }
+    .month-nav button.active {
+      background: #3a7bd5;
+      color: #fff;
+      font-weight: bold;
+    }
+    .month-nav button.active:hover {
+      background: #2a5fbf;
+    }
     .calendar {
+      margin-top: 1.5rem;
       background: #fff;
       border-radius: 8px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.15);
@@ -129,6 +162,7 @@
   </style>
 </head>
 <body>
+<div class="month-nav" id="month-nav"></div>
 <div class="calendar">
   <div class="calendar-header">
     <button id="prev">&lt;</button>
@@ -151,6 +185,45 @@
   const now = new Date();
   let viewYear  = now.getFullYear();
   let viewMonth = now.getMonth(); // 0-indexed
+
+  // 月ナビゲーションバーの構築（アクセス当月から6ヶ月前〜6ヶ月後の13ヶ月分）
+  function buildMonthNav() {
+    const nav = document.getElementById('month-nav');
+    nav.innerHTML = '';
+    const baseYear = now.getFullYear();
+    const baseMonth = now.getMonth();
+    for (let i = -6; i <= 6; i++) {
+      let y = baseYear;
+      let m = baseMonth + i;
+      while (m < 0) { m += 12; y--; }
+      while (m > 11) { m -= 12; y++; }
+      const btn = document.createElement('button');
+      btn.textContent = y + '年' + String(m + 1).padStart(2, '0') + '月';
+      btn.dataset.year = y;
+      btn.dataset.month = m;
+      btn.addEventListener('click', function() {
+        viewYear = parseInt(this.dataset.year);
+        viewMonth = parseInt(this.dataset.month);
+        render();
+      });
+      nav.appendChild(btn);
+    }
+  }
+
+  // 月ナビゲーションのアクティブ状態を更新
+  function updateMonthNavActive() {
+    const nav = document.getElementById('month-nav');
+    const buttons = nav.querySelectorAll('button');
+    buttons.forEach(function(btn) {
+      if (parseInt(btn.dataset.year) === viewYear && parseInt(btn.dataset.month) === viewMonth) {
+        btn.classList.add('active');
+      } else {
+        btn.classList.remove('active');
+      }
+    });
+  }
+
+  buildMonthNav();
 
   // スケジュールデータ [{year, month(0-indexed), day, timeRange, desc}]
   let allSchedules = [];
@@ -239,6 +312,8 @@
   }
 
   function render() {
+    updateMonthNavActive();
+
     const today = new Date();
     const todayY = today.getFullYear();
     const todayM = today.getMonth();

@@ -69,12 +69,15 @@
       font-weight: bold;
       border-radius: 50%;
     }
+    td.past-date {
+      background: #e8e8e8;
+    }
     td.has-schedule {
       background: #c8f0d0;
       cursor: pointer;
     }
     td.has-schedule.past {
-      background: #d8d8d8;
+      background: #b0b0b0;
       cursor: pointer;
     }
     td.today.has-schedule {
@@ -293,6 +296,8 @@
           const isPast = (viewYear < todayY) ||
                          (viewYear === todayY && viewMonth < todayM) ||
                          (viewYear === todayY && viewMonth === todayM && date < todayD);
+          // 過去日（1日〜前日）のセル背景を薄い灰色で塗りつぶす
+          if (isPast) td.classList.add('past-date');
           const schedules = scheduleMap[date];
           if (schedules) {
             td.classList.add('has-schedule');

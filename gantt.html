@@ -634,7 +634,7 @@
         var m = months[i];
         html += '<div style="position:absolute;left:' + fmtPct(m.left) + ';width:' + fmtPct(m.width) + ';height:100%;';
         html += 'padding:0 6px;border-right:1px solid rgba(255,255,255,0.25);';
-        html += 'font-size:0.78rem;line-height:34px;overflow:hidden;">' + m.label + '</div>';
+        html += 'font-size:0.78rem;line-height:34px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;">' + m.label + '</div>';
       }
       html += '</th>';
       html += '</tr></tfoot>';
@@ -675,7 +675,7 @@
 
       var defs = [
         { key: 'done',    title: '作業完了者',       color: '#4caf50', empty: '完了したタスクはありません' },
-        { key: 'active',  title: '作業中の担当者',   color: '#2196f3', empty: '作業中のタスクはありません' },
+        { key: 'active',  title: '進行中の担当者',   color: '#2196f3', empty: '進行中のタスクはありません' },
         { key: 'waiting', title: '作業待ちの担当者', color: '#ff9800', empty: '待機中のタスクはありません' }
       ];
 

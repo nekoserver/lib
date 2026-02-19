@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ガントチャート</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: sans-serif;
+      background: #f0f4f8;
+      padding: 1.5rem 1rem;
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 1.5rem;
+      font-size: 1.5rem;
+      color: #2c3e50;
+      letter-spacing: 0.05em;
+    }
+    .gantt-wrapper {
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.12);
+      overflow: hidden;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    .gantt-scroll {
+      overflow-x: auto;
+    }
+    table {
+      border-collapse: collapse;
+      min-width: 750px;
+      width: 100%;
+      table-layout: fixed;
+    }
+    colgroup col.col-name     { width: 150px; }
+    colgroup col.col-assignee { width: 88px; }
+    colgroup col.col-progress { width: 46px; }
+    colgroup col.col-chart    { width: auto; }
+
+    thead th {
+      background: #3a7bd5;
+      color: #fff;
+      font-size: 0.82rem;
+      border-right: 1px solid rgba(255,255,255,0.2);
+      white-space: nowrap;
+      overflow: hidden;
+    }
+    /* month row */
+    .th-month {
+      padding: 0;
+      height: 26px;
+      position: relative;
+      overflow: hidden;
+    }
+    /* week row */
+    .th-week {
+      padding: 0;
+      height: 20px;
+      background: #e8eef8;
+      position: relative;
+      overflow: hidden;
+    }
+    .th-label {
+      padding: 0.5rem 0.6rem;
+      text-align: left;
+    }
+    .th-label-center {
+      padding: 0.5rem 0.3rem;
+      text-align: center;
+    }
+
+    tbody tr {
+      border-bottom: 1px solid #eee;
+    }
+    tbody tr:nth-child(even) {
+      background: #fafafa;
+    }
+    tbody tr:hover {
+      background: #eef3fc;
+    }
+    td {
+      padding: 0.45rem 0.6rem;
+      vertical-align: middle;
+      font-size: 0.84rem;
+      color: #333;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+    .td-chart {
+      padding: 0.3rem 0;
+      position: relative;
+      overflow: visible;
+    }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem 1.2rem;
+      padding: 0.7rem 1rem;
+      border-top: 1px solid #eee;
+      font-size: 0.78rem;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+      color: #555;
+    }
+    .legend-dot {
+      width: 14px;
+      height: 14px;
+      border-radius: 3px;
+      flex-shrink: 0;
+    }
+    .legend-line {
+      width: 3px;
+      height: 14px;
+      flex-shrink: 0;
+    }
+  </style>
+</head>
+<body>
+  <h1>ガントチャート</h1>
+  <div class="gantt-wrapper">
+    <div class="gantt-scroll" id="gantt-scroll">
+      <p style="padding:2rem;color:#aaa;text-align:center;">読み込み中...</p>
+    </div>
+    <div class="legend">
+      <div class="legend-item"><div class="legend-dot" style="background:#27ae60;"></div>完了 (100%)</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#2980b9;"></div>進行中 (51-99%)</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#f39c12;"></div>作業中 (21-50%)</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#e74c3c;"></div>開始済 (1-20%)</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#bdc3c7;"></div>未着手 (0%)</div>
+      <div class="legend-item"><div class="legend-line" style="background:#e74c3c;"></div>今日</div>
+    </div>
+  </div>
+
+  <script>
+    async function loadGantt() {
+      try {
+        var resp = await fetch('gantt.txt');
+        if (!resp.ok) throw new Error('HTTP ' + resp.status);
+        var text = await resp.text();
+        return parseGantt(text);
+      } catch (e) {
+        document.getElementById('gantt-scroll').innerHTML =
+          '<p style="padding:2rem;color:#c0392b;text-align:center;">gantt.txt の読み込みに失敗しました: ' + e.message + '</p>';
+        return null;
+      }
+    }
+
+    function parseGantt(text) {
+      var tasks = [];
+      var lines = text.split('\n');
+      for (var i = 0; i < lines.length; i++) {
+        var t = lines[i].trim();
+        if (!t || t.charAt(0) === '#') continue;
+        var parts = t.split(',');
+        if (parts.length < 5) continue;
+        var name       = parts[0].trim();
+        var assignee   = parts[1].trim();
+        var startStr   = parts[2].trim();
+        var endStr     = parts[3].trim();
+        var progressStr = parts[4].trim();
+        var start = new Date(startStr + 'T00:00:00');
+        var end   = new Date(endStr   + 'T00:00:00');
+        var progress = Math.max(0, Math.min(100, parseInt(progressStr, 10) || 0));
+        if (isNaN(start.getTime()) || isNaN(end.getTime())) continue;
+        tasks.push({ name: name, assignee: assignee, start: start, end: end, progress: progress });
+      }
+      return tasks;
+    }
+
+    function barColor(p) {
+      if (p >= 100) return '#27ae60';
+      if (p >= 51)  return '#2980b9';
+      if (p >= 21)  return '#f39c12';
+      if (p >= 1)   return '#e74c3c';
+      return '#bdc3c7';
+    }
+
+    function addDays(d, n) {
+      return new Date(d.getTime() + n * 86400000);
+    }
+
+    function fmtPct(v) {
+      return v.toFixed(2) + '%';
+    }
+
+    function renderGantt(tasks) {
+      if (!tasks || tasks.length === 0) {
+        document.getElementById('gantt-scroll').innerHTML =
+          '<p style="padding:2rem;color:#aaa;text-align:center;">データがありません</p>';
+        return;
+      }
+
+      var today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      // Compute overall date range
+      var minDate = tasks[0].start;
+      var maxDate = tasks[0].end;
+      for (var i = 1; i < tasks.length; i++) {
+        if (tasks[i].start < minDate) minDate = tasks[i].start;
+        if (tasks[i].end   > maxDate) maxDate = tasks[i].end;
+      }
+
+      // Snap minDate back to nearest Sunday, add padding
+      minDate = addDays(minDate, -minDate.getDay() - 2);
+      maxDate = addDays(maxDate, 7 - maxDate.getDay() + 2);
+
+      var totalMs = maxDate - minDate;
+
+      function pct(d) {
+        return (d - minDate) / totalMs * 100;
+      }
+
+      // Month labels
+      var months = [];
+      var cur = new Date(minDate.getFullYear(), minDate.getMonth(), 1);
+      while (cur < maxDate) {
+        var mEnd = new Date(cur.getFullYear(), cur.getMonth() + 1, 1);
+        var from = Math.max(minDate.getTime(), cur.getTime());
+        var to   = Math.min(maxDate.getTime(), mEnd.getTime());
+        if (from < to) {
+          months.push({
+            label: cur.getFullYear() + '年' + (cur.getMonth() + 1) + '月',
+            left:  pct(new Date(from)),
+            width: (to - from) / totalMs * 100
+          });
+        }
+        cur = mEnd;
+      }
+
+      // Week labels (Sundays)
+      var weeks = [];
+      var wDate = new Date(minDate);
+      while (wDate < maxDate) {
+        weeks.push({
+          label: (wDate.getMonth() + 1) + '/' + wDate.getDate(),
+          left:  pct(wDate)
+        });
+        wDate = addDays(wDate, 7);
+      }
+
+      var todayPct   = pct(today);
+      var showToday  = todayPct >= 0 && todayPct <= 100;
+
+      // --- Build HTML ---
+      var html = '';
+      html += '<table>';
+      html += '<colgroup>';
+      html += '<col class="col-name">';
+      html += '<col class="col-assignee">';
+      html += '<col class="col-progress">';
+      html += '<col class="col-chart">';
+      html += '</colgroup>';
+
+      // thead — row 1: column labels + month header
+      html += '<thead><tr>';
+      html += '<th class="th-label" rowspan="2">タスク</th>';
+      html += '<th class="th-label-center" rowspan="2">担当者</th>';
+      html += '<th class="th-label-center" rowspan="2">進捗</th>';
+
+      // month header cell
+      html += '<th class="th-month">';
+      for (var i = 0; i < months.length; i++) {
+        var m = months[i];
+        html += '<div style="position:absolute;left:' + fmtPct(m.left) + ';width:' + fmtPct(m.width) + ';height:100%;';
+        html += 'padding:0 6px;border-right:1px solid rgba(255,255,255,0.25);';
+        html += 'font-size:0.78rem;line-height:26px;overflow:hidden;">' + m.label + '</div>';
+      }
+      html += '</th>';
+      html += '</tr>';
+
+      // thead — row 2: week header
+      html += '<tr>';
+      html += '<th class="th-week">';
+      for (var i = 0; i < weeks.length; i++) {
+        var w = weeks[i];
+        html += '<div style="position:absolute;left:' + fmtPct(w.left) + ';height:100%;';
+        html += 'border-left:1px solid #b0bcd0;padding-left:3px;';
+        html += 'font-size:0.68rem;line-height:20px;color:#446;white-space:nowrap;">' + w.label + '</div>';
+      }
+      if (showToday) {
+        html += '<div style="position:absolute;left:' + fmtPct(todayPct) + ';top:0;bottom:0;width:2px;background:#e74c3c;z-index:5;"></div>';
+      }
+      html += '</th>';
+      html += '</tr>';
+      html += '</thead>';
+
+      // tbody
+      html += '<tbody>';
+      for (var i = 0; i < tasks.length; i++) {
+        var task  = tasks[i];
+        var barL  = pct(task.start);
+        var barR  = pct(addDays(task.end, 1));
+        var barW  = Math.max(0, barR - barL);
+        var fillW = barW * task.progress / 100;
+        var color = barColor(task.progress);
+
+        html += '<tr>';
+        html += '<td style="font-weight:600;">' + task.name + '</td>';
+        html += '<td style="color:#666;text-align:center;font-size:0.78rem;">' + task.assignee + '</td>';
+        html += '<td style="text-align:center;font-size:0.78rem;">' + task.progress + '%</td>';
+
+        html += '<td class="td-chart">';
+        html += '<div style="position:relative;height:26px;">';
+
+        // Week grid lines
+        for (var j = 0; j < weeks.length; j++) {
+          html += '<div style="position:absolute;left:' + fmtPct(weeks[j].left) + ';top:0;bottom:0;width:1px;background:#eef0f4;"></div>';
+        }
+
+        // Today line
+        if (showToday) {
+          html += '<div style="position:absolute;left:' + fmtPct(todayPct) + ';top:0;bottom:0;width:2px;background:#e74c3c;z-index:5;"></div>';
+        }
+
+        // Background bar (gray — full task duration)
+        html += '<div style="position:absolute;left:' + fmtPct(barL) + ';width:' + fmtPct(barW) + ';top:3px;height:20px;background:#dde2e8;border-radius:4px;overflow:hidden;">';
+
+        // Filled progress bar
+        if (task.progress > 0) {
+          html += '<div style="width:' + fmtPct(fillW / barW * 100) + ';height:100%;background:' + color + ';border-radius:4px;"></div>';
+        }
+        html += '</div>';
+
+        // Label (task name over the bar)
+        if (barW > 3) {
+          html += '<div style="position:absolute;left:' + fmtPct(barL) + ';width:' + fmtPct(barW) + ';top:3px;height:20px;';
+          html += 'line-height:20px;text-align:center;font-size:0.7rem;font-weight:700;';
+          html += 'color:#fff;text-shadow:0 1px 3px rgba(0,0,0,0.65);overflow:hidden;pointer-events:none;">';
+          html += task.name;
+          html += '</div>';
+        }
+
+        html += '</div>'; // position:relative
+        html += '</td>';  // td-chart
+        html += '</tr>';
+      }
+      html += '</tbody></table>';
+
+      document.getElementById('gantt-scroll').innerHTML = html;
+    }
+
+    loadGantt().then(renderGantt);
+  </script>
+</body>
+</html>

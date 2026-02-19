@@ -159,6 +159,68 @@
       border: 6px solid transparent;
       border-top-color: #333;
     }
+    .modal-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.4);
+      z-index: 2000;
+      opacity: 0;
+      transition: opacity 0.3s;
+      display: none;
+    }
+    .modal-overlay.visible {
+      opacity: 1;
+    }
+    .modal-content {
+      background: #fff;
+      width: 90%;
+      max-width: 360px;
+      margin: 0 auto;
+      border-radius: 0 0 12px 12px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+      padding: 1.5rem;
+      transform: translateY(-100%);
+      transition: transform 0.3s ease-out;
+    }
+    .modal-overlay.visible .modal-content {
+      transform: translateY(0);
+    }
+    .modal-content h3 {
+      margin: 0 0 1rem;
+      font-size: 1.1rem;
+      color: #333;
+    }
+    .modal-content .schedule-list {
+      margin: 0; padding: 0;
+      list-style: none;
+    }
+    .modal-content .schedule-list li {
+      padding: 0.4rem 0;
+      border-bottom: 1px solid #eee;
+      font-size: 0.9rem;
+      color: #444;
+    }
+    .modal-content .schedule-list li:last-child {
+      border-bottom: none;
+    }
+    .modal-content .no-schedule {
+      color: #999;
+      font-size: 0.9rem;
+    }
+    .modal-content .modal-close {
+      display: block;
+      margin: 1rem auto 0;
+      background: #3a7bd5;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      padding: 0.4rem 1.5rem;
+      font-size: 0.9rem;
+      cursor: pointer;
+    }
+    .modal-content .modal-close:hover {
+      background: #2a5fbf;
+    }
   </style>
 </head>
 <body>
@@ -180,6 +242,13 @@
   <div class="today-label" id="today-label"></div>
 </div>
 <div class="tooltip" id="tooltip"></div>
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal-content">
+    <h3 id="modal-title"></h3>
+    <div id="modal-body"></div>
+    <button class="modal-close" id="modal-close">閉じる</button>
+  </div>
+</div>
 
 <script>
   const now = new Date();
@@ -311,6 +380,47 @@
     tooltip.style.display = 'none';
   }
 
+  var modalOverlay = document.getElementById('modal-overlay');
+  var modalTitle = document.getElementById('modal-title');
+  var modalBody = document.getElementById('modal-body');
+
+  function showModal(year, month, day, schedules) {
+    hideTooltip();
+    modalTitle.textContent = year + '年' + (month + 1) + '月' + day + '日';
+    if (schedules && schedules.length > 0) {
+      var ul = document.createElement('ul');
+      ul.className = 'schedule-list';
+      schedules.forEach(function(s) {
+        var li = document.createElement('li');
+        li.textContent = s;
+        ul.appendChild(li);
+      });
+      modalBody.innerHTML = '';
+      modalBody.appendChild(ul);
+    } else {
+      modalBody.innerHTML = '<p class="no-schedule">予定はありません</p>';
+    }
+    modalOverlay.style.display = 'block';
+    // force reflow then add visible class for animation
+    modalOverlay.offsetHeight;
+    modalOverlay.classList.add('visible');
+  }
+
+  function hideModal() {
+    modalOverlay.classList.remove('visible');
+    setTimeout(function() {
+      modalOverlay.style.display = 'none';
+    }, 300);
+  }
+
+  document.getElementById('modal-close').addEventListener('click', function(e) {
+    e.stopPropagation();
+    hideModal();
+  });
+  modalOverlay.addEventListener('click', function(e) {
+    if (e.target === modalOverlay) hideModal();
+  });
+
   function render() {
     updateMonthNavActive();
 
@@ -379,12 +489,25 @@
           if (schedules) {
             td.classList.add('has-schedule');
             if (isPast) td.classList.add('past');
+          }
+
+          if (isPast && schedules) {
+            // 過去日でスケジュールありはツールチップ表示
             (function(cell, text) {
               cell.addEventListener('click', function(e) {
                 e.stopPropagation();
                 showTooltip(cell, text);
               });
             })(td, schedules.join('\n'));
+          } else if (!isPast) {
+            // 当日以降はモーダル表示（スケジュール有無問わず）
+            td.style.cursor = 'pointer';
+            (function(y, m, d, sched) {
+              td.addEventListener('click', function(e) {
+                e.stopPropagation();
+                showModal(y, m, d, sched || null);
+              });
+            })(viewYear, viewMonth, date, schedules);
           }
 
           date++;

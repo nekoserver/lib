@@ -54,7 +54,7 @@
       height: 34px;
       background: #e8eef8;
       position: relative;
-      overflow: hidden;
+      overflow: visible;
     }
     .th-label {
       padding: 0.5rem 0.6rem;
@@ -78,7 +78,7 @@
       padding: 0;
       height: 34px;
       position: relative;
-      overflow: hidden;
+      overflow: visible;
     }
 
     /* ---- Body ---- */
@@ -329,12 +329,12 @@
     <div class="legend">
       <div class="legend-item"><div class="legend-dot" style="background:#27ae60;"></div>完了 (100%)</div>
       <div class="legend-item"><div class="legend-dot" style="background:#2980b9;"></div>進行中 (51-99%)</div>
-      <div class="legend-item"><div class="legend-dot" style="background:#f39c12;"></div>作業中 (21-50%)</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#f39c12;"></div>進行中 (21-50%)</div>
       <div class="legend-item"><div class="legend-dot" style="background:#e74c3c;"></div>開始済 (1-20%)</div>
       <div class="legend-item"><div class="legend-dot" style="background:#bdc3c7;"></div>未着手 (0%)</div>
       <div class="legend-item"><div class="legend-line" style="background:#e74c3c;"></div>今日</div>
       <div class="legend-item"><div class="legend-dot" style="background:#e8f5e9;border:1px solid #c8e6c9;"></div>完了者</div>
-      <div class="legend-item"><div class="legend-dot" style="background:#e3f2fd;border:1px solid #bbdefb;"></div>作業中</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#e3f2fd;border:1px solid #bbdefb;"></div>進行中</div>
       <div class="legend-item"><div class="legend-dot" style="background:#fff8e1;border:1px solid #ffecb3;"></div>待ち</div>
     </div>
   </div>
@@ -634,7 +634,7 @@
         var m = months[i];
         html += '<div style="position:absolute;left:' + fmtPct(m.left) + ';width:' + fmtPct(m.width) + ';height:100%;';
         html += 'padding:0 6px;border-right:1px solid rgba(255,255,255,0.25);';
-        html += 'font-size:0.78rem;line-height:34px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;">' + m.label + '</div>';
+        html += 'font-size:0.78rem;line-height:34px;overflow:visible;white-space:nowrap;">' + m.label + '</div>';
       }
       html += '</th>';
       html += '</tr></tfoot>';

@@ -91,7 +91,7 @@
       text-overflow: ellipsis;
     }
     .td-chart {
-      padding: 0.3rem 0;
+      padding: 0.25rem 0 0.2rem;
       position: relative;
       overflow: visible;
     }
@@ -131,57 +131,105 @@
       border: 1px solid #d0d8e8;
       border-radius: 10px;
       box-shadow: 0 6px 24px rgba(0,0,0,0.18);
-      padding: 1rem 1.1rem 0.9rem;
-      max-width: 320px;
-      min-width: 220px;
+      padding: 0.9rem 1rem 0.85rem;
+      width: 300px;
       font-size: 0.83rem;
       color: #333;
       pointer-events: auto;
     }
+    .tt-close {
+      position: absolute;
+      top: 0.45rem;
+      right: 0.55rem;
+      background: none;
+      border: none;
+      font-size: 1.1rem;
+      color: #bbb;
+      cursor: pointer;
+      line-height: 1;
+      padding: 0.1rem 0.3rem;
+    }
+    .tt-close:hover { color: #444; }
     .tt-header {
-      font-size: 1rem;
+      font-size: 0.95rem;
       font-weight: 700;
       color: #2c3e50;
-      margin-bottom: 0.55rem;
-      padding-right: 1.4rem;
-    }
-    .tt-row {
-      display: flex;
-      gap: 0.4rem;
-      margin-bottom: 0.25rem;
-      line-height: 1.4;
-    }
-    .tt-label {
-      color: #888;
+      margin-bottom: 0.6rem;
+      padding-right: 1.6rem;
       white-space: nowrap;
-      flex-shrink: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
-    .tt-label::after { content: ':'; }
+    /* 2-column grid for meta: fixed label column, value column fills rest */
+    .tt-meta {
+      display: grid;
+      grid-template-columns: 4.4em 1fr;
+      gap: 0.22rem 0.4rem;
+      align-items: start;
+      margin-bottom: 0.65rem;
+    }
+    .tt-meta-label {
+      color: #999;
+      font-size: 0.76rem;
+      padding-top: 0.12rem;
+      white-space: nowrap;
+    }
+    .tt-meta-val {
+      color: #333;
+      font-size: 0.82rem;
+      line-height: 1.4;
+      word-break: break-all;
+    }
+    /* inline progress bar inside tooltip */
+    .tt-pbar-wrap {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+    .tt-pbar {
+      flex: 1;
+      height: 6px;
+      background: #e8eef8;
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    .tt-pbar-fill {
+      height: 100%;
+      border-radius: 3px;
+    }
+    .tt-pbar-num {
+      font-size: 0.78rem;
+      color: #555;
+      white-space: nowrap;
+    }
     .tt-divider {
       border: none;
       border-top: 1px solid #eee;
-      margin: 0.55rem 0;
+      margin: 0.6rem 0;
     }
     .tt-desc {
+      font-size: 0.81rem;
       line-height: 1.6;
       color: #444;
-      margin-bottom: 0.55rem;
+      margin-bottom: 0.6rem;
     }
     .tt-section {
       font-weight: 700;
-      font-size: 0.78rem;
+      font-size: 0.75rem;
       color: #3a7bd5;
-      margin-bottom: 0.25rem;
+      margin-bottom: 0.22rem;
+      letter-spacing: 0.03em;
     }
     .tt-list {
       list-style: none;
       padding: 0;
-      margin: 0 0 0.5rem;
+      margin: 0 0 0.55rem;
     }
     .tt-list li {
       padding-left: 1em;
       position: relative;
       line-height: 1.5;
+      font-size: 0.80rem;
       color: #555;
     }
     .tt-list li::before {
@@ -191,37 +239,22 @@
       color: #3a7bd5;
     }
     .tt-notes {
-      font-size: 0.78rem;
+      font-size: 0.76rem;
       color: #777;
       background: #f7f9fc;
       border-left: 3px solid #3a7bd5;
-      padding: 0.35rem 0.5rem;
+      padding: 0.3rem 0.5rem;
       border-radius: 0 4px 4px 0;
-      line-height: 1.5;
-      margin-top: 0.4rem;
+      line-height: 1.55;
     }
-    .tt-close {
-      position: absolute;
-      top: 0.5rem;
-      right: 0.6rem;
-      background: none;
-      border: none;
-      font-size: 1.1rem;
-      color: #aaa;
-      cursor: pointer;
-      line-height: 1;
-      padding: 0.1rem 0.3rem;
-    }
-    .tt-close:hover { color: #333; }
+
+    /* bar hit area */
     .bar-hit {
       position: absolute;
       top: 0;
       height: 26px;
       cursor: pointer;
       z-index: 10;
-    }
-    .bar-hit:hover ~ .bar-bg {
-      filter: brightness(1.08);
     }
   </style>
 </head>
@@ -254,8 +287,8 @@
         fetch('gantt.txt'),
         fetch('gantt_details.json')
       ]);
-      if (!ganttResp.ok)   throw new Error('gantt.txt の読み込みに失敗しました (HTTP ' + ganttResp.status + ')');
-      if (!detailResp.ok)  throw new Error('gantt_details.json の読み込みに失敗しました (HTTP ' + detailResp.status + ')');
+      if (!ganttResp.ok)  throw new Error('gantt.txt の読み込みに失敗しました (HTTP ' + ganttResp.status + ')');
+      if (!detailResp.ok) throw new Error('gantt_details.json の読み込みに失敗しました (HTTP ' + detailResp.status + ')');
 
       var text    = await ganttResp.text();
       var details = await detailResp.json();
@@ -307,16 +340,36 @@
       return d.getFullYear() + '/' + (d.getMonth() + 1) + '/' + d.getDate();
     }
 
+    function escHtml(s) {
+      return String(s)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
     // ---- Tooltip ----
     function showTooltip(task, detail, clientX, clientY) {
-      var tt = document.getElementById('gantt-tooltip');
+      var tt  = document.getElementById('gantt-tooltip');
+      var dur = Math.round((task.end - task.start) / 86400000) + 1;
+      var col = barColor(task.progress);
 
-      var duration = Math.round((task.end - task.start) / 86400000) + 1;
       var html = '<button class="tt-close" id="tt-close-btn">×</button>';
       html += '<div class="tt-header">' + escHtml(task.name) + '</div>';
-      html += '<div class="tt-row"><span class="tt-label">担当者</span><span>' + escHtml(task.assignee) + '</span></div>';
-      html += '<div class="tt-row"><span class="tt-label">期間</span><span>' + fmtDate(task.start) + ' 〜 ' + fmtDate(task.end) + '（' + duration + '日）</span></div>';
-      html += '<div class="tt-row"><span class="tt-label">進捗</span><span>' + task.progress + '%</span></div>';
+
+      // 2-column grid for metadata — labels always appear at the same column positions
+      html += '<div class="tt-meta">';
+      html += '<span class="tt-meta-label">担当者</span>';
+      html += '<span class="tt-meta-val">' + escHtml(task.assignee) + '</span>';
+      html += '<span class="tt-meta-label">期間</span>';
+      html += '<span class="tt-meta-val">' + fmtDate(task.start) + '&thinsp;〜&thinsp;' + fmtDate(task.end) + '&ensp;(' + dur + '日)</span>';
+      html += '<span class="tt-meta-label">進捗</span>';
+      html += '<span class="tt-meta-val">';
+      html += '<div class="tt-pbar-wrap">';
+      html += '<div class="tt-pbar"><div class="tt-pbar-fill" style="width:' + task.progress + '%;background:' + col + ';"></div></div>';
+      html += '<span class="tt-pbar-num">' + task.progress + '%</span>';
+      html += '</div></span>';
+      html += '</div>'; // .tt-meta
 
       if (detail) {
         html += '<hr class="tt-divider">';
@@ -342,34 +395,26 @@
         hideTooltip();
       });
 
-      // Position: near the tap point, within viewport
+      // Position within viewport
       var vpW = window.innerWidth;
       var vpH = window.innerHeight;
       tt.style.left = '0';
       tt.style.top  = '0';
       var ttW = tt.offsetWidth;
       var ttH = tt.offsetHeight;
-      var margin = 12;
-      var x = clientX + margin;
-      var y = clientY + margin;
-      if (x + ttW > vpW - margin) x = clientX - ttW - margin;
-      if (x < margin) x = margin;
-      if (y + ttH > vpH - margin) y = clientY - ttH - margin;
-      if (y < margin) y = margin;
+      var mg  = 12;
+      var x = clientX + mg;
+      var y = clientY + mg;
+      if (x + ttW > vpW - mg) x = clientX - ttW - mg;
+      if (x < mg) x = mg;
+      if (y + ttH > vpH - mg) y = clientY - ttH - mg;
+      if (y < mg) y = mg;
       tt.style.left = x + 'px';
       tt.style.top  = y + 'px';
     }
 
     function hideTooltip() {
       document.getElementById('gantt-tooltip').style.display = 'none';
-    }
-
-    function escHtml(s) {
-      return String(s)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
     }
 
     // ---- Render ----
@@ -432,21 +477,16 @@
       var showToday = todayPct >= 0 && todayPct <= 100;
 
       // --- Build HTML ---
-      var html = '';
-      html += '<table>';
+      var html = '<table>';
       html += '<colgroup>';
-      html += '<col class="col-name">';
-      html += '<col class="col-assignee">';
-      html += '<col class="col-progress">';
-      html += '<col class="col-chart">';
+      html += '<col class="col-name"><col class="col-assignee"><col class="col-progress"><col class="col-chart">';
       html += '</colgroup>';
 
-      // thead — row 1: column labels + month header
+      // thead row 1: column labels + month header
       html += '<thead><tr>';
       html += '<th class="th-label" rowspan="2">タスク</th>';
       html += '<th class="th-label-center" rowspan="2">担当者</th>';
       html += '<th class="th-label-center" rowspan="2">進捗</th>';
-
       html += '<th class="th-month">';
       for (var i = 0; i < months.length; i++) {
         var m = months[i];
@@ -454,12 +494,10 @@
         html += 'padding:0 6px;border-right:1px solid rgba(255,255,255,0.25);';
         html += 'font-size:0.78rem;line-height:38px;overflow:hidden;">' + m.label + '</div>';
       }
-      html += '</th>';
-      html += '</tr>';
+      html += '</th></tr>';
 
-      // thead — row 2: week header
-      html += '<tr>';
-      html += '<th class="th-week">';
+      // thead row 2: week header
+      html += '<tr><th class="th-week">';
       for (var i = 0; i < weeks.length; i++) {
         var w = weeks[i];
         html += '<div style="position:absolute;left:' + fmtPct(w.left) + ';height:100%;';
@@ -469,11 +507,9 @@
       if (showToday) {
         html += '<div style="position:absolute;left:' + fmtPct(todayPct) + ';top:0;bottom:0;width:2px;background:#e74c3c;z-index:5;"></div>';
       }
-      html += '</th>';
-      html += '</tr>';
-      html += '</thead>';
+      html += '</th></tr></thead>';
 
-      // tbody
+      // tbody — chart cell height: 26px bar zone + 16px label zone below = 42px total inner
       html += '<tbody>';
       for (var i = 0; i < tasks.length; i++) {
         var task  = tasks[i];
@@ -489,35 +525,36 @@
         html += '<td style="text-align:center;font-size:0.78rem;">' + task.progress + '%</td>';
 
         html += '<td class="td-chart">';
-        html += '<div style="position:relative;height:26px;">';
+        // container: 26px for bar + 16px for task-name label below = 42px
+        html += '<div style="position:relative;height:42px;">';
 
-        // Week grid lines
+        // Week grid lines (full height)
         for (var j = 0; j < weeks.length; j++) {
           html += '<div style="position:absolute;left:' + fmtPct(weeks[j].left) + ';top:0;bottom:0;width:1px;background:#eef0f4;"></div>';
         }
 
-        // Today line
+        // Today line (full height)
         if (showToday) {
           html += '<div style="position:absolute;left:' + fmtPct(todayPct) + ';top:0;bottom:0;width:2px;background:#e74c3c;z-index:5;"></div>';
         }
 
-        // Background bar (gray — full task duration)
-        html += '<div class="bar-bg" style="position:absolute;left:' + fmtPct(barL) + ';width:' + fmtPct(barW) + ';top:3px;height:20px;background:#dde2e8;border-radius:4px;overflow:hidden;">';
+        // Background bar (top zone: 0–26px, bar itself: top:3px height:20px)
+        html += '<div style="position:absolute;left:' + fmtPct(barL) + ';width:' + fmtPct(barW) + ';top:3px;height:20px;background:#dde2e8;border-radius:4px;overflow:hidden;">';
         if (task.progress > 0) {
           html += '<div style="width:' + fmtPct(fillW / barW * 100) + ';height:100%;background:' + color + ';border-radius:4px;"></div>';
         }
         html += '</div>';
 
-        // Label (task name over the bar)
-        if (barW > 3) {
-          html += '<div style="position:absolute;left:' + fmtPct(barL) + ';width:' + fmtPct(barW) + ';top:3px;height:20px;';
-          html += 'line-height:20px;text-align:center;font-size:0.7rem;font-weight:700;';
-          html += 'color:#fff;text-shadow:0 1px 3px rgba(0,0,0,0.65);overflow:hidden;pointer-events:none;">';
+        // Task-name label BELOW the bar (top:26px, 16px height) — no longer overlaps bar/header dates
+        if (barW > 2) {
+          html += '<div style="position:absolute;left:' + fmtPct(barL) + ';width:' + fmtPct(barW) + ';top:26px;height:16px;';
+          html += 'line-height:16px;text-align:center;font-size:0.67rem;font-weight:600;';
+          html += 'color:#556;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;pointer-events:none;">';
           html += escHtml(task.name);
           html += '</div>';
         }
 
-        // Transparent hit area for tap/click (covers the full bar)
+        // Transparent hit area covering the bar zone (top:0 height:26px)
         html += '<div class="bar-hit" data-task-idx="' + i + '" style="left:' + fmtPct(barL) + ';width:' + fmtPct(barW) + ';"></div>';
 
         html += '</div>'; // position:relative
@@ -531,8 +568,8 @@
       // Attach events to hit areas
       document.querySelectorAll('.bar-hit').forEach(function(el) {
         function onActivate(clientX, clientY) {
-          var idx = parseInt(el.dataset.taskIdx, 10);
-          var task = allTasks[idx];
+          var idx    = parseInt(el.dataset.taskIdx, 10);
+          var task   = allTasks[idx];
           var detail = detailsMap[task.name] || null;
           showTooltip(task, detail, clientX, clientY);
         }
@@ -548,7 +585,7 @@
       });
     }
 
-    // Close tooltip when tapping outside
+    // Close tooltip on outside click
     document.addEventListener('click', function(e) {
       var tt = document.getElementById('gantt-tooltip');
       if (tt.style.display !== 'none' && !tt.contains(e.target)) {
@@ -561,14 +598,6 @@
       document.getElementById('gantt-scroll').innerHTML =
         '<p style="padding:2rem;color:#c0392b;text-align:center;">' + escHtml(e.message) + '</p>';
     });
-
-    function escHtml(s) {
-      return String(s)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
-    }
   </script>
 </body>
 </html>

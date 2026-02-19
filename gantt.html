@@ -121,6 +121,108 @@
       height: 14px;
       flex-shrink: 0;
     }
+
+    /* ---- Tooltip ---- */
+    #gantt-tooltip {
+      display: none;
+      position: fixed;
+      z-index: 1000;
+      background: #fff;
+      border: 1px solid #d0d8e8;
+      border-radius: 10px;
+      box-shadow: 0 6px 24px rgba(0,0,0,0.18);
+      padding: 1rem 1.1rem 0.9rem;
+      max-width: 320px;
+      min-width: 220px;
+      font-size: 0.83rem;
+      color: #333;
+      pointer-events: auto;
+    }
+    .tt-header {
+      font-size: 1rem;
+      font-weight: 700;
+      color: #2c3e50;
+      margin-bottom: 0.55rem;
+      padding-right: 1.4rem;
+    }
+    .tt-row {
+      display: flex;
+      gap: 0.4rem;
+      margin-bottom: 0.25rem;
+      line-height: 1.4;
+    }
+    .tt-label {
+      color: #888;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .tt-label::after { content: ':'; }
+    .tt-divider {
+      border: none;
+      border-top: 1px solid #eee;
+      margin: 0.55rem 0;
+    }
+    .tt-desc {
+      line-height: 1.6;
+      color: #444;
+      margin-bottom: 0.55rem;
+    }
+    .tt-section {
+      font-weight: 700;
+      font-size: 0.78rem;
+      color: #3a7bd5;
+      margin-bottom: 0.25rem;
+    }
+    .tt-list {
+      list-style: none;
+      padding: 0;
+      margin: 0 0 0.5rem;
+    }
+    .tt-list li {
+      padding-left: 1em;
+      position: relative;
+      line-height: 1.5;
+      color: #555;
+    }
+    .tt-list li::before {
+      content: '▸';
+      position: absolute;
+      left: 0;
+      color: #3a7bd5;
+    }
+    .tt-notes {
+      font-size: 0.78rem;
+      color: #777;
+      background: #f7f9fc;
+      border-left: 3px solid #3a7bd5;
+      padding: 0.35rem 0.5rem;
+      border-radius: 0 4px 4px 0;
+      line-height: 1.5;
+      margin-top: 0.4rem;
+    }
+    .tt-close {
+      position: absolute;
+      top: 0.5rem;
+      right: 0.6rem;
+      background: none;
+      border: none;
+      font-size: 1.1rem;
+      color: #aaa;
+      cursor: pointer;
+      line-height: 1;
+      padding: 0.1rem 0.3rem;
+    }
+    .tt-close:hover { color: #333; }
+    .bar-hit {
+      position: absolute;
+      top: 0;
+      height: 26px;
+      cursor: pointer;
+      z-index: 10;
+    }
+    .bar-hit:hover ~ .bar-bg {
+      filter: brightness(1.08);
+    }
   </style>
 </head>
 <body>
@@ -139,18 +241,27 @@
     </div>
   </div>
 
+  <!-- Tooltip -->
+  <div id="gantt-tooltip"></div>
+
   <script>
-    async function loadGantt() {
-      try {
-        var resp = await fetch('gantt.txt');
-        if (!resp.ok) throw new Error('HTTP ' + resp.status);
-        var text = await resp.text();
-        return parseGantt(text);
-      } catch (e) {
-        document.getElementById('gantt-scroll').innerHTML =
-          '<p style="padding:2rem;color:#c0392b;text-align:center;">gantt.txt の読み込みに失敗しました: ' + e.message + '</p>';
-        return null;
-      }
+    var allTasks   = [];
+    var detailsMap = {};
+
+    // ---- Data loading ----
+    async function loadAll() {
+      var [ganttResp, detailResp] = await Promise.all([
+        fetch('gantt.txt'),
+        fetch('gantt_details.json')
+      ]);
+      if (!ganttResp.ok)   throw new Error('gantt.txt の読み込みに失敗しました (HTTP ' + ganttResp.status + ')');
+      if (!detailResp.ok)  throw new Error('gantt_details.json の読み込みに失敗しました (HTTP ' + detailResp.status + ')');
+
+      var text    = await ganttResp.text();
+      var details = await detailResp.json();
+
+      details.forEach(function(d) { detailsMap[d.name] = d; });
+      return parseGantt(text);
     }
 
     function parseGantt(text) {
@@ -161,10 +272,10 @@
         if (!t || t.charAt(0) === '#') continue;
         var parts = t.split(',');
         if (parts.length < 5) continue;
-        var name       = parts[0].trim();
-        var assignee   = parts[1].trim();
-        var startStr   = parts[2].trim();
-        var endStr     = parts[3].trim();
+        var name        = parts[0].trim();
+        var assignee    = parts[1].trim();
+        var startStr    = parts[2].trim();
+        var endStr      = parts[3].trim();
         var progressStr = parts[4].trim();
         var start = new Date(startStr + 'T00:00:00');
         var end   = new Date(endStr   + 'T00:00:00');
@@ -175,6 +286,7 @@
       return tasks;
     }
 
+    // ---- Helpers ----
     function barColor(p) {
       if (p >= 100) return '#27ae60';
       if (p >= 51)  return '#2980b9';
@@ -191,7 +303,78 @@
       return v.toFixed(2) + '%';
     }
 
+    function fmtDate(d) {
+      return d.getFullYear() + '/' + (d.getMonth() + 1) + '/' + d.getDate();
+    }
+
+    // ---- Tooltip ----
+    function showTooltip(task, detail, clientX, clientY) {
+      var tt = document.getElementById('gantt-tooltip');
+
+      var duration = Math.round((task.end - task.start) / 86400000) + 1;
+      var html = '<button class="tt-close" id="tt-close-btn">×</button>';
+      html += '<div class="tt-header">' + escHtml(task.name) + '</div>';
+      html += '<div class="tt-row"><span class="tt-label">担当者</span><span>' + escHtml(task.assignee) + '</span></div>';
+      html += '<div class="tt-row"><span class="tt-label">期間</span><span>' + fmtDate(task.start) + ' 〜 ' + fmtDate(task.end) + '（' + duration + '日）</span></div>';
+      html += '<div class="tt-row"><span class="tt-label">進捗</span><span>' + task.progress + '%</span></div>';
+
+      if (detail) {
+        html += '<hr class="tt-divider">';
+        html += '<div class="tt-desc">' + escHtml(detail.description) + '</div>';
+        if (detail.deliverables && detail.deliverables.length) {
+          html += '<div class="tt-section">主な成果物</div>';
+          html += '<ul class="tt-list">';
+          detail.deliverables.forEach(function(d) {
+            html += '<li>' + escHtml(d) + '</li>';
+          });
+          html += '</ul>';
+        }
+        if (detail.notes) {
+          html += '<div class="tt-notes">' + escHtml(detail.notes) + '</div>';
+        }
+      }
+
+      tt.innerHTML = html;
+      tt.style.display = 'block';
+
+      document.getElementById('tt-close-btn').addEventListener('click', function(e) {
+        e.stopPropagation();
+        hideTooltip();
+      });
+
+      // Position: near the tap point, within viewport
+      var vpW = window.innerWidth;
+      var vpH = window.innerHeight;
+      tt.style.left = '0';
+      tt.style.top  = '0';
+      var ttW = tt.offsetWidth;
+      var ttH = tt.offsetHeight;
+      var margin = 12;
+      var x = clientX + margin;
+      var y = clientY + margin;
+      if (x + ttW > vpW - margin) x = clientX - ttW - margin;
+      if (x < margin) x = margin;
+      if (y + ttH > vpH - margin) y = clientY - ttH - margin;
+      if (y < margin) y = margin;
+      tt.style.left = x + 'px';
+      tt.style.top  = y + 'px';
+    }
+
+    function hideTooltip() {
+      document.getElementById('gantt-tooltip').style.display = 'none';
+    }
+
+    function escHtml(s) {
+      return String(s)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    // ---- Render ----
     function renderGantt(tasks) {
+      allTasks = tasks;
       if (!tasks || tasks.length === 0) {
         document.getElementById('gantt-scroll').innerHTML =
           '<p style="padding:2rem;color:#aaa;text-align:center;">データがありません</p>';
@@ -201,7 +384,6 @@
       var today = new Date();
       today.setHours(0, 0, 0, 0);
 
-      // Compute overall date range
       var minDate = tasks[0].start;
       var maxDate = tasks[0].end;
       for (var i = 1; i < tasks.length; i++) {
@@ -209,7 +391,6 @@
         if (tasks[i].end   > maxDate) maxDate = tasks[i].end;
       }
 
-      // Snap minDate back to nearest Sunday, add padding
       minDate = addDays(minDate, -minDate.getDay() - 2);
       maxDate = addDays(maxDate, 7 - maxDate.getDay() + 2);
 
@@ -247,8 +428,8 @@
         wDate = addDays(wDate, 7);
       }
 
-      var todayPct   = pct(today);
-      var showToday  = todayPct >= 0 && todayPct <= 100;
+      var todayPct  = pct(today);
+      var showToday = todayPct >= 0 && todayPct <= 100;
 
       // --- Build HTML ---
       var html = '';
@@ -266,7 +447,6 @@
       html += '<th class="th-label-center" rowspan="2">担当者</th>';
       html += '<th class="th-label-center" rowspan="2">進捗</th>';
 
-      // month header cell
       html += '<th class="th-month">';
       for (var i = 0; i < months.length; i++) {
         var m = months[i];
@@ -304,8 +484,8 @@
         var color = barColor(task.progress);
 
         html += '<tr>';
-        html += '<td style="font-weight:600;">' + task.name + '</td>';
-        html += '<td style="color:#666;text-align:center;font-size:0.78rem;">' + task.assignee + '</td>';
+        html += '<td style="font-weight:600;">' + escHtml(task.name) + '</td>';
+        html += '<td style="color:#666;text-align:center;font-size:0.78rem;">' + escHtml(task.assignee) + '</td>';
         html += '<td style="text-align:center;font-size:0.78rem;">' + task.progress + '%</td>';
 
         html += '<td class="td-chart">';
@@ -322,9 +502,7 @@
         }
 
         // Background bar (gray — full task duration)
-        html += '<div style="position:absolute;left:' + fmtPct(barL) + ';width:' + fmtPct(barW) + ';top:3px;height:20px;background:#dde2e8;border-radius:4px;overflow:hidden;">';
-
-        // Filled progress bar
+        html += '<div class="bar-bg" style="position:absolute;left:' + fmtPct(barL) + ';width:' + fmtPct(barW) + ';top:3px;height:20px;background:#dde2e8;border-radius:4px;overflow:hidden;">';
         if (task.progress > 0) {
           html += '<div style="width:' + fmtPct(fillW / barW * 100) + ';height:100%;background:' + color + ';border-radius:4px;"></div>';
         }
@@ -335,9 +513,12 @@
           html += '<div style="position:absolute;left:' + fmtPct(barL) + ';width:' + fmtPct(barW) + ';top:3px;height:20px;';
           html += 'line-height:20px;text-align:center;font-size:0.7rem;font-weight:700;';
           html += 'color:#fff;text-shadow:0 1px 3px rgba(0,0,0,0.65);overflow:hidden;pointer-events:none;">';
-          html += task.name;
+          html += escHtml(task.name);
           html += '</div>';
         }
+
+        // Transparent hit area for tap/click (covers the full bar)
+        html += '<div class="bar-hit" data-task-idx="' + i + '" style="left:' + fmtPct(barL) + ';width:' + fmtPct(barW) + ';"></div>';
 
         html += '</div>'; // position:relative
         html += '</td>';  // td-chart
@@ -346,9 +527,48 @@
       html += '</tbody></table>';
 
       document.getElementById('gantt-scroll').innerHTML = html;
+
+      // Attach events to hit areas
+      document.querySelectorAll('.bar-hit').forEach(function(el) {
+        function onActivate(clientX, clientY) {
+          var idx = parseInt(el.dataset.taskIdx, 10);
+          var task = allTasks[idx];
+          var detail = detailsMap[task.name] || null;
+          showTooltip(task, detail, clientX, clientY);
+        }
+        el.addEventListener('click', function(e) {
+          e.stopPropagation();
+          onActivate(e.clientX, e.clientY);
+        });
+        el.addEventListener('touchend', function(e) {
+          e.preventDefault();
+          var touch = e.changedTouches[0];
+          onActivate(touch.clientX, touch.clientY);
+        });
+      });
     }
 
-    loadGantt().then(renderGantt);
+    // Close tooltip when tapping outside
+    document.addEventListener('click', function(e) {
+      var tt = document.getElementById('gantt-tooltip');
+      if (tt.style.display !== 'none' && !tt.contains(e.target)) {
+        hideTooltip();
+      }
+    });
+
+    // ---- Bootstrap ----
+    loadAll().then(renderGantt).catch(function(e) {
+      document.getElementById('gantt-scroll').innerHTML =
+        '<p style="padding:2rem;color:#c0392b;text-align:center;">' + escHtml(e.message) + '</p>';
+    });
+
+    function escHtml(s) {
+      return String(s)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
   </script>
 </body>
 </html>

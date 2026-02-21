@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>麻雀 4人打ち配牌</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif;
+      background: #1a6b2e;
+      color: #fff;
+      padding: 20px;
+      min-height: 100vh;
+    }
+
+    h1 {
+      text-align: center;
+      font-size: 1.8em;
+      margin-bottom: 6px;
+      text-shadow: 1px 1px 3px rgba(0,0,0,0.5);
+    }
+
+    .subtitle {
+      text-align: center;
+      font-size: 0.85em;
+      color: #c8e6c9;
+      margin-bottom: 24px;
+    }
+
+    .players {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+
+    @media (max-width: 700px) {
+      .players { grid-template-columns: 1fr; }
+    }
+
+    .player-block {
+      background: rgba(0,0,0,0.35);
+      border-radius: 12px;
+      padding: 16px;
+      border: 1px solid rgba(255,255,255,0.15);
+    }
+
+    .player-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .wind-badge {
+      font-size: 1.6em;
+      width: 44px;
+      height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 8px;
+      font-weight: bold;
+      flex-shrink: 0;
+    }
+
+    .wind-east  { background: #c62828; color: #fff; }
+    .wind-south { background: #1565c0; color: #fff; }
+    .wind-west  { background: #2e7d32; color: #fff; }
+    .wind-north { background: #4a148c; color: #fff; }
+
+    .player-info { flex: 1; }
+
+    .player-name {
+      font-size: 1.15em;
+      font-weight: bold;
+    }
+
+    .player-count {
+      font-size: 0.78em;
+      color: #b2dfdb;
+      margin-top: 2px;
+    }
+
+    .hand {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+    }
+
+    .tile {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 42px;
+      height: 58px;
+      background: #fffde7;
+      border-radius: 6px;
+      border: 1px solid #bfa060;
+      font-size: 1.7em;
+      cursor: default;
+      user-select: none;
+      box-shadow: 1px 2px 4px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.8);
+      transition: transform 0.1s;
+      position: relative;
+    }
+
+    .tile:hover { transform: translateY(-4px); }
+
+    /* 東家の最後の牌（ツモ牌）を区別 */
+    .tile.tsumo {
+      border-color: #f9a825;
+      box-shadow: 1px 2px 6px rgba(249,168,37,0.7), inset 0 1px 0 rgba(255,255,255,0.8);
+    }
+
+    .tile.tsumo::after {
+      content: '●';
+      position: absolute;
+      top: 2px;
+      right: 3px;
+      font-size: 0.28em;
+      color: #f9a825;
+    }
+
+    .suit-man  { color: #b71c1c; }
+    .suit-pin  { color: #0d47a1; }
+    .suit-sou  { color: #1b5e20; }
+    .suit-honor { color: #212121; }
+    .suit-chun  { color: #b71c1c; }
+    .suit-hatsu { color: #1b5e20; }
+
+    .tile-label {
+      font-size: 0.6em;
+      color: #757575;
+      text-align: center;
+      margin-top: 4px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 42px;
+    }
+
+    .tile-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .separator {
+      width: 2px;
+      height: 58px;
+      background: rgba(255,255,255,0.25);
+      border-radius: 2px;
+      margin: 0 2px;
+      align-self: center;
+    }
+
+    .actions {
+      text-align: center;
+      margin: 24px 0 10px;
+    }
+
+    button {
+      background: #f9a825;
+      color: #212121;
+      border: none;
+      border-radius: 8px;
+      padding: 12px 30px;
+      font-size: 1em;
+      font-weight: bold;
+      cursor: pointer;
+      box-shadow: 0 3px 8px rgba(0,0,0,0.3);
+      transition: background 0.15s, transform 0.1s;
+    }
+
+    button:hover { background: #fbc02d; transform: translateY(-1px); }
+    button:active { transform: translateY(0); }
+
+    .info-bar {
+      text-align: center;
+      font-size: 0.8em;
+      color: #a5d6a7;
+      margin-top: 8px;
+    }
+  </style>
+</head>
+<body>
+
+<h1>🀄 麻雀 4人打ち配牌</h1>
+<p class="subtitle">花牌なし・136枚 ／ 東家14枚（ツモ1枚込み）、他13枚ずつ</p>
+
+<div class="actions">
+  <button onclick="deal()">配牌をシャッフル</button>
+</div>
+
+<div class="players" id="players"></div>
+
+<div class="info-bar" id="info-bar"></div>
+
+<script>
+// ─── タイル定義 ────────────────────────────────────────────────
+// 花牌（U+1F022〜U+1F029）は含まない
+// sortKey: 萬子10〜18、筒子20〜28、索子30〜38、字牌40〜46
+
+const TILE_DEFS = [
+  // 萬子 (Man / Characters)
+  { cp: 0x1F007, name: '一萬', suit: 'man',   sortKey: 10 },
+  { cp: 0x1F008, name: '二萬', suit: 'man',   sortKey: 11 },
+  { cp: 0x1F009, name: '三萬', suit: 'man',   sortKey: 12 },
+  { cp: 0x1F00A, name: '四萬', suit: 'man',   sortKey: 13 },
+  { cp: 0x1F00B, name: '五萬', suit: 'man',   sortKey: 14 },
+  { cp: 0x1F00C, name: '六萬', suit: 'man',   sortKey: 15 },
+  { cp: 0x1F00D, name: '七萬', suit: 'man',   sortKey: 16 },
+  { cp: 0x1F00E, name: '八萬', suit: 'man',   sortKey: 17 },
+  { cp: 0x1F00F, name: '九萬', suit: 'man',   sortKey: 18 },
+  // 筒子 (Pin / Circles)
+  { cp: 0x1F019, name: '一筒', suit: 'pin',   sortKey: 20 },
+  { cp: 0x1F01A, name: '二筒', suit: 'pin',   sortKey: 21 },
+  { cp: 0x1F01B, name: '三筒', suit: 'pin',   sortKey: 22 },
+  { cp: 0x1F01C, name: '四筒', suit: 'pin',   sortKey: 23 },
+  { cp: 0x1F01D, name: '五筒', suit: 'pin',   sortKey: 24 },
+  { cp: 0x1F01E, name: '六筒', suit: 'pin',   sortKey: 25 },
+  { cp: 0x1F01F, name: '七筒', suit: 'pin',   sortKey: 26 },
+  { cp: 0x1F020, name: '八筒', suit: 'pin',   sortKey: 27 },
+  { cp: 0x1F021, name: '九筒', suit: 'pin',   sortKey: 28 },
+  // 索子 (Sou / Bamboo)
+  { cp: 0x1F010, name: '一索', suit: 'sou',   sortKey: 30 },
+  { cp: 0x1F011, name: '二索', suit: 'sou',   sortKey: 31 },
+  { cp: 0x1F012, name: '三索', suit: 'sou',   sortKey: 32 },
+  { cp: 0x1F013, name: '四索', suit: 'sou',   sortKey: 33 },
+  { cp: 0x1F014, name: '五索', suit: 'sou',   sortKey: 34 },
+  { cp: 0x1F015, name: '六索', suit: 'sou',   sortKey: 35 },
+  { cp: 0x1F016, name: '七索', suit: 'sou',   sortKey: 36 },
+  { cp: 0x1F017, name: '八索', suit: 'sou',   sortKey: 37 },
+  { cp: 0x1F018, name: '九索', suit: 'sou',   sortKey: 38 },
+  // 字牌 (Honor tiles) — 東南西北白發中
+  { cp: 0x1F000, name: '東',   suit: 'honor', sortKey: 40 },
+  { cp: 0x1F001, name: '南',   suit: 'honor', sortKey: 41 },
+  { cp: 0x1F002, name: '西',   suit: 'honor', sortKey: 42 },
+  { cp: 0x1F003, name: '北',   suit: 'honor', sortKey: 43 },
+  { cp: 0x1F006, name: '白',   suit: 'honor', sortKey: 44 },
+  { cp: 0x1F005, name: '發',   suit: 'hatsu', sortKey: 45 },
+  { cp: 0x1F004, name: '中',   suit: 'chun',  sortKey: 46 },
+];
+
+// ─── 山牌生成（各牌4枚） ────────────────────────────────────────
+function buildWall() {
+  const wall = [];
+  for (const def of TILE_DEFS) {
+    for (let i = 0; i < 4; i++) {
+      wall.push({ ...def });
+    }
+  }
+  return wall; // 136枚
+}
+
+// Fisher–Yates シャッフル
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+// ─── 配牌 ───────────────────────────────────────────────────────
+// 日本式：4枚×3巡（12枚ずつ）→ 1枚ずつ → 東家が1枚ツモ
+function dealHands(wall) {
+  const hands = { east: [], south: [], west: [], north: [] };
+  const order = ['east', 'south', 'west', 'north'];
+  let idx = 0;
+
+  // 4枚×3巡
+  for (let round = 0; round < 3; round++) {
+    for (const player of order) {
+      for (let t = 0; t < 4; t++) {
+        hands[player].push(wall[idx++]);
+      }
+    }
+  }
+  // 1枚ずつ
+  for (const player of order) {
+    hands[player].push(wall[idx++]);
+  }
+  // 東家のツモ牌
+  const tsumo = wall[idx++];
+  tsumo.isTsumo = true;
+  hands.east.push(tsumo);
+
+  return hands;
+}
+
+// ─── ソート ─────────────────────────────────────────────────────
+function sortHand(hand) {
+  return hand.slice().sort((a, b) => {
+    if (a.sortKey !== b.sortKey) return a.sortKey - b.sortKey;
+    return a.cp - b.cp;
+  });
+}
+
+// ─── 文字生成 ────────────────────────────────────────────────────
+function codePointToChar(cp) {
+  return String.fromCodePoint(cp);
+}
+
+// ─── レンダリング ────────────────────────────────────────────────
+function renderHand(hand) {
+  const sorted = sortHand(hand);
+  const frags = [];
+  let prevSortGroup = null;
+
+  for (const tile of sorted) {
+    const group = Math.floor(tile.sortKey / 10); // 1=man,2=pin,3=sou,4=honor
+    if (prevSortGroup !== null && group !== prevSortGroup) {
+      frags.push(`<div class="separator"></div>`);
+    }
+    prevSortGroup = group;
+
+    const isTsumo = tile.isTsumo ? ' tsumo' : '';
+    const suitClass = `suit-${tile.suit}`;
+    frags.push(`
+      <div class="tile-wrap">
+        <div class="tile${isTsumo} ${suitClass}" title="${tile.name}">${codePointToChar(tile.cp)}</div>
+        <div class="tile-label">${tile.name}</div>
+      </div>`);
+  }
+  return frags.join('');
+}
+
+const PLAYERS = [
+  { key: 'east',  label: '東家（親）', wind: '東', badge: 'east',  count: 14, note: 'ツモ牌1枚含む' },
+  { key: 'south', label: '南家',       wind: '南', badge: 'south', count: 13, note: '' },
+  { key: 'west',  label: '西家',       wind: '西', badge: 'west',  count: 13, note: '' },
+  { key: 'north', label: '北家',       wind: '北', badge: 'north', count: 13, note: '' },
+];
+
+function deal() {
+  const wall = shuffle(buildWall());
+  const hands = dealHands(wall);
+  const container = document.getElementById('players');
+
+  container.innerHTML = PLAYERS.map(p => {
+    const countNote = p.note ? `${p.count}枚 <small style="color:#b2dfdb">（${p.note}）</small>` : `${p.count}枚`;
+    return `
+      <div class="player-block">
+        <div class="player-header">
+          <div class="wind-badge wind-${p.badge}">${p.wind}</div>
+          <div class="player-info">
+            <div class="player-name">${p.label}</div>
+            <div class="player-count">${countNote}</div>
+          </div>
+        </div>
+        <div class="hand">${renderHand(hands[p.key])}</div>
+      </div>`;
+  }).join('');
+
+  document.getElementById('info-bar').textContent =
+    `使用牌数: ${14 + 13 * 3} / 136　残り山: ${136 - (14 + 13 * 3)}枚`;
+}
+
+// 初期表示
+deal();
+</script>
+</body>
+</html>

@@ -1,0 +1,1 @@
+{"blocks": [{"type": "header","text": {"type": "plain_text","text": "ヘッダー","emoji": true}},{"type": "section","text": {"type": "mrkdwn","text": "This is a section block with an accessory image."},"accessory": {"type": "image","image_url": "https://pbs.twimg.com/profile_images/625633822235693056/lNGUneLX_400x400.jpg","alt_text": "cute cat"}}]}

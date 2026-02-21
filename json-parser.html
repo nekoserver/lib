@@ -537,7 +537,15 @@ let isTextareaExpanded = false;
 
 function resetTextareaToDefault() {
   const ta = document.getElementById('jsonInput');
+  // Disable transition for instant visual reset
+  ta.style.transition = 'none';
+  // Clear inline height to reset browser internal resize state
+  ta.style.height = '';
+  void ta.offsetHeight; // force reflow
   ta.style.height = TEXTAREA_DEFAULT_HEIGHT + 'px';
+  void ta.offsetHeight; // force repaint at default height
+  // Restore CSS transition
+  ta.style.transition = '';
   isTextareaExpanded = false;
   document.getElementById('resizeToggle').style.display = 'none';
 }

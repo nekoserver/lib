@@ -79,6 +79,21 @@
     font-weight: bold;
     margin-top: 2px;
   }
+  .shanten-details {
+    font-size: 0.75rem;
+    color: #ccc;
+    margin-top: 3px;
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .form-best {
+    color: #ffd700;
+    font-weight: bold;
+  }
+  .form-other {
+    color: #999;
+  }
 
   .hand {
     display: flex;
@@ -344,13 +359,35 @@ function calcShanten(hand) {
   const normal = calcShantenNormal(counts);
   const chiitoi = calcShantenChiitoi(counts);
   const kokushi = calcShantenKokushi(counts);
-  return Math.min(normal, chiitoi, kokushi);
+  const min = Math.min(normal, chiitoi, kokushi);
+  return { min, normal, chiitoi, kokushi };
 }
 
-function shantenText(s) {
-  if (s <= -1) return '和了（アガリ形）';
+function shantenLabel(s) {
+  if (s <= -1) return '和了';
   if (s === 0) return 'テンパイ';
   return s + '向聴';
+}
+
+function shantenText(result) {
+  const { min, normal, chiitoi, kokushi } = result;
+  const mainText = (min <= -1) ? '和了（アガリ形）' : (min === 0) ? 'テンパイ' : min + '向聴';
+
+  const forms = [
+    { name: '通常形', value: normal },
+    { name: '七対子', value: chiitoi },
+    { name: '国士無双', value: kokushi },
+  ];
+
+  const details = forms.map(f => {
+    const isBest = (f.value === min);
+    const label = shantenLabel(f.value);
+    return isBest
+      ? `<span class="form-best">${f.name}: ${label}</span>`
+      : `<span class="form-other">${f.name}: ${label}</span>`;
+  }).join('  ');
+
+  return { mainText, details };
 }
 
 // ─── レンダリング ────────────────────────────────────
@@ -397,14 +434,16 @@ function deal() {
 
   for (let p = 0; p < 4; p++) {
     const info = PLAYERS[p];
-    const shanten = calcShanten(hands[p]);
+    const result = calcShanten(hands[p]);
+    const { mainText, details } = shantenText(result);
     container.innerHTML += `
       <div class="player-section">
         <div class="player-header">
           <div class="wind-badge wind-${info.badge}">${info.wind}</div>
           <div class="player-info">
             <div class="player-name">${info.label}（14枚）</div>
-            <div class="shanten-info">${shantenText(shanten)}</div>
+            <div class="shanten-info">${mainText}</div>
+            <div class="shanten-details">${details}</div>
           </div>
         </div>
         <div class="hand">${renderHand(hands[p])}</div>

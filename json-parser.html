@@ -48,9 +48,7 @@
       transition: color 0.2s, background 0.2s, box-shadow 0.2s;
       position: relative;
     }
-    .mode-toggle:hover {
-      color: #94a3b8;
-    }
+    .mode-toggle:hover { color: #94a3b8; }
     .mode-toggle.active {
       color: #a5b4fc;
       background: #1e2330;
@@ -58,10 +56,7 @@
       cursor: default;
     }
 
-    .h1-sep {
-      color: #334155;
-      user-select: none;
-    }
+    .h1-sep { color: #334155; user-select: none; }
 
     /* Panels */
     .panel {
@@ -72,7 +67,6 @@
       display: none;
     }
     .panel.active { display: block; }
-
     .panel h2 {
       font-size: 1rem;
       color: #a5b4fc;
@@ -80,10 +74,38 @@
       font-weight: 500;
     }
 
-    /* Textarea wrapper for resize toggle */
-    .textarea-wrap {
-      position: relative;
+    /* Sample file select row (top of input area) */
+    .sample-select-row {
+      display: none;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 0.55rem;
     }
+    .sample-select-row label {
+      font-size: 0.8rem;
+      color: #64748b;
+      white-space: nowrap;
+    }
+    .sample-select-row .sample-sel {
+      background: #1e2330;
+      border: 1px solid #334155;
+      color: #e2e8f0;
+      padding: 0.28rem 0.6rem;
+      border-radius: 6px;
+      font-size: 0.82rem;
+      cursor: pointer;
+      outline: none;
+      transition: border-color 0.2s;
+      max-width: 260px;
+    }
+    .sample-select-row .sample-sel:focus { border-color: #6366f1; }
+    .sample-sel-hint {
+      font-size: 0.75rem;
+      color: #475569;
+    }
+
+    /* Textarea wrapper for resize toggle */
+    .textarea-wrap { position: relative; }
 
     .btn-resize {
       position: absolute;
@@ -101,10 +123,7 @@
       transition: background 0.15s, color 0.15s;
       display: none;
     }
-    .btn-resize:hover {
-      background: #475569;
-      color: #e2e8f0;
-    }
+    .btn-resize:hover { background: #475569; color: #e2e8f0; }
 
     /* Textarea */
     textarea {
@@ -137,11 +156,7 @@
       transition: opacity 0.15s, transform 0.1s;
     }
     .btn:active { transform: scale(0.97); }
-    .btn:disabled {
-      opacity: 0.35;
-      cursor: not-allowed;
-      transform: none;
-    }
+    .btn:disabled { opacity: 0.35; cursor: not-allowed; transform: none; }
     .btn-primary { background: #6366f1; color: #fff; }
     .btn-primary:hover:not(:disabled) { opacity: 0.88; }
     .btn-secondary { background: #334155; color: #e2e8f0; }
@@ -156,7 +171,7 @@
 
     .actions { display: flex; gap: 0.6rem; margin-top: 0.75rem; flex-wrap: wrap; align-items: center; }
 
-    /* Error message */
+    /* Error */
     .error {
       background: #3b0a0a;
       border: 1px solid #7f1d1d;
@@ -169,11 +184,7 @@
     }
 
     /* Search bar */
-    .search-bar {
-      display: flex;
-      gap: 0.5rem;
-      margin: 1rem 0 0.75rem;
-    }
+    .search-bar { display: flex; gap: 0.5rem; margin: 1rem 0 0.75rem; }
     .search-bar input {
       flex: 1;
       background: #0f1117;
@@ -188,16 +199,8 @@
     .search-bar input:focus { border-color: #6366f1; }
 
     /* Results table */
-    .result-area {
-      margin-top: 0.5rem;
-      overflow-x: auto;
-    }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 0.85rem;
-    }
+    .result-area { margin-top: 0.5rem; overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
     thead th {
       background: #1e2330;
       color: #94a3b8;
@@ -208,11 +211,7 @@
     }
     tbody tr { border-bottom: 1px solid #1e2330; }
     tbody tr:hover { background: #1e2330; }
-    tbody td {
-      padding: 0.5rem 0.75rem;
-      vertical-align: top;
-      word-break: break-all;
-    }
+    tbody td { padding: 0.5rem 0.75rem; vertical-align: top; word-break: break-all; }
     .key-cell { color: #a5b4fc; font-family: monospace; }
     .val-cell { color: #86efac; font-family: monospace; }
     .type-badge {
@@ -230,21 +229,11 @@
     .t-object  { background: #1c2a4a; color: #93c5fd; }
     .t-array   { background: #2a1a0e; color: #fdba74; }
 
-    .empty-msg {
-      color: #4b5563;
-      font-size: 0.85rem;
-      text-align: center;
-      padding: 2rem 0;
-    }
+    .empty-msg { color: #4b5563; font-size: 0.85rem; text-align: center; padding: 2rem 0; }
 
     /* Serialize mode */
     .kv-list { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 0.75rem; }
-
-    .kv-row {
-      display: flex;
-      gap: 0.5rem;
-      align-items: center;
-    }
+    .kv-row { display: flex; gap: 0.5rem; align-items: center; }
     .kv-row input {
       background: #0f1117;
       border: 1px solid #334155;
@@ -260,7 +249,6 @@
     .kv-row .inp-val  { flex: 3; }
     .kv-row select    { flex: 1.2; }
     .kv-row .btn-rm   { flex-shrink: 0; }
-
     .kv-row select {
       background: #1e2330;
       border: 1px solid #334155;
@@ -290,11 +278,7 @@
       margin-top: 0.75rem;
     }
 
-    .copy-row {
-      display: flex;
-      justify-content: flex-end;
-      margin-top: 0.5rem;
-    }
+    .copy-row { display: flex; justify-content: flex-end; margin-top: 0.5rem; }
 
     .badge-count {
       background: #6366f1;
@@ -320,6 +304,14 @@
   <!-- ======== PARSE MODE ======== -->
   <div id="parsePanel" class="panel active">
     <h2>JSONパースモード — 生JSONを入力してキー/値を抽出</h2>
+
+    <div class="sample-select-row" id="parseSampleSelectRow">
+      <label for="parseSampleSelect">サンプル:</label>
+      <select class="sample-sel" id="parseSampleSelect" onchange="onParseSampleSelect(this)">
+        <option value="">— ファイルを選択 —</option>
+      </select>
+      <span class="sample-sel-hint" id="parseSampleHint"></span>
+    </div>
 
     <div class="textarea-wrap">
       <textarea id="jsonInput" placeholder='例: {"name":"Alice","age":30,"scores":[10,20]}' oninput="onJsonInputChange()"></textarea>
@@ -348,6 +340,14 @@
   <div id="serializePanel" class="panel">
     <h2>シリアライズモード — キー/値を入力してJSONを生成</h2>
 
+    <div class="sample-select-row" id="serializeSampleSelectRow">
+      <label for="serializeSampleSelect">サンプル:</label>
+      <select class="sample-sel" id="serializeSampleSelect" onchange="onSerializeSampleSelect(this)">
+        <option value="">— ファイルを選択 —</option>
+      </select>
+      <span class="sample-sel-hint" id="serializeSampleHint"></span>
+    </div>
+
     <div class="kv-list" id="kvList"></div>
 
     <div class="actions">
@@ -367,6 +367,8 @@
 <script>
 // ── Constants ────────────────────────────────────────────────
 const TEXTAREA_DEFAULT_HEIGHT = 140;
+const MAX_SAMPLE_FILES = 20;
+const SAMPLE_FILE_PATTERN = /^json-parser\.sample\.[^/]+\.json$/i;
 
 // ── Utilities ────────────────────────────────────────────────
 function getType(v) {
@@ -385,10 +387,9 @@ function escHtml(s) {
     .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
-// Flatten nested object/array into dot-notation rows
-function flatten(obj, prefix) {
+// ── Flatten for parse display ──────────────────────────────
+function flatten(obj) {
   const rows = [];
-  prefix = prefix || '';
 
   function walk(node, path) {
     const t = getType(node);
@@ -404,11 +405,47 @@ function flatten(obj, prefix) {
     }
   }
 
-  walk(obj, prefix);
+  walk(obj, '');
   return rows;
 }
 
-// ── Mode switch (heading toggle) ──────────────────────────────
+// ── Flatten JSON to KV rows for serialize mode ──────────────
+function flattenToKvRows(obj) {
+  const rows = [];
+
+  function walk(node, path) {
+    const t = getType(node);
+    if (t === 'object') {
+      // Empty object → json type
+      if (Object.keys(node).length === 0) {
+        rows.push({ key: path, value: '{}', type: 'json' });
+      } else {
+        Object.keys(node).forEach(k => walk(node[k], path ? path + '.' + k : k));
+      }
+    } else if (t === 'array') {
+      rows.push({ key: path, value: JSON.stringify(node), type: 'json' });
+    } else if (t === 'null') {
+      rows.push({ key: path, value: '', type: 'null' });
+    } else if (t === 'boolean') {
+      rows.push({ key: path, value: String(node), type: 'boolean' });
+    } else if (t === 'number') {
+      rows.push({ key: path, value: String(node), type: 'number' });
+    } else {
+      rows.push({ key: path, value: String(node), type: 'string' });
+    }
+  }
+
+  if (Array.isArray(obj)) {
+    // Root is array → single json row
+    rows.push({ key: '(root)', value: JSON.stringify(obj), type: 'json' });
+  } else {
+    walk(obj, '');
+  }
+
+  return rows;
+}
+
+// ── Mode switch ──────────────────────────────────────────────
 function switchMode(mode) {
   document.getElementById('btnParse').classList.toggle('active', mode === 'parse');
   document.getElementById('btnSerialize').classList.toggle('active', mode === 'serialize');
@@ -420,48 +457,39 @@ function switchMode(mode) {
 function updateParseClearVisibility() {
   const hasInput = document.getElementById('jsonInput').value.trim().length > 0;
   const hasResults = parsedRows.length > 0;
-  const btn = document.getElementById('parseClearBtn');
-  btn.style.display = (hasInput || hasResults) ? 'inline-flex' : 'none';
+  document.getElementById('parseClearBtn').style.display =
+    (hasInput || hasResults) ? 'inline-flex' : 'none';
 }
 
 function updateSerializeClearVisibility() {
   const rows = document.querySelectorAll('#kvList .kv-row');
   const outputVisible = document.getElementById('serializeOutput').style.display !== 'none';
   let hasContent = outputVisible;
-
   if (!hasContent) {
     for (const row of rows) {
-      const key = row.querySelector('.inp-key').value.trim();
-      const val = row.querySelector('.inp-val').value.trim();
-      if (key || val) { hasContent = true; break; }
+      if (row.querySelector('.inp-key').value.trim() ||
+          row.querySelector('.inp-val').value.trim()) {
+        hasContent = true; break;
+      }
     }
   }
-
-  const btn = document.getElementById('serializeClearBtn');
-  btn.style.display = hasContent ? 'inline-flex' : 'none';
+  document.getElementById('serializeClearBtn').style.display =
+    hasContent ? 'inline-flex' : 'none';
 }
 
 function attachSerializeInputListeners() {
   document.getElementById('kvList').addEventListener('input', updateSerializeClearVisibility);
 }
 
-// ── Pretty / Serialize button state ──────────────────────────
+// ── Pretty / Serialize button ────────────────────────────────
 function isPrettyPrinted(raw) {
   try {
-    const parsed = JSON.parse(raw);
-    return raw === JSON.stringify(parsed, null, 2);
-  } catch(e) {
-    return false;
-  }
+    return raw === JSON.stringify(JSON.parse(raw), null, 2);
+  } catch(e) { return false; }
 }
 
 function isValidJSON(raw) {
-  try {
-    JSON.parse(raw);
-    return true;
-  } catch(e) {
-    return false;
-  }
+  try { JSON.parse(raw); return true; } catch(e) { return false; }
 }
 
 function updatePrettyButton() {
@@ -475,12 +503,7 @@ function updatePrettyButton() {
   }
 
   btn.disabled = false;
-
-  if (isPrettyPrinted(raw)) {
-    btn.textContent = 'シリアル状態に戻す';
-  } else {
-    btn.textContent = '整形表示';
-  }
+  btn.textContent = isPrettyPrinted(raw) ? 'シリアル状態に戻す' : '整形表示';
 }
 
 function togglePrettySerialize() {
@@ -492,16 +515,17 @@ function togglePrettySerialize() {
     const parsed = JSON.parse(raw);
 
     if (isPrettyPrinted(raw)) {
-      // Already pretty → minify (serialize)
+      // Pretty → minify: also reset textarea height to default
       ta.value = JSON.stringify(parsed);
+      resetTextareaToDefault();
     } else {
-      // Not pretty → prettify
+      // Compact → prettify: auto-resize
       ta.value = JSON.stringify(parsed, null, 2);
+      autoResizeTextarea();
     }
 
     showError('');
     updatePrettyButton();
-    autoResizeTextarea();
     updateParseClearVisibility();
   } catch(e) {
     showError('JSONパースエラー: ' + e.message);
@@ -511,22 +535,26 @@ function togglePrettySerialize() {
 // ── Textarea auto-resize & toggle ────────────────────────────
 let isTextareaExpanded = false;
 
+function resetTextareaToDefault() {
+  const ta = document.getElementById('jsonInput');
+  ta.style.height = TEXTAREA_DEFAULT_HEIGHT + 'px';
+  isTextareaExpanded = false;
+  document.getElementById('resizeToggle').style.display = 'none';
+}
+
 function autoResizeTextarea() {
   const ta = document.getElementById('jsonInput');
   const toggle = document.getElementById('resizeToggle');
 
-  // Temporarily shrink to measure real scrollHeight
   ta.style.height = TEXTAREA_DEFAULT_HEIGHT + 'px';
   const scrollH = ta.scrollHeight;
 
   if (scrollH > TEXTAREA_DEFAULT_HEIGHT) {
-    // Content overflows — expand and show toggle
     ta.style.height = scrollH + 'px';
     isTextareaExpanded = true;
     toggle.style.display = 'block';
     toggle.textContent = '△';
   } else {
-    // Fits in default — reset
     ta.style.height = TEXTAREA_DEFAULT_HEIGHT + 'px';
     isTextareaExpanded = false;
     toggle.style.display = 'none';
@@ -538,12 +566,10 @@ function toggleTextareaSize() {
   const toggle = document.getElementById('resizeToggle');
 
   if (isTextareaExpanded) {
-    // Collapse to default
     ta.style.height = TEXTAREA_DEFAULT_HEIGHT + 'px';
     isTextareaExpanded = false;
     toggle.textContent = '▽';
   } else {
-    // Expand to fit content
     ta.style.height = TEXTAREA_DEFAULT_HEIGHT + 'px';
     const scrollH = ta.scrollHeight;
     ta.style.height = scrollH + 'px';
@@ -555,20 +581,16 @@ function toggleTextareaSize() {
 function checkResizeToggleVisibility() {
   const ta = document.getElementById('jsonInput');
   const toggle = document.getElementById('resizeToggle');
-
-  // Measure if content overflows default height
   const savedH = ta.style.height;
   ta.style.height = TEXTAREA_DEFAULT_HEIGHT + 'px';
   const overflows = ta.scrollHeight > TEXTAREA_DEFAULT_HEIGHT;
-  ta.style.height = savedH;
-
+  ta.style.height = savedH || (TEXTAREA_DEFAULT_HEIGHT + 'px');
   if (!overflows) {
     toggle.style.display = 'none';
     isTextareaExpanded = false;
   }
 }
 
-// ── Combined input handler for parse textarea ────────────────
 function onJsonInputChange() {
   updateParseClearVisibility();
   updatePrettyButton();
@@ -592,7 +614,7 @@ function parseJSON() {
   let parsed;
   try {
     parsed = JSON.parse(raw);
-  } catch (e) {
+  } catch(e) {
     showError('JSONパースエラー: ' + e.message);
     renderTable([]);
     return;
@@ -626,18 +648,15 @@ function renderTable(rows, highlight) {
 
   let html = `<p style="font-size:0.78rem;color:#64748b;margin-bottom:0.5rem;">${rows.length} 件の結果 <span class="badge-count">${rows.length}</span></p>`;
   html += `<table><thead><tr><th>キー (パス)</th><th>型</th><th>値</th></tr></thead><tbody>`;
-
   rows.forEach(r => {
-    const valDisplay = r.type === 'string' ? escHtml(r.value) :
-                       r.type === 'object' || r.type === 'array' ? escHtml(r.value) :
-                       escHtml(String(r.value));
+    const valDisplay = escHtml(r.type === 'object' || r.type === 'array'
+      ? r.value : String(r.value));
     html += `<tr>
       <td class="key-cell">${hl(r.key)}</td>
       <td>${typeBadge(r.type)}</td>
       <td class="val-cell">${valDisplay}</td>
     </tr>`;
   });
-
   html += '</tbody></table>';
   area.innerHTML = html;
 }
@@ -651,12 +670,14 @@ function clearParse() {
   document.getElementById('searchInput').value = '';
   showError('');
   parsedRows = [];
-  document.getElementById('resultArea').innerHTML = '<p class="empty-msg">JSONを入力してパースを実行してください</p>';
+  document.getElementById('resultArea').innerHTML =
+    '<p class="empty-msg">JSONを入力してパースを実行してください</p>';
   updateParseClearVisibility();
   updatePrettyButton();
+  // Reset sample select
+  document.getElementById('parseSampleSelect').value = '';
 }
 
-// ── Load parse sample from external file ──────────────────────
 function loadParseSample() {
   fetch('json-parser-sample-parse.json')
     .then(res => {
@@ -669,9 +690,7 @@ function loadParseSample() {
       updatePrettyButton();
       autoResizeTextarea();
     })
-    .catch(err => {
-      showError(err.message);
-    });
+    .catch(err => showError(err.message));
 }
 
 // ── SERIALIZE MODE ────────────────────────────────────────────
@@ -679,10 +698,8 @@ const TYPE_OPTS = ['string','number','boolean','null','json'];
 
 function addKvRow(key, val, type) {
   const list = document.getElementById('kvList');
-  const id = Date.now() + Math.random();
   const row = document.createElement('div');
   row.className = 'kv-row';
-  row.dataset.id = id;
 
   const typeOptions = TYPE_OPTS.map(t =>
     `<option value="${t}" ${(type||'string')===t?'selected':''}>${t}</option>`
@@ -711,14 +728,14 @@ function buildJSON() {
     const key = row.querySelector('.inp-key').value.trim();
     const type = row.querySelector('.inp-type').value;
     const valRaw = row.querySelector('.inp-val').value;
-
     if (!key) continue;
 
     let value;
     try {
       if (type === 'string')       value = valRaw;
       else if (type === 'number')  value = Number(valRaw);
-      else if (type === 'boolean') value = valRaw.trim().toLowerCase() !== 'false' && valRaw.trim() !== '0' && valRaw.trim() !== '';
+      else if (type === 'boolean') value = valRaw.trim().toLowerCase() !== 'false' &&
+                                           valRaw.trim() !== '0' && valRaw.trim() !== '';
       else if (type === 'null')    value = null;
       else if (type === 'json')    value = JSON.parse(valRaw);
     } catch(e) {
@@ -730,7 +747,6 @@ function buildJSON() {
       updateSerializeClearVisibility();
       return;
     }
-
     setNestedKey(obj, key, value);
   }
 
@@ -747,9 +763,7 @@ function setNestedKey(obj, path, value) {
   const parts = path.split('.');
   let cur = obj;
   for (let i = 0; i < parts.length - 1; i++) {
-    if (!(parts[i] in cur) || typeof cur[parts[i]] !== 'object') {
-      cur[parts[i]] = {};
-    }
+    if (!(parts[i] in cur) || typeof cur[parts[i]] !== 'object') cur[parts[i]] = {};
     cur = cur[parts[i]];
   }
   cur[parts[parts.length - 1]] = value;
@@ -763,6 +777,8 @@ function clearSerialize() {
   document.getElementById('copyRow').style.display = 'none';
   addKvRow();
   updateSerializeClearVisibility();
+  // Reset sample select
+  document.getElementById('serializeSampleSelect').value = '';
 }
 
 function copyOutput() {
@@ -775,7 +791,6 @@ function copyOutput() {
   });
 }
 
-// ── Load serialize sample from external file ──────────────────
 function loadSerializeSample() {
   fetch('json-parser-sample-serialize.json')
     .then(res => {
@@ -796,10 +811,114 @@ function loadSerializeSample() {
     });
 }
 
+// ── Dynamic sample file discovery ────────────────────────────
+async function discoverSampleFiles() {
+  try {
+    const res = await fetch('./');
+    if (!res.ok) return [];
+    const html = await res.text();
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    const links = Array.from(doc.querySelectorAll('a[href]'));
+    return links
+      .map(a => decodeURIComponent(a.getAttribute('href') || ''))
+      .filter(href => SAMPLE_FILE_PATTERN.test(href))
+      .slice(0, MAX_SAMPLE_FILES);
+  } catch(e) {
+    return [];
+  }
+}
+
+async function initSampleDiscovery() {
+  const files = await discoverSampleFiles();
+  if (files.length === 0) return;
+
+  const validItems = [];
+  for (const file of files) {
+    try {
+      const res = await fetch(file);
+      if (!res.ok) continue;
+      const text = await res.text();
+      JSON.parse(text); // dry run
+      // Label = strip prefix/suffix
+      const label = file
+        .replace(/^json-parser\.sample\./i, '')
+        .replace(/\.json$/i, '');
+      validItems.push({ file, label });
+    } catch(e) {
+      // invalid JSON or fetch failed — skip
+    }
+  }
+
+  if (validItems.length === 0) return;
+
+  // Populate both selects
+  ['parseSampleSelect', 'serializeSampleSelect'].forEach(id => {
+    const sel = document.getElementById(id);
+    validItems.forEach(({ file, label }) => {
+      const opt = document.createElement('option');
+      opt.value = file;
+      opt.textContent = label;
+      sel.appendChild(opt);
+    });
+  });
+
+  document.getElementById('parseSampleSelectRow').style.display = 'flex';
+  document.getElementById('serializeSampleSelectRow').style.display = 'flex';
+
+  const hint = `${validItems.length} 件検出`;
+  document.getElementById('parseSampleHint').textContent = hint;
+  document.getElementById('serializeSampleHint').textContent = hint;
+}
+
+// ── Sample select handlers ────────────────────────────────────
+function onParseSampleSelect(sel) {
+  const file = sel.value;
+  if (!file) return;
+
+  fetch(file)
+    .then(res => {
+      if (!res.ok) throw new Error(`${file} の読み込みに失敗しました`);
+      return res.text();
+    })
+    .then(text => {
+      document.getElementById('jsonInput').value = text.trim();
+      showError('');
+      updateParseClearVisibility();
+      updatePrettyButton();
+      autoResizeTextarea();
+    })
+    .catch(err => showError(err.message));
+}
+
+function onSerializeSampleSelect(sel) {
+  const file = sel.value;
+  if (!file) return;
+
+  fetch(file)
+    .then(res => {
+      if (!res.ok) throw new Error(`${file} の読み込みに失敗しました`);
+      return res.json();
+    })
+    .then(data => {
+      document.getElementById('kvList').innerHTML = '';
+      const rows = flattenToKvRows(data);
+      rows.forEach(({ key, value, type }) => addKvRow(key, value, type));
+      updateSerializeClearVisibility();
+    })
+    .catch(err => {
+      const out = document.getElementById('serializeOutput');
+      out.style.display = 'block';
+      out.style.color = '#fca5a5';
+      out.textContent = err.message;
+      document.getElementById('copyRow').style.display = 'none';
+    });
+}
+
 // ── Init ──────────────────────────────────────────────────────
 addKvRow();
 attachSerializeInputListeners();
 updatePrettyButton();
+initSampleDiscovery();
 </script>
 </body>
 </html>

@@ -1,0 +1,28 @@
+{
+  "ok": true,
+  "channel": "C04ABC123",
+  "ts": "1700000000.123456",
+  "message": {
+    "type": "message",
+    "text": "Hello, World!",
+    "user": "U01XYZ789",
+    "ts": "1700000000.123456",
+    "team": "T0TEAM001",
+    "attachments": [
+      {
+        "id": 1,
+        "color": "36a64f",
+        "fallback": "Attachment fallback",
+        "title": "Attachment Title",
+        "title_link": "https://example.com",
+        "text": "Attachment body text",
+        "footer": "Footer text",
+        "ts": 1700000000
+      }
+    ]
+  },
+  "warning": "",
+  "response_metadata": {
+    "warnings": []
+  }
+}

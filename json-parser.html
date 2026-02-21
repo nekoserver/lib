@@ -20,6 +20,7 @@
       margin: 0 auto;
     }
 
+    /* Heading with toggle buttons */
     h1 {
       text-align: center;
       font-size: 1.6rem;
@@ -27,34 +28,40 @@
       color: #f8fafc;
       margin-bottom: 1.5rem;
       letter-spacing: 0.02em;
-    }
-
-    /* Mode selector */
-    .mode-bar {
       display: flex;
       align-items: center;
-      gap: 0.75rem;
-      margin-bottom: 1.5rem;
+      justify-content: center;
+      gap: 0.4rem;
     }
 
-    .mode-bar label {
-      font-size: 0.85rem;
-      color: #94a3b8;
-      white-space: nowrap;
-    }
-
-    select {
-      background: #1e2330;
-      border: 1px solid #334155;
-      color: #e2e8f0;
-      padding: 0.45rem 0.75rem;
-      border-radius: 6px;
-      font-size: 0.9rem;
+    .mode-toggle {
+      font-size: 1.6rem;
+      font-weight: 600;
+      font-family: inherit;
+      letter-spacing: 0.02em;
+      background: none;
+      border: none;
+      color: #4b5563;
       cursor: pointer;
-      outline: none;
-      transition: border-color 0.2s;
+      padding: 0.15rem 0.5rem;
+      border-radius: 6px;
+      transition: color 0.2s, background 0.2s, box-shadow 0.2s;
+      position: relative;
     }
-    select:focus { border-color: #6366f1; }
+    .mode-toggle:hover {
+      color: #94a3b8;
+    }
+    .mode-toggle.active {
+      color: #a5b4fc;
+      background: #1e2330;
+      box-shadow: 0 0 0 1.5px #6366f1;
+      cursor: default;
+    }
+
+    .h1-sep {
+      color: #334155;
+      user-select: none;
+    }
 
     /* Panels */
     .panel {
@@ -111,8 +118,12 @@
     .btn-danger { background: #dc2626; color: #fff; }
     .btn-danger:hover { opacity: 0.85; }
     .btn-sm { padding: 0.3rem 0.7rem; font-size: 0.78rem; }
+    .btn-sample { background: #1e4a3a; color: #6ee7b7; }
+    .btn-sample:hover { opacity: 0.85; }
+    .btn-clear { background: #7f1d1d; color: #fca5a5; }
+    .btn-clear:hover { opacity: 0.85; }
 
-    .actions { display: flex; gap: 0.6rem; margin-top: 0.75rem; flex-wrap: wrap; }
+    .actions { display: flex; gap: 0.6rem; margin-top: 0.75rem; flex-wrap: wrap; align-items: center; }
 
     /* Error message */
     .error {
@@ -219,6 +230,19 @@
     .kv-row select    { flex: 1.2; }
     .kv-row .btn-rm   { flex-shrink: 0; }
 
+    .kv-row select {
+      background: #1e2330;
+      border: 1px solid #334155;
+      color: #e2e8f0;
+      padding: 0.45rem 0.65rem;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .kv-row select:focus { border-color: #6366f1; }
+
     .output-box {
       background: #0f1117;
       border: 1px solid #334155;
@@ -255,27 +279,25 @@
 </head>
 <body>
 <div class="container">
-  <h1>JSON パーサー / シリアライザー</h1>
-
-  <div class="mode-bar">
-    <label for="modeSelect">モード選択:</label>
-    <select id="modeSelect">
-      <option value="parse">JSONパースモード（デフォルト）</option>
-      <option value="serialize">シリアライズモード</option>
-    </select>
-  </div>
+  <h1>
+    JSON
+    <button class="mode-toggle active" id="btnParse" onclick="switchMode('parse')">パーサー</button>
+    <span class="h1-sep">/</span>
+    <button class="mode-toggle" id="btnSerialize" onclick="switchMode('serialize')">シリアライザー</button>
+  </h1>
 
   <!-- ======== PARSE MODE ======== -->
   <div id="parsePanel" class="panel active">
     <h2>JSONパースモード — 生JSONを入力してキー/値を抽出</h2>
 
-    <textarea id="jsonInput" placeholder='例: {"name":"Alice","age":30,"scores":[10,20]}'></textarea>
+    <textarea id="jsonInput" placeholder='例: {"name":"Alice","age":30,"scores":[10,20]}' oninput="updateParseClearVisibility()"></textarea>
     <div id="parseError" class="error"></div>
 
     <div class="actions">
       <button class="btn btn-primary" onclick="parseJSON()">パース実行</button>
       <button class="btn btn-secondary" onclick="prettyPrint()">整形表示</button>
-      <button class="btn btn-secondary" onclick="clearParse()">クリア</button>
+      <button class="btn btn-sample" onclick="loadParseSample()">サンプルデータをセットする</button>
+      <button class="btn btn-clear" id="parseClearBtn" onclick="clearParse()" style="display:none;">内容をクリア</button>
     </div>
 
     <div class="search-bar" style="margin-top:1.2rem;">
@@ -297,7 +319,8 @@
     <div class="actions">
       <button class="btn btn-secondary" onclick="addKvRow()">＋ フィールド追加</button>
       <button class="btn btn-primary" onclick="buildJSON()">JSONを生成</button>
-      <button class="btn btn-secondary" onclick="clearSerialize()">クリア</button>
+      <button class="btn btn-sample" onclick="loadSerializeSample()">サンプルデータをセットする</button>
+      <button class="btn btn-clear" id="serializeClearBtn" onclick="clearSerialize()" style="display:none;">内容をクリア</button>
     </div>
 
     <div id="serializeOutput" class="output-box" style="display:none;"></div>
@@ -349,12 +372,43 @@ function flatten(obj, prefix) {
   return rows;
 }
 
-// ── Mode switch ───────────────────────────────────────────────
-document.getElementById('modeSelect').addEventListener('change', function() {
-  const v = this.value;
-  document.getElementById('parsePanel').classList.toggle('active', v === 'parse');
-  document.getElementById('serializePanel').classList.toggle('active', v === 'serialize');
-});
+// ── Mode switch (heading toggle) ──────────────────────────────
+function switchMode(mode) {
+  document.getElementById('btnParse').classList.toggle('active', mode === 'parse');
+  document.getElementById('btnSerialize').classList.toggle('active', mode === 'serialize');
+  document.getElementById('parsePanel').classList.toggle('active', mode === 'parse');
+  document.getElementById('serializePanel').classList.toggle('active', mode === 'serialize');
+}
+
+// ── Clear button visibility ──────────────────────────────────
+function updateParseClearVisibility() {
+  const hasInput = document.getElementById('jsonInput').value.trim().length > 0;
+  const hasResults = parsedRows.length > 0;
+  const btn = document.getElementById('parseClearBtn');
+  btn.style.display = (hasInput || hasResults) ? 'inline-flex' : 'none';
+}
+
+function updateSerializeClearVisibility() {
+  const rows = document.querySelectorAll('#kvList .kv-row');
+  const outputVisible = document.getElementById('serializeOutput').style.display !== 'none';
+  let hasContent = outputVisible;
+
+  if (!hasContent) {
+    for (const row of rows) {
+      const key = row.querySelector('.inp-key').value.trim();
+      const val = row.querySelector('.inp-val').value.trim();
+      if (key || val) { hasContent = true; break; }
+    }
+  }
+
+  const btn = document.getElementById('serializeClearBtn');
+  btn.style.display = hasContent ? 'inline-flex' : 'none';
+}
+
+// Observe serialize inputs for clear button
+function attachSerializeInputListeners() {
+  document.getElementById('kvList').addEventListener('input', updateSerializeClearVisibility);
+}
 
 // ── PARSE MODE ────────────────────────────────────────────────
 let parsedRows = [];
@@ -381,6 +435,7 @@ function parseJSON() {
 
   parsedRows = flatten(parsed);
   filterResults();
+  updateParseClearVisibility();
 }
 
 function filterResults() {
@@ -439,6 +494,23 @@ function clearParse() {
   showError('');
   parsedRows = [];
   document.getElementById('resultArea').innerHTML = '<p class="empty-msg">JSONを入力してパースを実行してください</p>';
+  updateParseClearVisibility();
+}
+
+// ── Load parse sample from external file ──────────────────────
+function loadParseSample() {
+  fetch('json-parser-sample-parse.json')
+    .then(res => {
+      if (!res.ok) throw new Error('サンプルファイルの読み込みに失敗しました');
+      return res.text();
+    })
+    .then(text => {
+      document.getElementById('jsonInput').value = text.trim();
+      updateParseClearVisibility();
+    })
+    .catch(err => {
+      showError(err.message);
+    });
 }
 
 // ── SERIALIZE MODE ────────────────────────────────────────────
@@ -462,10 +534,12 @@ function addKvRow(key, val, type) {
     <button class="btn btn-danger btn-sm btn-rm" onclick="removeKvRow(this)">✕</button>
   `;
   list.appendChild(row);
+  updateSerializeClearVisibility();
 }
 
 function removeKvRow(btn) {
   btn.closest('.kv-row').remove();
+  updateSerializeClearVisibility();
 }
 
 function buildJSON() {
@@ -492,6 +566,7 @@ function buildJSON() {
       out.style.color = '#fca5a5';
       out.textContent = `エラー [${key}]: ${e.message}`;
       document.getElementById('copyRow').style.display = 'none';
+      updateSerializeClearVisibility();
       return;
     }
 
@@ -505,6 +580,7 @@ function buildJSON() {
   out.style.color = '#86efac';
   out.textContent = json;
   document.getElementById('copyRow').style.display = 'flex';
+  updateSerializeClearVisibility();
 }
 
 function setNestedKey(obj, path, value) {
@@ -526,6 +602,7 @@ function clearSerialize() {
   out.textContent = '';
   document.getElementById('copyRow').style.display = 'none';
   addKvRow();
+  updateSerializeClearVisibility();
 }
 
 function copyOutput() {
@@ -538,8 +615,30 @@ function copyOutput() {
   });
 }
 
-// Init serialize with one empty row
+// ── Load serialize sample from external file ──────────────────
+function loadSerializeSample() {
+  fetch('json-parser-sample-serialize.json')
+    .then(res => {
+      if (!res.ok) throw new Error('サンプルファイルの読み込みに失敗しました');
+      return res.json();
+    })
+    .then(data => {
+      document.getElementById('kvList').innerHTML = '';
+      data.forEach(item => addKvRow(item.key, item.value, item.type));
+      updateSerializeClearVisibility();
+    })
+    .catch(err => {
+      const out = document.getElementById('serializeOutput');
+      out.style.display = 'block';
+      out.style.color = '#fca5a5';
+      out.textContent = err.message;
+      document.getElementById('copyRow').style.display = 'none';
+    });
+}
+
+// ── Init ──────────────────────────────────────────────────────
 addKvRow();
+attachSerializeInputListeners();
 </script>
 </body>
 </html>

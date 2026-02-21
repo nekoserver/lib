@@ -1,0 +1,12 @@
+[
+  { "key": "user.name",       "type": "string",  "value": "田中太郎" },
+  { "key": "user.email",      "type": "string",  "value": "tanaka@example.com" },
+  { "key": "user.age",        "type": "number",  "value": "28" },
+  { "key": "user.active",     "type": "boolean", "value": "true" },
+  { "key": "user.address",    "type": "json",    "value": "{\"city\":\"東京\",\"zip\":\"100-0001\"}" },
+  { "key": "scores",          "type": "json",    "value": "[85, 92, 78, 95]" },
+  { "key": "tags",            "type": "json",    "value": "[\"developer\", \"designer\"]" },
+  { "key": "metadata",        "type": "null",    "value": "" },
+  { "key": "config.theme",    "type": "string",  "value": "dark" },
+  { "key": "config.language", "type": "string",  "value": "ja" }
+]

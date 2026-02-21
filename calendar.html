@@ -8,11 +8,44 @@
     body {
       font-family: sans-serif;
       display: flex;
-      justify-content: center;
-      padding: 2rem;
+      flex-direction: column;
+      align-items: center;
+      padding: 0;
       background: #f5f5f5;
     }
+    .month-nav {
+      display: flex;
+      width: 100%;
+      overflow-x: auto;
+      background: #fff;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      flex-shrink: 0;
+    }
+    .month-nav button {
+      flex: 0 0 auto;
+      height: 80px;
+      padding: 0 1rem;
+      border: none;
+      border-right: 1px solid #e0e0e0;
+      background: #fff;
+      cursor: pointer;
+      font-size: 0.9rem;
+      white-space: nowrap;
+      transition: background 0.2s;
+    }
+    .month-nav button:hover {
+      background: #e8e8e8;
+    }
+    .month-nav button.active {
+      background: #3a7bd5;
+      color: #fff;
+      font-weight: bold;
+    }
+    .month-nav button.active:hover {
+      background: #2a5fbf;
+    }
     .calendar {
+      margin-top: 1.5rem;
       background: #fff;
       border-radius: 8px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.15);
@@ -69,13 +102,18 @@
       font-weight: bold;
       border-radius: 50%;
     }
+    td.past-date {
+      background: #e8e8e8;
+      border-radius: 0;
+    }
     td.has-schedule {
       background: #c8f0d0;
       cursor: pointer;
     }
     td.has-schedule.past {
-      background: #d8d8d8;
+      background: #b0b0b0;
       cursor: pointer;
+      border-radius: 0;
     }
     td.today.has-schedule {
       background: #3a7bd5;
@@ -85,6 +123,18 @@
       margin-top: 1rem;
       color: #555;
       font-size: 0.9rem;
+    }
+    .today-label button {
+      background: #3a7bd5;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      padding: 0.3rem 0.9rem;
+      font-size: 0.9rem;
+    }
+    .today-label button:hover {
+      background: #2a5fbf;
     }
     .tooltip {
       position: fixed;
@@ -104,14 +154,77 @@
       content: '';
       position: absolute;
       top: 100%;
-      left: 50%;
+      left: var(--arrow-left, 50%);
       transform: translateX(-50%);
       border: 6px solid transparent;
       border-top-color: #333;
     }
+    .modal-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.4);
+      z-index: 2000;
+      opacity: 0;
+      transition: opacity 0.3s;
+      display: none;
+    }
+    .modal-overlay.visible {
+      opacity: 1;
+    }
+    .modal-content {
+      background: #fff;
+      width: 90%;
+      max-width: 360px;
+      margin: 0 auto;
+      border-radius: 0 0 12px 12px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+      padding: 1.5rem;
+      transform: translateY(-100%);
+      transition: transform 0.3s ease-out;
+    }
+    .modal-overlay.visible .modal-content {
+      transform: translateY(0);
+    }
+    .modal-content h3 {
+      margin: 0 0 1rem;
+      font-size: 1.1rem;
+      color: #333;
+    }
+    .modal-content .schedule-list {
+      margin: 0; padding: 0;
+      list-style: none;
+    }
+    .modal-content .schedule-list li {
+      padding: 0.4rem 0;
+      border-bottom: 1px solid #eee;
+      font-size: 0.9rem;
+      color: #444;
+    }
+    .modal-content .schedule-list li:last-child {
+      border-bottom: none;
+    }
+    .modal-content .no-schedule {
+      color: #999;
+      font-size: 0.9rem;
+    }
+    .modal-content .modal-close {
+      display: block;
+      margin: 1rem auto 0;
+      background: #3a7bd5;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      padding: 0.4rem 1.5rem;
+      font-size: 0.9rem;
+      cursor: pointer;
+    }
+    .modal-content .modal-close:hover {
+      background: #2a5fbf;
+    }
   </style>
 </head>
 <body>
+<div class="month-nav" id="month-nav"></div>
 <div class="calendar">
   <div class="calendar-header">
     <button id="prev">&lt;</button>
@@ -129,11 +242,57 @@
   <div class="today-label" id="today-label"></div>
 </div>
 <div class="tooltip" id="tooltip"></div>
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal-content">
+    <h3 id="modal-title"></h3>
+    <div id="modal-body"></div>
+    <button class="modal-close" id="modal-close">閉じる</button>
+  </div>
+</div>
 
 <script>
   const now = new Date();
   let viewYear  = now.getFullYear();
   let viewMonth = now.getMonth(); // 0-indexed
+
+  // 月ナビゲーションバーの構築（アクセス当月から6ヶ月前〜6ヶ月後の13ヶ月分）
+  function buildMonthNav() {
+    const nav = document.getElementById('month-nav');
+    nav.innerHTML = '';
+    const baseYear = now.getFullYear();
+    const baseMonth = now.getMonth();
+    for (let i = -6; i <= 6; i++) {
+      let y = baseYear;
+      let m = baseMonth + i;
+      while (m < 0) { m += 12; y--; }
+      while (m > 11) { m -= 12; y++; }
+      const btn = document.createElement('button');
+      btn.textContent = y + '年' + String(m + 1).padStart(2, '0') + '月';
+      btn.dataset.year = y;
+      btn.dataset.month = m;
+      btn.addEventListener('click', function() {
+        viewYear = parseInt(this.dataset.year);
+        viewMonth = parseInt(this.dataset.month);
+        render();
+      });
+      nav.appendChild(btn);
+    }
+  }
+
+  // 月ナビゲーションのアクティブ状態を更新
+  function updateMonthNavActive() {
+    const nav = document.getElementById('month-nav');
+    const buttons = nav.querySelectorAll('button');
+    buttons.forEach(function(btn) {
+      if (parseInt(btn.dataset.year) === viewYear && parseInt(btn.dataset.month) === viewMonth) {
+        btn.classList.add('active');
+      } else {
+        btn.classList.remove('active');
+      }
+    });
+  }
+
+  buildMonthNav();
 
   // スケジュールデータ [{year, month(0-indexed), day, timeRange, desc}]
   let allSchedules = [];
@@ -205,11 +364,15 @@
     var rect = td.getBoundingClientRect();
     var ttW = tooltip.offsetWidth;
     var ttH = tooltip.offsetHeight;
-    var left = rect.left + rect.width / 2 - ttW / 2;
+    var dateCenterX = rect.left + rect.width / 2;
+    var left = dateCenterX - ttW / 2;
     var top  = rect.top - ttH - 10;
-    left = Math.max(4, Math.min(left, window.innerWidth - ttW - 4));
+    var clampedLeft = Math.max(4, Math.min(left, window.innerWidth - ttW - 4));
     if (top < 4) top = rect.bottom + 10;
-    tooltip.style.left = left + 'px';
+    // 矢印は常に選択した日付の中心を指すように調整
+    var arrowLeft = dateCenterX - clampedLeft;
+    tooltip.style.setProperty('--arrow-left', arrowLeft + 'px');
+    tooltip.style.left = clampedLeft + 'px';
     tooltip.style.top  = top  + 'px';
   }
 
@@ -217,7 +380,50 @@
     tooltip.style.display = 'none';
   }
 
+  var modalOverlay = document.getElementById('modal-overlay');
+  var modalTitle = document.getElementById('modal-title');
+  var modalBody = document.getElementById('modal-body');
+
+  function showModal(year, month, day, schedules) {
+    hideTooltip();
+    modalTitle.textContent = year + '年' + (month + 1) + '月' + day + '日';
+    if (schedules && schedules.length > 0) {
+      var ul = document.createElement('ul');
+      ul.className = 'schedule-list';
+      schedules.forEach(function(s) {
+        var li = document.createElement('li');
+        li.textContent = s;
+        ul.appendChild(li);
+      });
+      modalBody.innerHTML = '';
+      modalBody.appendChild(ul);
+    } else {
+      modalBody.innerHTML = '<p class="no-schedule">予定はありません</p>';
+    }
+    modalOverlay.style.display = 'block';
+    // force reflow then add visible class for animation
+    modalOverlay.offsetHeight;
+    modalOverlay.classList.add('visible');
+  }
+
+  function hideModal() {
+    modalOverlay.classList.remove('visible');
+    setTimeout(function() {
+      modalOverlay.style.display = 'none';
+    }, 300);
+  }
+
+  document.getElementById('modal-close').addEventListener('click', function(e) {
+    e.stopPropagation();
+    hideModal();
+  });
+  modalOverlay.addEventListener('click', function(e) {
+    if (e.target === modalOverlay) hideModal();
+  });
+
   function render() {
+    updateMonthNavActive();
+
     const today = new Date();
     const todayY = today.getFullYear();
     const todayM = today.getMonth();
@@ -277,16 +483,31 @@
           const isPast = (viewYear < todayY) ||
                          (viewYear === todayY && viewMonth < todayM) ||
                          (viewYear === todayY && viewMonth === todayM && date < todayD);
+          // 過去日（1日〜前日）のセル背景を薄い灰色で塗りつぶす
+          if (isPast) td.classList.add('past-date');
           const schedules = scheduleMap[date];
           if (schedules) {
             td.classList.add('has-schedule');
             if (isPast) td.classList.add('past');
+          }
+
+          if (isPast && schedules) {
+            // 過去日でスケジュールありはツールチップ表示
             (function(cell, text) {
               cell.addEventListener('click', function(e) {
                 e.stopPropagation();
                 showTooltip(cell, text);
               });
             })(td, schedules.join('\n'));
+          } else if (!isPast) {
+            // 当日以降はモーダル表示（スケジュール有無問わず）
+            td.style.cursor = 'pointer';
+            (function(y, m, d, sched) {
+              td.addEventListener('click', function(e) {
+                e.stopPropagation();
+                showModal(y, m, d, sched || null);
+              });
+            })(viewYear, viewMonth, date, schedules);
           }
 
           date++;
@@ -300,9 +521,23 @@
       if (date > lastDate && row >= 4) break;
     }
 
-    // 今日の日付ラベル
-    document.getElementById('today-label').textContent =
-      '今日: ' + todayY + '年' + (todayM + 1) + '月' + todayD + '日';
+    // 今日の日付ラベル（当月以外なら当月へ戻るボタンを表示）
+    const todayLabelEl = document.getElementById('today-label');
+    const isCurrentMonth = (viewYear === todayY && viewMonth === todayM);
+    if (isCurrentMonth) {
+      todayLabelEl.innerHTML = '';
+      todayLabelEl.textContent = '今日: ' + todayY + '年' + (todayM + 1) + '月' + todayD + '日';
+    } else {
+      const btn = document.createElement('button');
+      btn.textContent = '今日: ' + todayY + '年' + (todayM + 1) + '月' + todayD + '日';
+      btn.addEventListener('click', function() {
+        viewYear  = todayY;
+        viewMonth = todayM;
+        render();
+      });
+      todayLabelEl.innerHTML = '';
+      todayLabelEl.appendChild(btn);
+    }
   }
 
   // クリックでツールチップを閉じる
@@ -319,6 +554,30 @@
     if (viewMonth > 11) { viewMonth = 0; viewYear++; }
     render();
   });
+
+  // スワイプナビゲーション（右スワイプ→翌月、左スワイプ→先月）
+  let touchStartX = 0;
+  const calendarEl = document.querySelector('.calendar');
+
+  calendarEl.addEventListener('touchstart', function(e) {
+    touchStartX = e.touches[0].clientX;
+  }, { passive: true });
+
+  calendarEl.addEventListener('touchend', function(e) {
+    const dx = e.changedTouches[0].clientX - touchStartX;
+    if (Math.abs(dx) > 50) {
+      if (dx > 0) {
+        // 右スワイプ → 翌月
+        viewMonth++;
+        if (viewMonth > 11) { viewMonth = 0; viewYear++; }
+      } else {
+        // 左スワイプ → 先月
+        viewMonth--;
+        if (viewMonth < 0) { viewMonth = 11; viewYear--; }
+      }
+      render();
+    }
+  }, { passive: true });
 
   loadSchedule();
 </script>

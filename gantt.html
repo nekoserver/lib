@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ガントチャート</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: sans-serif;
+      background: #f0f4f8;
+      padding: 1.5rem 1rem;
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 1.5rem;
+      font-size: 1.5rem;
+      color: #2c3e50;
+      letter-spacing: 0.05em;
+    }
+    .gantt-wrapper {
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.12);
+      overflow: hidden;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    .gantt-scroll {
+      overflow-x: auto;
+    }
+    table.gantt-table {
+      border-collapse: collapse;
+      min-width: 750px;
+      width: 100%;
+      table-layout: fixed;
+    }
+    colgroup col.col-name     { width: 150px; }
+    colgroup col.col-dept     { width: 80px; }
+    colgroup col.col-assignee { width: 88px; }
+    colgroup col.col-progress { width: 58px; }
+    colgroup col.col-chart    { width: auto; }
+
+    /* ---- Header (week row only) ---- */
+    thead th {
+      background: #3a7bd5;
+      color: #fff;
+      font-size: 0.82rem;
+      border-right: 1px solid rgba(255,255,255,0.2);
+      white-space: nowrap;
+      overflow: hidden;
+    }
+    .th-week {
+      padding: 0;
+      height: 34px;
+      background: #e8eef8;
+      position: relative;
+      overflow: visible;
+    }
+    .th-label {
+      padding: 0.5rem 0.6rem;
+      text-align: left;
+    }
+    .th-label-center {
+      padding: 0.5rem 0.3rem;
+      text-align: center;
+    }
+
+    /* ---- Footer (month labels — moved here from header) ---- */
+    tfoot th {
+      background: #3a7bd5;
+      color: #fff;
+      font-size: 0.82rem;
+      border-right: 1px solid rgba(255,255,255,0.2);
+      white-space: nowrap;
+      overflow: hidden;
+    }
+    .th-month {
+      padding: 0;
+      height: 34px;
+      position: relative;
+      overflow: visible;
+    }
+
+    /* ---- Body ---- */
+    tbody tr {
+      border-bottom: 1px solid #eee;
+    }
+    tbody tr:hover {
+      background: #eef3fc;
+    }
+    td {
+      padding: 0.45rem 0.6rem;
+      vertical-align: middle;
+      font-size: 0.84rem;
+      color: #333;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+    .td-chart {
+      padding: 0.25rem 0 0.2rem;
+      position: relative;
+      overflow: visible;
+    }
+
+    /* assignee status backgrounds */
+    .assignee-done    { background: #e8f5e9 !important; }
+    .assignee-active  { background: #e3f2fd !important; }
+    .assignee-waiting { background: #fff8e1 !important; }
+
+    /* ---- Legend ---- */
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem 1.2rem;
+      padding: 0.7rem 1rem;
+      border-top: 1px solid #eee;
+      font-size: 0.78rem;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+      color: #555;
+    }
+    .legend-dot {
+      width: 14px;
+      height: 14px;
+      border-radius: 3px;
+      flex-shrink: 0;
+    }
+    .legend-line {
+      width: 3px;
+      height: 14px;
+      flex-shrink: 0;
+    }
+
+    /* ---- Tooltip ---- */
+    #gantt-tooltip {
+      display: none;
+      position: fixed;
+      z-index: 1000;
+      background: #fff;
+      border: 1px solid #d0d8e8;
+      border-radius: 10px;
+      box-shadow: 0 6px 24px rgba(0,0,0,0.18);
+      padding: 0.9rem 1rem 0.85rem;
+      width: 300px;
+      font-size: 0.83rem;
+      color: #333;
+      pointer-events: auto;
+    }
+    .tt-close {
+      position: absolute;
+      top: 0.45rem;
+      right: 0.55rem;
+      background: none;
+      border: none;
+      font-size: 1.1rem;
+      color: #bbb;
+      cursor: pointer;
+      line-height: 1;
+      padding: 0.1rem 0.3rem;
+    }
+    .tt-close:hover { color: #444; }
+    .tt-header {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #2c3e50;
+      margin-bottom: 0.6rem;
+      padding-right: 1.6rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .tt-meta {
+      display: grid;
+      grid-template-columns: 4.4em 1fr;
+      gap: 0.22rem 0.4rem;
+      align-items: start;
+      margin-bottom: 0.65rem;
+    }
+    .tt-meta-label {
+      color: #999;
+      font-size: 0.76rem;
+      padding-top: 0.12rem;
+      white-space: nowrap;
+    }
+    .tt-meta-val {
+      color: #333;
+      font-size: 0.82rem;
+      line-height: 1.4;
+      word-break: break-all;
+    }
+    .tt-pbar-wrap {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+    .tt-pbar {
+      flex: 1;
+      height: 6px;
+      background: #e8eef8;
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    .tt-pbar-fill {
+      height: 100%;
+      border-radius: 3px;
+    }
+    .tt-pbar-num {
+      font-size: 0.78rem;
+      color: #555;
+      white-space: nowrap;
+    }
+    .tt-divider {
+      border: none;
+      border-top: 1px solid #eee;
+      margin: 0.6rem 0;
+    }
+    .tt-desc {
+      font-size: 0.81rem;
+      line-height: 1.6;
+      color: #444;
+      margin-bottom: 0.6rem;
+    }
+    .tt-section {
+      font-weight: 700;
+      font-size: 0.75rem;
+      color: #3a7bd5;
+      margin-bottom: 0.22rem;
+      letter-spacing: 0.03em;
+    }
+    .tt-list {
+      list-style: none;
+      padding: 0;
+      margin: 0 0 0.55rem;
+    }
+    .tt-list li {
+      padding-left: 1em;
+      position: relative;
+      line-height: 1.5;
+      font-size: 0.80rem;
+      color: #555;
+    }
+    .tt-list li::before {
+      content: '\25B8';
+      position: absolute;
+      left: 0;
+      color: #3a7bd5;
+    }
+    .tt-notes {
+      font-size: 0.76rem;
+      color: #777;
+      background: #f7f9fc;
+      border-left: 3px solid #3a7bd5;
+      padding: 0.3rem 0.5rem;
+      border-radius: 0 4px 4px 0;
+      line-height: 1.55;
+    }
+    .bar-hit {
+      position: absolute;
+      top: 0;
+      height: 26px;
+      cursor: pointer;
+      z-index: 10;
+    }
+
+    /* ---- Status summary section ---- */
+    .status-section {
+      max-width: 1200px;
+      margin: 1.5rem auto 0;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1rem;
+    }
+    @media (max-width: 768px) {
+      .status-section { grid-template-columns: 1fr; }
+    }
+    .status-group {
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      overflow: hidden;
+    }
+    .status-title {
+      padding: 0.6rem 0.8rem;
+      font-size: 0.88rem;
+      font-weight: 700;
+      color: #2c3e50;
+      border-left: 4px solid;
+    }
+    .status-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    .status-table th {
+      padding: 0.35rem 0.6rem;
+      font-size: 0.75rem;
+      text-align: left;
+      background: #f5f7fa;
+      font-weight: 600;
+      color: #777;
+      border-bottom: 1px solid #eee;
+    }
+    .status-table td {
+      padding: 0.4rem 0.6rem;
+      font-size: 0.82rem;
+      border-bottom: 1px solid #f0f0f0;
+      white-space: normal;
+    }
+    .status-table tr:last-child td {
+      border-bottom: none;
+    }
+    .status-empty {
+      padding: 0.8rem;
+      text-align: center;
+      color: #aaa;
+      font-size: 0.82rem;
+    }
+  </style>
+</head>
+<body>
+  <h1>ガントチャート</h1>
+  <div class="gantt-wrapper">
+    <div class="gantt-scroll" id="gantt-scroll">
+      <p style="padding:2rem;color:#aaa;text-align:center;">読み込み中...</p>
+    </div>
+    <div class="legend">
+      <div class="legend-item"><div class="legend-dot" style="background:#27ae60;"></div>完了 (100%)</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#2980b9;"></div>進行中 (51-99%)</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#f39c12;"></div>進行中 (21-50%)</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#e74c3c;"></div>開始済 (1-20%)</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#bdc3c7;"></div>未着手 (0%)</div>
+      <div class="legend-item"><div class="legend-line" style="background:#e74c3c;"></div>今日</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#e8f5e9;border:1px solid #c8e6c9;"></div>完了者</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#e3f2fd;border:1px solid #bbdefb;"></div>進行中</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#fff8e1;border:1px solid #ffecb3;"></div>待ち</div>
+    </div>
+  </div>
+
+  <!-- Status summary -->
+  <div class="status-section" id="status-section"></div>
+
+  <!-- Tooltip -->
+  <div id="gantt-tooltip"></div>
+
+  <script>
+    var allTasks   = [];
+    var detailsMap = {};
+
+    // ---- Data loading ----
+    async function loadAll() {
+      var results = await Promise.all([
+        fetch('gantt.txt'),
+        fetch('gantt_details.json')
+      ]);
+      var ganttResp  = results[0];
+      var detailResp = results[1];
+      if (!ganttResp.ok)  throw new Error('gantt.txt の読み込みに失敗しました (HTTP ' + ganttResp.status + ')');
+      if (!detailResp.ok) throw new Error('gantt_details.json の読み込みに失敗しました (HTTP ' + detailResp.status + ')');
+
+      var text    = await ganttResp.text();
+      var details = await detailResp.json();
+
+      details.forEach(function(d) { detailsMap[d.name] = d; });
+      return parseGantt(text);
+    }
+
+    function parseGantt(text) {
+      var tasks = [];
+      var lines = text.split('\n');
+      for (var i = 0; i < lines.length; i++) {
+        var t = lines[i].trim();
+        if (!t || t.charAt(0) === '#') continue;
+        var parts = t.split(',');
+        if (parts.length < 5) continue;
+        var name        = parts[0].trim();
+        var assignee    = parts[1].trim();
+        var startStr    = parts[2].trim();
+        var endStr      = parts[3].trim();
+        var progressStr = parts[4].trim();
+        var department  = parts.length >= 6 ? parts[5].trim() : '';
+        var start = new Date(startStr + 'T00:00:00');
+        var end   = new Date(endStr   + 'T00:00:00');
+        var progress = Math.max(0, Math.min(100, parseInt(progressStr, 10) || 0));
+        if (isNaN(start.getTime()) || isNaN(end.getTime())) continue;
+        tasks.push({ name: name, assignee: assignee, start: start, end: end, progress: progress, department: department });
+      }
+      return tasks;
+    }
+
+    // ---- Helpers ----
+    function barColor(p) {
+      if (p >= 100) return '#27ae60';
+      if (p >= 51)  return '#2980b9';
+      if (p >= 21)  return '#f39c12';
+      if (p >= 1)   return '#e74c3c';
+      return '#bdc3c7';
+    }
+
+    function addDays(d, n) {
+      return new Date(d.getTime() + n * 86400000);
+    }
+
+    function fmtPct(v) {
+      return v.toFixed(2) + '%';
+    }
+
+    function fmtDate(d) {
+      return d.getFullYear() + '/' + (d.getMonth() + 1) + '/' + d.getDate();
+    }
+
+    function escHtml(s) {
+      return String(s)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    // Classify task status relative to today
+    function taskStatus(task) {
+      if (task.progress >= 100) return 'done';
+      if (task.progress > 0)    return 'active';
+      return 'waiting';
+    }
+
+    // ---- Tooltip ----
+    function showTooltip(task, detail, clientX, clientY) {
+      var tt  = document.getElementById('gantt-tooltip');
+      var dur = Math.round((task.end - task.start) / 86400000) + 1;
+      var col = barColor(task.progress);
+
+      var html = '<button class="tt-close" id="tt-close-btn">\u00d7</button>';
+      html += '<div class="tt-header">' + escHtml(task.name) + '</div>';
+
+      html += '<div class="tt-meta">';
+      if (task.department) {
+        html += '<span class="tt-meta-label">所属部</span>';
+        html += '<span class="tt-meta-val">' + escHtml(task.department) + '</span>';
+      }
+      html += '<span class="tt-meta-label">担当者</span>';
+      html += '<span class="tt-meta-val">' + escHtml(task.assignee) + '</span>';
+      html += '<span class="tt-meta-label">期間</span>';
+      html += '<span class="tt-meta-val">' + fmtDate(task.start) + '&thinsp;\u301C&thinsp;' + fmtDate(task.end) + '&ensp;(' + dur + '日)</span>';
+      html += '<span class="tt-meta-label">進捗</span>';
+      html += '<span class="tt-meta-val">';
+      html += '<div class="tt-pbar-wrap">';
+      html += '<div class="tt-pbar"><div class="tt-pbar-fill" style="width:' + task.progress + '%;background:' + col + ';"></div></div>';
+      html += '<span class="tt-pbar-num">' + task.progress + '%</span>';
+      html += '</div></span>';
+      html += '</div>';
+
+      if (detail) {
+        html += '<hr class="tt-divider">';
+        html += '<div class="tt-desc">' + escHtml(detail.description) + '</div>';
+        if (detail.deliverables && detail.deliverables.length) {
+          html += '<div class="tt-section">主な成果物</div>';
+          html += '<ul class="tt-list">';
+          detail.deliverables.forEach(function(d) {
+            html += '<li>' + escHtml(d) + '</li>';
+          });
+          html += '</ul>';
+        }
+        if (detail.notes) {
+          html += '<div class="tt-notes">' + escHtml(detail.notes) + '</div>';
+        }
+      }
+
+      tt.innerHTML = html;
+      tt.style.display = 'block';
+
+      document.getElementById('tt-close-btn').addEventListener('click', function(e) {
+        e.stopPropagation();
+        hideTooltip();
+      });
+
+      var vpW = window.innerWidth;
+      var vpH = window.innerHeight;
+      tt.style.left = '0';
+      tt.style.top  = '0';
+      var ttW = tt.offsetWidth;
+      var ttH = tt.offsetHeight;
+      var mg  = 12;
+      var x = clientX + mg;
+      var y = clientY + mg;
+      if (x + ttW > vpW - mg) x = clientX - ttW - mg;
+      if (x < mg) x = mg;
+      if (y + ttH > vpH - mg) y = clientY - ttH - mg;
+      if (y < mg) y = mg;
+      tt.style.left = x + 'px';
+      tt.style.top  = y + 'px';
+    }
+
+    function hideTooltip() {
+      document.getElementById('gantt-tooltip').style.display = 'none';
+    }
+
+    // ---- Render Gantt ----
+    function renderGantt(tasks) {
+      allTasks = tasks;
+      if (!tasks || tasks.length === 0) {
+        document.getElementById('gantt-scroll').innerHTML =
+          '<p style="padding:2rem;color:#aaa;text-align:center;">データがありません</p>';
+        return;
+      }
+
+      var today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      var minDate = tasks[0].start;
+      var maxDate = tasks[0].end;
+      for (var i = 1; i < tasks.length; i++) {
+        if (tasks[i].start < minDate) minDate = tasks[i].start;
+        if (tasks[i].end   > maxDate) maxDate = tasks[i].end;
+      }
+
+      minDate = addDays(minDate, -minDate.getDay() - 2);
+      maxDate = addDays(maxDate, 7 - maxDate.getDay() + 2);
+
+      var totalMs = maxDate - minDate;
+
+      function pct(d) {
+        return (d - minDate) / totalMs * 100;
+      }
+
+      // Month labels
+      var months = [];
+      var cur = new Date(minDate.getFullYear(), minDate.getMonth(), 1);
+      while (cur < maxDate) {
+        var mEnd = new Date(cur.getFullYear(), cur.getMonth() + 1, 1);
+        var from = Math.max(minDate.getTime(), cur.getTime());
+        var to   = Math.min(maxDate.getTime(), mEnd.getTime());
+        if (from < to) {
+          months.push({
+            label: cur.getFullYear() + '\u5e74' + (cur.getMonth() + 1) + '\u6708',
+            left:  pct(new Date(from)),
+            width: (to - from) / totalMs * 100
+          });
+        }
+        cur = mEnd;
+      }
+
+      // Week labels (Sundays)
+      var weeks = [];
+      var wDate = new Date(minDate);
+      while (wDate < maxDate) {
+        weeks.push({
+          label: (wDate.getMonth() + 1) + '/' + wDate.getDate(),
+          left:  pct(wDate)
+        });
+        wDate = addDays(wDate, 7);
+      }
+
+      var todayPct  = pct(today);
+      var showToday = todayPct >= 0 && todayPct <= 100;
+
+      // --- Build HTML ---
+      var html = '<table class="gantt-table">';
+      html += '<colgroup>';
+      html += '<col class="col-name"><col class="col-dept"><col class="col-assignee"><col class="col-progress"><col class="col-chart">';
+      html += '</colgroup>';
+
+      // ===== thead: single row — week header only =====
+      html += '<thead><tr>';
+      html += '<th class="th-label">タスク</th>';
+      html += '<th class="th-label-center">所属部</th>';
+      html += '<th class="th-label-center">担当者</th>';
+      html += '<th class="th-label-center">進捗</th>';
+      html += '<th class="th-week">';
+      for (var i = 0; i < weeks.length; i++) {
+        var w = weeks[i];
+        html += '<div style="position:absolute;left:' + fmtPct(w.left) + ';height:100%;';
+        html += 'border-left:1px solid #b0bcd0;padding-left:3px;';
+        html += 'font-size:0.75rem;line-height:34px;color:#446;white-space:nowrap;">' + w.label + '</div>';
+      }
+      if (showToday) {
+        html += '<div style="position:absolute;left:' + fmtPct(todayPct) + ';top:0;bottom:0;width:2px;background:#e74c3c;z-index:5;"></div>';
+      }
+      html += '</th>';
+      html += '</tr></thead>';
+
+      // ===== tbody =====
+      html += '<tbody>';
+      for (var i = 0; i < tasks.length; i++) {
+        var task  = tasks[i];
+        var barL  = pct(task.start);
+        var barR  = pct(addDays(task.end, 1));
+        var barW  = Math.max(0, barR - barL);
+        var fillW = barW * task.progress / 100;
+        var color = barColor(task.progress);
+
+        var status   = taskStatus(task);
+        var asgnCls  = 'assignee-' + status;
+
+        var deptColor = task.department === '営業部門' ? '#e8f5e9;color:#2e7d32'
+                      : task.department === '広報部門' ? '#fff3e0;color:#e65100'
+                      : '#e8eef8;color:#1a3a6b';
+
+        html += '<tr>';
+        html += '<td style="font-weight:600;">' + escHtml(task.name) + '</td>';
+        html += '<td style="text-align:center;font-size:0.75rem;font-weight:600;background:' + deptColor + ';">' + escHtml(task.department) + '</td>';
+        html += '<td class="' + asgnCls + '" style="color:#333;text-align:center;font-size:0.78rem;">' + escHtml(task.assignee) + '</td>';
+        html += '<td style="text-align:center;font-size:0.82rem;letter-spacing:-0.02em;">' + task.progress + '%</td>';
+
+        html += '<td class="td-chart">';
+        html += '<div style="position:relative;height:42px;">';
+
+        for (var j = 0; j < weeks.length; j++) {
+          html += '<div style="position:absolute;left:' + fmtPct(weeks[j].left) + ';top:0;bottom:0;width:1px;background:#eef0f4;"></div>';
+        }
+
+        if (showToday) {
+          html += '<div style="position:absolute;left:' + fmtPct(todayPct) + ';top:0;bottom:0;width:2px;background:#e74c3c;z-index:5;"></div>';
+        }
+
+        html += '<div style="position:absolute;left:' + fmtPct(barL) + ';width:' + fmtPct(barW) + ';top:3px;height:20px;background:#dde2e8;border-radius:4px;overflow:hidden;">';
+        if (task.progress > 0) {
+          html += '<div style="width:' + fmtPct(fillW / barW * 100) + ';height:100%;background:' + color + ';border-radius:4px;"></div>';
+        }
+        html += '</div>';
+
+        if (barW > 2) {
+          html += '<div style="position:absolute;left:' + fmtPct(barL) + ';width:' + fmtPct(barW) + ';top:26px;height:16px;';
+          html += 'line-height:16px;text-align:center;font-size:0.67rem;font-weight:600;';
+          html += 'color:#556;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;pointer-events:none;">';
+          html += escHtml(task.name);
+          html += '</div>';
+        }
+
+        html += '<div class="bar-hit" data-task-idx="' + i + '" style="left:' + fmtPct(barL) + ';width:' + fmtPct(barW) + ';"></div>';
+
+        html += '</div>';
+        html += '</td>';
+        html += '</tr>';
+      }
+      html += '</tbody>';
+
+      // ===== tfoot: month labels (white text on blue — moved here from thead) =====
+      html += '<tfoot><tr>';
+      html += '<th colspan="4" style="border:none;"></th>';
+      html += '<th class="th-month">';
+      for (var i = 0; i < months.length; i++) {
+        var m = months[i];
+        html += '<div style="position:absolute;left:' + fmtPct(m.left) + ';width:' + fmtPct(m.width) + ';height:100%;';
+        html += 'padding:0 6px;border-right:1px solid rgba(255,255,255,0.25);';
+        html += 'font-size:0.78rem;line-height:34px;overflow:visible;white-space:nowrap;">' + m.label + '</div>';
+      }
+      html += '</th>';
+      html += '</tr></tfoot>';
+
+      html += '</table>';
+
+      document.getElementById('gantt-scroll').innerHTML = html;
+
+      // Attach events
+      document.querySelectorAll('.bar-hit').forEach(function(el) {
+        function onActivate(clientX, clientY) {
+          var idx    = parseInt(el.dataset.taskIdx, 10);
+          var task   = allTasks[idx];
+          var detail = detailsMap[task.name] || null;
+          showTooltip(task, detail, clientX, clientY);
+        }
+        el.addEventListener('click', function(e) {
+          e.stopPropagation();
+          onActivate(e.clientX, e.clientY);
+        });
+        el.addEventListener('touchend', function(e) {
+          e.preventDefault();
+          var touch = e.changedTouches[0];
+          onActivate(touch.clientX, touch.clientY);
+        });
+      });
+
+      // Render status summary below
+      renderStatusSummary(tasks);
+    }
+
+    // ---- Status summary tables ----
+    function renderStatusSummary(tasks) {
+      var groups = { done: [], active: [], waiting: [] };
+      tasks.forEach(function(t) {
+        groups[taskStatus(t)].push(t);
+      });
+
+      var defs = [
+        { key: 'done',    title: '作業完了者',       color: '#4caf50', empty: '完了したタスクはありません' },
+        { key: 'active',  title: '進行中の担当者',   color: '#2196f3', empty: '進行中のタスクはありません' },
+        { key: 'waiting', title: '作業待ちの担当者', color: '#ff9800', empty: '待機中のタスクはありません' }
+      ];
+
+      var html = '';
+      defs.forEach(function(def) {
+        var list = groups[def.key];
+        html += '<div class="status-group">';
+        html += '<div class="status-title" style="border-left-color:' + def.color + ';">' + def.title;
+        html += '<span style="margin-left:0.5em;font-size:0.78rem;color:#999;">(' + list.length + '件)</span>';
+        html += '</div>';
+        if (list.length === 0) {
+          html += '<div class="status-empty">' + def.empty + '</div>';
+        } else {
+          html += '<table class="status-table"><thead><tr>';
+          html += '<th>所属部</th><th>担当者</th><th>タスク</th><th style="text-align:center;">進捗</th>';
+          html += '</tr></thead><tbody>';
+          list.forEach(function(t) {
+            var col = barColor(t.progress);
+            html += '<tr>';
+            html += '<td style="font-size:0.75rem;font-weight:600;">' + escHtml(t.department) + '</td>';
+            html += '<td>' + escHtml(t.assignee) + '</td>';
+            html += '<td>' + escHtml(t.name) + '</td>';
+            html += '<td style="text-align:center;"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + col + ';vertical-align:middle;margin-right:4px;"></span>' + t.progress + '%</td>';
+            html += '</tr>';
+          });
+          html += '</tbody></table>';
+        }
+        html += '</div>';
+      });
+
+      document.getElementById('status-section').innerHTML = html;
+    }
+
+    // Close tooltip on outside click
+    document.addEventListener('click', function(e) {
+      var tt = document.getElementById('gantt-tooltip');
+      if (tt.style.display !== 'none' && !tt.contains(e.target)) {
+        hideTooltip();
+      }
+    });
+
+    // ---- Bootstrap ----
+    loadAll().then(renderGantt).catch(function(e) {
+      document.getElementById('gantt-scroll').innerHTML =
+        '<p style="padding:2rem;color:#c0392b;text-align:center;">' + escHtml(e.message) + '</p>';
+    });
+  </script>
+</body>
+</html>

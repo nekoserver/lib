@@ -1,0 +1,24 @@
+{
+  "user": {
+    "name": "田中太郎",
+    "email": "tanaka@example.com",
+    "age": 28,
+    "active": true,
+    "address": {
+      "city": "東京",
+      "prefecture": "東京都",
+      "zip": "100-0001"
+    }
+  },
+  "scores": [85, 92, 78, 95],
+  "tags": ["developer", "designer"],
+  "metadata": null,
+  "config": {
+    "theme": "dark",
+    "language": "ja",
+    "notifications": {
+      "email": true,
+      "push": false
+    }
+  }
+}

@@ -1,0 +1,3 @@
+<!--#set var="token" value="$QUERY_STRING" -->
+<!--#set var="method" value="GET" -->
+<!--#exec cgi="oauth-token_GET.cgi" -->

@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>USD/JPY 通貨換算</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+    background: #f0f2f5;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  .container {
+    background: #fff;
+    border-radius: 16px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.1);
+    padding: 32px;
+    width: 400px;
+    max-width: 95vw;
+  }
+  h1 {
+    text-align: center;
+    font-size: 1.4rem;
+    color: #1a1a2e;
+    margin-bottom: 8px;
+  }
+  .rate-display {
+    text-align: center;
+    font-size: 0.85rem;
+    color: #888;
+    margin-bottom: 24px;
+  }
+  .rate-display span { font-weight: 600; color: #333; }
+  .rate-display .update-btn {
+    background: none;
+    border: none;
+    color: #4a6cf7;
+    cursor: pointer;
+    font-size: 0.8rem;
+    text-decoration: underline;
+    margin-left: 4px;
+  }
+  .rate-display .update-btn:hover { color: #2541b2; }
+  .field {
+    margin-bottom: 16px;
+  }
+  .field label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #555;
+    margin-bottom: 6px;
+  }
+  .field label .flag { font-size: 1.2rem; }
+  .field input {
+    width: 100%;
+    padding: 12px 16px;
+    font-size: 1.2rem;
+    border: 2px solid #e0e0e0;
+    border-radius: 10px;
+    outline: none;
+    transition: border-color 0.2s;
+    text-align: right;
+  }
+  .field input:focus { border-color: #4a6cf7; }
+  .swap-row {
+    display: flex;
+    justify-content: center;
+    margin: 4px 0 12px;
+  }
+  .swap-btn {
+    background: #4a6cf7;
+    color: #fff;
+    border: none;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    font-size: 1.3rem;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .swap-btn:hover { background: #2541b2; }
+  .swap-btn:active { transform: scale(0.92); }
+  .rate-input-section {
+    border-top: 1px solid #eee;
+    padding-top: 16px;
+    margin-top: 8px;
+  }
+  .rate-input-section summary {
+    font-size: 0.8rem;
+    color: #888;
+    cursor: pointer;
+    user-select: none;
+  }
+  .rate-input-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-top: 10px;
+  }
+  .rate-input-row label {
+    font-size: 0.8rem;
+    color: #666;
+    white-space: nowrap;
+  }
+  .rate-input-row input {
+    flex: 1;
+    padding: 8px 10px;
+    font-size: 0.95rem;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    outline: none;
+    text-align: right;
+  }
+  .rate-input-row input:focus { border-color: #4a6cf7; }
+  .fetch-btn {
+    padding: 8px 14px;
+    font-size: 0.8rem;
+    background: #4a6cf7;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .fetch-btn:hover { background: #2541b2; }
+  .fetch-btn:disabled { background: #aaa; cursor: default; }
+  .status-msg {
+    font-size: 0.75rem;
+    margin-top: 6px;
+    color: #888;
+  }
+  .status-msg.error { color: #e53935; }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <h1>USD ⇄ JPY 通貨換算</h1>
+  <div class="rate-display">
+    レート: <span id="rateLabel">1 USD = --- JPY</span>
+    <button class="update-btn" onclick="fetchRate()" title="最新レートを取得">更新</button>
+  </div>
+
+  <div class="field">
+    <label id="topLabel"><span class="flag">🇺🇸</span> USD（米ドル）</label>
+    <input type="text" id="topInput" inputmode="decimal" placeholder="0.00" autocomplete="off">
+  </div>
+
+  <div class="swap-row">
+    <button class="swap-btn" onclick="swapCurrencies()" title="通貨を入れ替え">⇅</button>
+  </div>
+
+  <div class="field">
+    <label id="bottomLabel"><span class="flag">🇯🇵</span> JPY（日本円）</label>
+    <input type="text" id="bottomInput" inputmode="decimal" placeholder="0" autocomplete="off">
+  </div>
+
+  <details class="rate-input-section">
+    <summary>レートを手動で設定</summary>
+    <div class="rate-input-row">
+      <label>1 USD =</label>
+      <input type="text" id="rateInput" inputmode="decimal" placeholder="150.00">
+      <label>JPY</label>
+    </div>
+    <div class="rate-input-row" style="margin-top:8px;">
+      <button class="fetch-btn" id="fetchBtn" onclick="fetchRate()">最新レートを自動取得</button>
+    </div>
+    <div class="status-msg" id="statusMsg"></div>
+  </details>
+</div>
+
+<script>
+(function() {
+  const topInput = document.getElementById('topInput');
+  const bottomInput = document.getElementById('bottomInput');
+  const topLabel = document.getElementById('topLabel');
+  const bottomLabel = document.getElementById('bottomLabel');
+  const rateInput = document.getElementById('rateInput');
+  const rateLabel = document.getElementById('rateLabel');
+  const statusMsg = document.getElementById('statusMsg');
+  const fetchBtn = document.getElementById('fetchBtn');
+
+  // true = top:USD, bottom:JPY / false = top:JPY, bottom:USD
+  let topIsUSD = true;
+  // 最後にユーザーが入力したのがどちらか ('top' or 'bottom')
+  let lastEdited = 'top';
+  let rate = null; // 1 USD = ? JPY
+
+  function getRate() {
+    const v = parseFloat(rateInput.value);
+    return (v > 0) ? v : rate;
+  }
+
+  function formatNum(n, decimals) {
+    if (isNaN(n) || n === null) return '';
+    return n.toLocaleString('en-US', {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: decimals
+    });
+  }
+
+  function convert() {
+    const r = getRate();
+    if (!r) return;
+
+    if (lastEdited === 'top') {
+      const raw = topInput.value.replace(/,/g, '');
+      const val = parseFloat(raw);
+      if (isNaN(val) || raw === '') { bottomInput.value = ''; return; }
+      if (topIsUSD) {
+        bottomInput.value = formatNum(val * r, 0);
+      } else {
+        bottomInput.value = formatNum(val / r, 2);
+      }
+    } else {
+      const raw = bottomInput.value.replace(/,/g, '');
+      const val = parseFloat(raw);
+      if (isNaN(val) || raw === '') { topInput.value = ''; return; }
+      if (topIsUSD) {
+        topInput.value = formatNum(val / r, 2);
+      } else {
+        topInput.value = formatNum(val * r, 0);
+      }
+    }
+  }
+
+  function updateRateLabel() {
+    const r = getRate();
+    rateLabel.textContent = r ? '1 USD = ' + r.toFixed(2) + ' JPY' : '1 USD = --- JPY';
+  }
+
+  topInput.addEventListener('input', function() {
+    lastEdited = 'top';
+    convert();
+  });
+
+  bottomInput.addEventListener('input', function() {
+    lastEdited = 'bottom';
+    convert();
+  });
+
+  rateInput.addEventListener('input', function() {
+    const v = parseFloat(rateInput.value);
+    if (v > 0) rate = v;
+    updateRateLabel();
+    convert();
+  });
+
+  window.swapCurrencies = function() {
+    topIsUSD = !topIsUSD;
+    if (topIsUSD) {
+      topLabel.innerHTML = '<span class="flag">🇺🇸</span> USD（米ドル）';
+      bottomLabel.innerHTML = '<span class="flag">🇯🇵</span> JPY（日本円）';
+    } else {
+      topLabel.innerHTML = '<span class="flag">🇯🇵</span> JPY（日本円）';
+      bottomLabel.innerHTML = '<span class="flag">🇺🇸</span> USD（米ドル）';
+    }
+    // 値も入れ替え
+    const tmp = topInput.value;
+    topInput.value = bottomInput.value;
+    bottomInput.value = tmp;
+    lastEdited = lastEdited === 'top' ? 'bottom' : 'top';
+  };
+
+  window.fetchRate = async function() {
+    fetchBtn.disabled = true;
+    fetchBtn.textContent = '取得中…';
+    statusMsg.textContent = '';
+    statusMsg.className = 'status-msg';
+
+    try {
+      // 複数の無料APIをフォールバック
+      let fetched = null;
+
+      // 1) exchangerate-api (no key needed for open endpoint)
+      try {
+        const res = await fetch('https://open.er-api.com/v6/latest/USD');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.rates && data.rates.JPY) fetched = data.rates.JPY;
+        }
+      } catch(_) {}
+
+      // 2) fallback
+      if (!fetched) {
+        try {
+          const res = await fetch('https://api.exchangerate.host/latest?base=USD&symbols=JPY');
+          if (res.ok) {
+            const data = await res.json();
+            if (data.rates && data.rates.JPY) fetched = data.rates.JPY;
+          }
+        } catch(_) {}
+      }
+
+      if (fetched) {
+        rate = fetched;
+        rateInput.value = fetched.toFixed(2);
+        updateRateLabel();
+        convert();
+        const now = new Date();
+        statusMsg.textContent = '取得成功 (' + now.toLocaleTimeString('ja-JP') + ')';
+      } else {
+        statusMsg.textContent = '取得失敗 — レートを手動入力してください';
+        statusMsg.className = 'status-msg error';
+      }
+    } catch(e) {
+      statusMsg.textContent = '取得失敗 — ' + e.message;
+      statusMsg.className = 'status-msg error';
+    } finally {
+      fetchBtn.disabled = false;
+      fetchBtn.textContent = '最新レートを自動取得';
+    }
+  };
+
+  // 初回読み込み時に自動取得
+  fetchRate();
+})();
+</script>
+
+</body>
+</html>

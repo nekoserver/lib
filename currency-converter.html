@@ -196,6 +196,36 @@
   let lastEdited = 'top';
   let rate = null; // 1 USD = ? JPY
 
+  // --- GETパラメータ解析 ---
+  const params = new URLSearchParams(window.location.search);
+  const paramJpy = params.get('jpy');
+  const paramUsd = params.get('usd');
+  const paramMode = params.get('mode');
+
+  // 数字のみバリデーション（整数または小数のみ許可）
+  function isValidNumeric(str) {
+    return str !== null && /^\d+(\.\d+)?$/.test(str);
+  }
+
+  const validJpy = isValidNumeric(paramJpy) ? parseFloat(paramJpy) : null;
+  const validUsd = isValidNumeric(paramUsd) ? parseFloat(paramUsd) : null;
+
+  // パラメータが何もなければデフォルト: jpy=10000&mode=swap とみなす
+  const hasAnyParam = paramJpy !== null || paramUsd !== null || paramMode !== null;
+  let initialJpy = null;
+  let initialUsd = null;
+  let effectiveMode = paramMode;
+
+  if (!hasAnyParam) {
+    initialJpy = 10000;
+    effectiveMode = 'swap';
+  } else if (validJpy !== null) {
+    // 両方有効でもjpy優先
+    initialJpy = validJpy;
+  } else if (validUsd !== null) {
+    initialUsd = validUsd;
+  }
+
   function getRate() {
     const v = parseFloat(rateInput.value);
     return (v > 0) ? v : rate;
@@ -239,6 +269,49 @@
     rateLabel.textContent = r ? '1 USD = ' + r.toFixed(2) + ' JPY' : '1 USD = --- JPY';
   }
 
+  // レート取得後にGETパラメータの初期値を適用
+  function applyInitialParams() {
+    // mode=rateonly: レートそのものだけを返す
+    if (effectiveMode === 'rateonly') {
+      const r = getRate();
+      if (r) {
+        document.body.textContent = r.toFixed(2);
+        document.body.style.cssText = 'display:block;font-family:monospace;font-size:1.2rem;padding:8px;min-height:auto;justify-content:initial;align-items:initial;background:none;';
+      }
+      return;
+    }
+
+    // mode=swap: JPYを上に表示
+    if (effectiveMode === 'swap' && topIsUSD) {
+      swapCurrencies();
+    }
+
+    // 初期値を設定して変換
+    if (initialJpy !== null) {
+      if (topIsUSD) {
+        // JPYは下
+        bottomInput.value = formatNum(initialJpy, 0);
+        lastEdited = 'bottom';
+      } else {
+        // JPYは上
+        topInput.value = formatNum(initialJpy, 0);
+        lastEdited = 'top';
+      }
+      convert();
+    } else if (initialUsd !== null) {
+      if (topIsUSD) {
+        // USDは上
+        topInput.value = formatNum(initialUsd, 2);
+        lastEdited = 'top';
+      } else {
+        // USDは下
+        bottomInput.value = formatNum(initialUsd, 2);
+        lastEdited = 'bottom';
+      }
+      convert();
+    }
+  }
+
   topInput.addEventListener('input', function() {
     lastEdited = 'top';
     convert();
@@ -271,6 +344,8 @@
     bottomInput.value = tmp;
     lastEdited = lastEdited === 'top' ? 'bottom' : 'top';
   };
+
+  let initialApplied = false;
 
   window.fetchRate = async function() {
     fetchBtn.disabled = true;
@@ -319,6 +394,12 @@
     } finally {
       fetchBtn.disabled = false;
       fetchBtn.textContent = '最新レートを自動取得';
+    }
+
+    // 初回レート取得後にGETパラメータの初期値を適用
+    if (!initialApplied) {
+      initialApplied = true;
+      applyInitialParams();
     }
   };
 

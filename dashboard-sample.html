@@ -514,6 +514,193 @@
       color: var(--danger);
     }
 
+    /* Calendar */
+    .calendar-card {
+      background: var(--bg-secondary);
+      border-radius: 12px;
+      padding: 24px;
+      box-shadow: var(--card-shadow);
+      border: 1px solid var(--border-color);
+      margin-bottom: 32px;
+      transition: background 0.3s, border-color 0.3s;
+    }
+
+    .calendar-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+
+    .calendar-header h3 {
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    .calendar-nav {
+      display: flex;
+      gap: 8px;
+    }
+
+    .calendar-nav button {
+      background: var(--bg-primary);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      width: 32px;
+      height: 32px;
+      cursor: pointer;
+      font-size: 14px;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.2s, border-color 0.3s, color 0.3s;
+    }
+
+    .calendar-nav button:hover {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+    }
+
+    .calendar-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 4px;
+    }
+
+    .calendar-dow {
+      text-align: center;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      padding: 8px 0;
+    }
+
+    .calendar-cell {
+      position: relative;
+      min-height: 48px;
+      padding: 6px 4px;
+      border-radius: 8px;
+      text-align: center;
+      font-size: 13px;
+      color: var(--text-primary);
+      transition: background 0.2s;
+    }
+
+    .calendar-cell.empty {
+      background: none;
+    }
+
+    .calendar-cell.has-events {
+      cursor: pointer;
+    }
+
+    .calendar-cell.has-events:hover {
+      background: var(--bg-primary);
+    }
+
+    .calendar-cell.today {
+      background: var(--accent);
+      color: #fff;
+      font-weight: 700;
+      border-radius: 8px;
+    }
+
+    .calendar-cell.today:hover {
+      background: var(--accent-hover);
+    }
+
+    .calendar-cell.other-month {
+      color: var(--text-secondary);
+      opacity: 0.4;
+    }
+
+    .calendar-event-badge {
+      display: inline-block;
+      margin-top: 2px;
+      min-width: 18px;
+      height: 18px;
+      line-height: 18px;
+      border-radius: 9px;
+      background: var(--accent);
+      color: #fff;
+      font-size: 10px;
+      font-weight: 700;
+      text-align: center;
+    }
+
+    .calendar-cell.today .calendar-event-badge {
+      background: rgba(255, 255, 255, 0.35);
+    }
+
+    /* Modal */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal-overlay.open {
+      display: flex;
+    }
+
+    .modal {
+      background: var(--bg-secondary);
+      border-radius: 16px;
+      padding: 28px;
+      width: 90%;
+      max-width: 480px;
+      max-height: 80vh;
+      overflow-y: auto;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+      border: 1px solid var(--border-color);
+      transition: background 0.3s, border-color 0.3s;
+    }
+
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+
+    .modal-header h3 {
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .modal-close {
+      background: none;
+      border: none;
+      font-size: 22px;
+      cursor: pointer;
+      color: var(--text-secondary);
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.2s, color 0.2s;
+    }
+
+    .modal-close:hover {
+      background: var(--bg-primary);
+      color: var(--text-primary);
+    }
+
+    .modal-events {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
     /* Settings page */
     .settings-list {
       display: flex;
@@ -618,6 +805,27 @@
             <h3 id="scheduleTitle"></h3>
             <div class="schedule-list" id="scheduleList"></div>
           </div>
+          <div id="panel-calendar" class="calendar-card panel">
+            <div class="calendar-header">
+              <h3 id="calendarTitle"></h3>
+              <div class="calendar-nav">
+                <button id="calPrev">&#9664;</button>
+                <button id="calNext">&#9654;</button>
+              </div>
+            </div>
+            <div class="calendar-grid" id="calendarGrid"></div>
+          </div>
+        </div>
+
+        <!-- Schedule Modal -->
+        <div class="modal-overlay" id="scheduleModal">
+          <div class="modal">
+            <div class="modal-header">
+              <h3 id="modalTitle"></h3>
+              <button class="modal-close" id="modalClose">&#10005;</button>
+            </div>
+            <div class="modal-events" id="modalEvents"></div>
+          </div>
         </div>
 
         <!-- Settings Page -->
@@ -646,7 +854,8 @@
       { id: 'revenue', cookieName: 'dash_panel_revenue',  label: 'Monthly Revenue',   desc: 'Bar chart showing monthly revenue trends' },
       { id: 'traffic', cookieName: 'dash_panel_traffic',  label: 'Traffic Sources',   desc: 'Donut chart showing traffic source breakdown' },
       { id: 'users',   cookieName: 'dash_panel_users',    label: 'Recent Users',      desc: 'Table of recently registered users' },
-      { id: 'schedule', cookieName: 'dash_panel_schedule', label: 'Schedule',          desc: 'Upcoming meetings, releases, events, and deadlines' }
+      { id: 'schedule', cookieName: 'dash_panel_schedule', label: 'Schedule',          desc: 'Upcoming meetings, releases, events, and deadlines' },
+      { id: 'calendar', cookieName: 'dash_panel_calendar', label: 'Calendar',          desc: 'Monthly calendar view with schedule event counts' }
     ];
 
     // --- Read panel visibility from cookies (default: ON) ---
@@ -840,6 +1049,123 @@
       });
     }
 
+    // --- Calendar state ---
+    let calendarYear, calendarMonth, scheduleEvents = [];
+
+    // --- Render calendar from schedule data ---
+    function renderCalendar(scheduleData) {
+      scheduleEvents = scheduleData.events;
+      const now = new Date();
+      if (calendarYear === undefined) {
+        calendarYear = now.getFullYear();
+        calendarMonth = now.getMonth();
+      }
+      buildCalendar();
+
+      document.getElementById('calPrev').addEventListener('click', () => {
+        calendarMonth--;
+        if (calendarMonth < 0) { calendarMonth = 11; calendarYear--; }
+        buildCalendar();
+      });
+      document.getElementById('calNext').addEventListener('click', () => {
+        calendarMonth++;
+        if (calendarMonth > 11) { calendarMonth = 0; calendarYear++; }
+        buildCalendar();
+      });
+    }
+
+    function buildCalendar() {
+      const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+      document.getElementById('calendarTitle').textContent = monthNames[calendarMonth] + ' ' + calendarYear;
+
+      // Count events per date
+      const eventCounts = {};
+      scheduleEvents.forEach(ev => {
+        eventCounts[ev.date] = (eventCounts[ev.date] || 0) + 1;
+      });
+
+      const grid = document.getElementById('calendarGrid');
+      grid.innerHTML = '';
+
+      const dows = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+      dows.forEach(d => {
+        const cell = document.createElement('div');
+        cell.className = 'calendar-dow';
+        cell.textContent = d;
+        grid.appendChild(cell);
+      });
+
+      const firstDay = new Date(calendarYear, calendarMonth, 1).getDay();
+      const daysInMonth = new Date(calendarYear, calendarMonth + 1, 0).getDate();
+      const today = new Date();
+      const todayStr = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
+
+      // Empty cells before first day
+      for (let i = 0; i < firstDay; i++) {
+        const cell = document.createElement('div');
+        cell.className = 'calendar-cell empty';
+        grid.appendChild(cell);
+      }
+
+      // Day cells
+      for (let day = 1; day <= daysInMonth; day++) {
+        const dateStr = calendarYear + '-' + String(calendarMonth + 1).padStart(2, '0') + '-' + String(day).padStart(2, '0');
+        const cell = document.createElement('div');
+        cell.className = 'calendar-cell';
+        if (dateStr === todayStr) cell.classList.add('today');
+
+        const dayNum = document.createElement('div');
+        dayNum.textContent = day;
+        cell.appendChild(dayNum);
+
+        const count = eventCounts[dateStr];
+        if (count) {
+          cell.classList.add('has-events');
+          const badge = document.createElement('div');
+          badge.className = 'calendar-event-badge';
+          badge.textContent = count;
+          cell.appendChild(badge);
+          cell.addEventListener('click', () => openScheduleModal(dateStr));
+        }
+
+        grid.appendChild(cell);
+      }
+    }
+
+    // --- Modal ---
+    function openScheduleModal(dateStr) {
+      const overlay = document.getElementById('scheduleModal');
+      const d = new Date(dateStr + 'T00:00:00');
+      const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+      document.getElementById('modalTitle').textContent = monthNames[d.getMonth()] + ' ' + d.getDate() + ', ' + d.getFullYear();
+
+      const eventsContainer = document.getElementById('modalEvents');
+      eventsContainer.innerHTML = '';
+      const dayEvents = scheduleEvents.filter(ev => ev.date === dateStr);
+      dayEvents.forEach(ev => {
+        const item = document.createElement('div');
+        item.className = 'schedule-item';
+        item.innerHTML =
+          '<div class="schedule-info">' +
+            '<span class="schedule-name">' + escapeHTML(ev.name) + '</span>' +
+            '<span class="schedule-time">' + escapeHTML(ev.time) + '</span>' +
+          '</div>' +
+          '<span class="category-badge ' + escapeHTML(ev.category) + '">' + escapeHTML(ev.categoryLabel) + '</span>';
+        eventsContainer.appendChild(item);
+      });
+
+      overlay.classList.add('open');
+    }
+
+    document.getElementById('modalClose').addEventListener('click', () => {
+      document.getElementById('scheduleModal').classList.remove('open');
+    });
+    document.getElementById('scheduleModal').addEventListener('click', (e) => {
+      if (e.target === e.currentTarget) {
+        e.currentTarget.classList.remove('open');
+      }
+    });
+
     // --- Render schedule from JSON ---
     function renderSchedule(data) {
       document.getElementById('scheduleTitle').textContent = data.title;
@@ -887,6 +1213,7 @@
       renderTraffic(trafficData);
       renderUsers(usersData);
       renderSchedule(scheduleData);
+      renderCalendar(scheduleData);
       buildSettingsPage();
       applyPanelVisibility();
     }

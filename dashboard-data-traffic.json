@@ -1,0 +1,9 @@
+{
+  "title": "Traffic Sources",
+  "sources": [
+    { "name": "Organic Search", "percentage": 40, "color": "#4361ee", "dasharray": "40 60", "dashoffset": 25 },
+    { "name": "Direct", "percentage": 25, "color": "#2ec4b6", "dasharray": "25 75", "dashoffset": 85 },
+    { "name": "Referral", "percentage": 20, "color": "#ff9f1c", "dasharray": "20 80", "dashoffset": 60 },
+    { "name": "Social", "percentage": 15, "color": "#e71d36", "dasharray": "15 85", "dashoffset": 40 }
+  ]
+}

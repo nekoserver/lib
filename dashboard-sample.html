@@ -96,6 +96,7 @@
       text-decoration: none;
       font-size: 14px;
       transition: background 0.2s, color 0.2s;
+      cursor: pointer;
     }
 
     .sidebar-nav li a:hover,
@@ -195,6 +196,24 @@
       flex: 1;
     }
 
+    /* Page visibility */
+    .page { display: none; }
+    .page.visible { display: block; }
+
+    /* Panel hide/show transition */
+    .panel {
+      transition: opacity 0.3s, max-height 0.4s;
+      overflow: hidden;
+    }
+    .panel.hidden {
+      opacity: 0;
+      max-height: 0 !important;
+      margin-bottom: 0 !important;
+      padding: 0 !important;
+      border: none !important;
+      pointer-events: none;
+    }
+
     /* KPI Cards */
     .kpi-grid {
       display: grid;
@@ -237,6 +256,13 @@
       grid-template-columns: 2fr 1fr;
       gap: 20px;
       margin-bottom: 32px;
+    }
+
+    .charts-grid.single-left {
+      grid-template-columns: 1fr;
+    }
+    .charts-grid.single-right {
+      grid-template-columns: 1fr;
     }
 
     .chart-card {
@@ -389,6 +415,41 @@
       color: var(--danger);
     }
 
+    /* Settings page */
+    .settings-list {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .settings-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 16px 24px;
+      box-shadow: var(--card-shadow);
+      transition: background 0.3s, border-color 0.3s;
+    }
+
+    .settings-item-info {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .settings-item-label {
+      font-size: 15px;
+      font-weight: 600;
+    }
+
+    .settings-item-desc {
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+
     /* Responsive */
     @media (max-width: 768px) {
       .sidebar { display: none; }
@@ -404,11 +465,11 @@
     <aside class="sidebar">
       <div class="sidebar-logo">Dashboard</div>
       <ul class="sidebar-nav">
-        <li><a href="#" class="active"><span class="icon">&#9632;</span> Overview</a></li>
-        <li><a href="#"><span class="icon">&#9650;</span> Analytics</a></li>
-        <li><a href="#"><span class="icon">&#9679;</span> Users</a></li>
-        <li><a href="#"><span class="icon">&#9830;</span> Products</a></li>
-        <li><a href="#"><span class="icon">&#9733;</span> Settings</a></li>
+        <li><a href="#" class="active" data-page="overview"><span class="icon">&#9632;</span> Overview</a></li>
+        <li><a href="#" data-page="analytics"><span class="icon">&#9650;</span> Analytics</a></li>
+        <li><a href="#" data-page="users"><span class="icon">&#9679;</span> Users</a></li>
+        <li><a href="#" data-page="products"><span class="icon">&#9830;</span> Products</a></li>
+        <li><a href="#" data-page="settings"><span class="icon">&#9881;</span> Settings</a></li>
       </ul>
     </aside>
 
@@ -416,7 +477,7 @@
     <div class="main">
       <!-- Header -->
       <header class="header">
-        <h1>Overview</h1>
+        <h1 id="pageTitle">Overview</h1>
         <div class="header-actions">
           <div class="toggle-wrapper">
             <span>&#9788;</span>
@@ -431,167 +492,276 @@
 
       <!-- Content -->
       <div class="content">
-        <!-- KPI Cards -->
-        <div class="kpi-grid">
-          <div class="kpi-card">
-            <div class="label">Total Revenue</div>
-            <div class="value">&yen;12,450,000</div>
-            <div class="change up">+12.5% vs last month</div>
-          </div>
-          <div class="kpi-card">
-            <div class="label">Active Users</div>
-            <div class="value">8,294</div>
-            <div class="change up">+5.2% vs last month</div>
-          </div>
-          <div class="kpi-card">
-            <div class="label">Conversion Rate</div>
-            <div class="value">3.24%</div>
-            <div class="change down">-0.8% vs last month</div>
-          </div>
-          <div class="kpi-card">
-            <div class="label">Avg. Session</div>
-            <div class="value">4m 32s</div>
-            <div class="change up">+18.3% vs last month</div>
-          </div>
-        </div>
-
-        <!-- Charts -->
-        <div class="charts-grid">
-          <div class="chart-card">
-            <h3>Monthly Revenue</h3>
-            <div class="bar-chart" id="barChart"></div>
-          </div>
-          <div class="chart-card">
-            <h3>Traffic Sources</h3>
-            <div class="donut-wrapper">
-              <svg class="donut" viewBox="0 0 42 42">
-                <circle cx="21" cy="21" r="15.9" fill="transparent"
-                  stroke="#4361ee" stroke-width="5" stroke-dasharray="40 60"
-                  stroke-dashoffset="25" />
-                <circle cx="21" cy="21" r="15.9" fill="transparent"
-                  stroke="#2ec4b6" stroke-width="5" stroke-dasharray="25 75"
-                  stroke-dashoffset="85" />
-                <circle cx="21" cy="21" r="15.9" fill="transparent"
-                  stroke="#ff9f1c" stroke-width="5" stroke-dasharray="20 80"
-                  stroke-dashoffset="60" />
-                <circle cx="21" cy="21" r="15.9" fill="transparent"
-                  stroke="#e71d36" stroke-width="5" stroke-dasharray="15 85"
-                  stroke-dashoffset="40" />
-              </svg>
-              <div class="donut-legend">
-                <div class="legend-item">
-                  <span class="legend-dot" style="background:#4361ee"></span>
-                  Organic Search
-                  <span class="legend-value">40%</span>
-                </div>
-                <div class="legend-item">
-                  <span class="legend-dot" style="background:#2ec4b6"></span>
-                  Direct
-                  <span class="legend-value">25%</span>
-                </div>
-                <div class="legend-item">
-                  <span class="legend-dot" style="background:#ff9f1c"></span>
-                  Referral
-                  <span class="legend-value">20%</span>
-                </div>
-                <div class="legend-item">
-                  <span class="legend-dot" style="background:#e71d36"></span>
-                  Social
-                  <span class="legend-value">15%</span>
-                </div>
+        <!-- Overview Page -->
+        <div id="page-overview" class="page visible">
+          <div id="panel-kpi" class="kpi-grid panel"></div>
+          <div class="charts-grid" id="chartsGrid">
+            <div id="panel-revenue" class="chart-card panel">
+              <h3 id="revenueTitle"></h3>
+              <div class="bar-chart" id="barChart"></div>
+            </div>
+            <div id="panel-traffic" class="chart-card panel">
+              <h3 id="trafficTitle"></h3>
+              <div class="donut-wrapper">
+                <svg class="donut" viewBox="0 0 42 42" id="donutSvg"></svg>
+                <div class="donut-legend" id="donutLegend"></div>
               </div>
             </div>
           </div>
+          <div id="panel-users" class="table-card panel">
+            <h3 id="usersTitle"></h3>
+            <table>
+              <thead id="usersHead"></thead>
+              <tbody id="usersBody"></tbody>
+            </table>
+          </div>
         </div>
 
-        <!-- Table -->
-        <div class="table-card">
-          <h3>Recent Users</h3>
-          <table>
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Email</th>
-                <th>Status</th>
-                <th>Registered</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>Tanaka Taro</td>
-                <td>tanaka@example.com</td>
-                <td><span class="status-badge active">Active</span></td>
-                <td>2026-02-25</td>
-              </tr>
-              <tr>
-                <td>Suzuki Hanako</td>
-                <td>suzuki@example.com</td>
-                <td><span class="status-badge active">Active</span></td>
-                <td>2026-02-24</td>
-              </tr>
-              <tr>
-                <td>Sato Ichiro</td>
-                <td>sato@example.com</td>
-                <td><span class="status-badge pending">Pending</span></td>
-                <td>2026-02-23</td>
-              </tr>
-              <tr>
-                <td>Yamada Yuki</td>
-                <td>yamada@example.com</td>
-                <td><span class="status-badge inactive">Inactive</span></td>
-                <td>2026-02-20</td>
-              </tr>
-              <tr>
-                <td>Takahashi Mei</td>
-                <td>takahashi@example.com</td>
-                <td><span class="status-badge active">Active</span></td>
-                <td>2026-02-18</td>
-              </tr>
-            </tbody>
-          </table>
+        <!-- Settings Page -->
+        <div id="page-settings" class="page">
+          <div class="settings-list" id="settingsList"></div>
         </div>
       </div>
     </div>
   </div>
 
   <script>
-    // Night mode toggle
-    const toggle = document.getElementById('nightToggle');
-    const saved = localStorage.getItem('nightMode');
-    if (saved === 'true') {
-      document.body.classList.add('night-mode');
-      toggle.checked = true;
+    // --- Cookie helpers ---
+    function getCookie(name) {
+      const match = document.cookie.match(new RegExp('(?:^|; )' + name.replace(/([.$?*|{}()\[\]\\\/+^])/g, '\\$1') + '=([^;]*)'));
+      return match ? decodeURIComponent(match[1]) : null;
     }
-    toggle.addEventListener('change', () => {
-      document.body.classList.toggle('night-mode', toggle.checked);
-      localStorage.setItem('nightMode', toggle.checked);
+    function setCookie(name, value, days) {
+      const d = new Date();
+      d.setTime(d.getTime() + (days || 365) * 86400000);
+      document.cookie = name + '=' + encodeURIComponent(value) + ';expires=' + d.toUTCString() + ';path=/;SameSite=Lax';
+    }
+
+    // --- Panel definitions ---
+    const panels = [
+      { id: 'kpi',     cookieName: 'dash_panel_kpi',     label: 'KPI Cards',         desc: 'Total Revenue, Active Users, Conversion Rate, Avg. Session' },
+      { id: 'revenue', cookieName: 'dash_panel_revenue',  label: 'Monthly Revenue',   desc: 'Bar chart showing monthly revenue trends' },
+      { id: 'traffic', cookieName: 'dash_panel_traffic',  label: 'Traffic Sources',   desc: 'Donut chart showing traffic source breakdown' },
+      { id: 'users',   cookieName: 'dash_panel_users',    label: 'Recent Users',      desc: 'Table of recently registered users' }
+    ];
+
+    // --- Read panel visibility from cookies (default: ON) ---
+    function isPanelVisible(panel) {
+      const val = getCookie(panel.cookieName);
+      return val === null ? true : val === '1';
+    }
+
+    function setPanelVisible(panel, visible) {
+      setCookie(panel.cookieName, visible ? '1' : '0');
+    }
+
+    // --- Apply panel visibility ---
+    function applyPanelVisibility() {
+      panels.forEach(p => {
+        const el = document.getElementById('panel-' + p.id);
+        if (!el) return;
+        const visible = isPanelVisible(p);
+        el.classList.toggle('hidden', !visible);
+      });
+      updateChartsGridLayout();
+    }
+
+    function updateChartsGridLayout() {
+      const grid = document.getElementById('chartsGrid');
+      const revVisible = !document.getElementById('panel-revenue').classList.contains('hidden');
+      const trafVisible = !document.getElementById('panel-traffic').classList.contains('hidden');
+      grid.classList.remove('single-left', 'single-right');
+      if (!revVisible && !trafVisible) {
+        grid.style.display = 'none';
+      } else {
+        grid.style.display = '';
+        if (revVisible && !trafVisible) grid.classList.add('single-left');
+        if (!revVisible && trafVisible) grid.classList.add('single-right');
+      }
+    }
+
+    // --- Night mode toggle ---
+    const nightToggle = document.getElementById('nightToggle');
+    const savedNight = localStorage.getItem('nightMode');
+    if (savedNight === 'true') {
+      document.body.classList.add('night-mode');
+      nightToggle.checked = true;
+    }
+    nightToggle.addEventListener('change', () => {
+      document.body.classList.toggle('night-mode', nightToggle.checked);
+      localStorage.setItem('nightMode', nightToggle.checked);
     });
 
-    // Bar chart generation
-    const data = [
-      { label: 'Sep', value: 65 },
-      { label: 'Oct', value: 78 },
-      { label: 'Nov', value: 52 },
-      { label: 'Dec', value: 90 },
-      { label: 'Jan', value: 85 },
-      { label: 'Feb', value: 96 },
-    ];
-    const chart = document.getElementById('barChart');
-    const maxVal = Math.max(...data.map(d => d.value));
-    data.forEach(d => {
-      const group = document.createElement('div');
-      group.className = 'bar-group';
-      const bar = document.createElement('div');
-      bar.className = 'bar';
-      bar.style.height = (d.value / maxVal * 100) + '%';
-      bar.title = d.label + ': ' + d.value + '%';
-      const label = document.createElement('span');
-      label.className = 'bar-label';
-      label.textContent = d.label;
-      group.appendChild(bar);
-      group.appendChild(label);
-      chart.appendChild(group);
+    // --- Sidebar page navigation ---
+    const navLinks = document.querySelectorAll('.sidebar-nav a[data-page]');
+    const pageTitle = document.getElementById('pageTitle');
+
+    navLinks.forEach(link => {
+      link.addEventListener('click', (e) => {
+        e.preventDefault();
+        const pageName = link.dataset.page;
+        navLinks.forEach(l => l.classList.remove('active'));
+        link.classList.add('active');
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('visible'));
+        const targetPage = document.getElementById('page-' + pageName);
+        if (targetPage) {
+          targetPage.classList.add('visible');
+        }
+        const titles = { overview: 'Overview', analytics: 'Analytics', users: 'Users', products: 'Products', settings: 'Settings' };
+        pageTitle.textContent = titles[pageName] || pageName;
+      });
     });
+
+    // --- Build Settings page ---
+    function buildSettingsPage() {
+      const list = document.getElementById('settingsList');
+      list.innerHTML = '';
+      panels.forEach(p => {
+        const item = document.createElement('div');
+        item.className = 'settings-item';
+        const info = document.createElement('div');
+        info.className = 'settings-item-info';
+        const lbl = document.createElement('div');
+        lbl.className = 'settings-item-label';
+        lbl.textContent = p.label;
+        const desc = document.createElement('div');
+        desc.className = 'settings-item-desc';
+        desc.textContent = p.desc;
+        info.appendChild(lbl);
+        info.appendChild(desc);
+
+        const toggle = document.createElement('label');
+        toggle.className = 'toggle';
+        const input = document.createElement('input');
+        input.type = 'checkbox';
+        input.checked = isPanelVisible(p);
+        input.addEventListener('change', () => {
+          setPanelVisible(p, input.checked);
+          applyPanelVisibility();
+        });
+        const slider = document.createElement('span');
+        slider.className = 'toggle-slider';
+        toggle.appendChild(input);
+        toggle.appendChild(slider);
+
+        item.appendChild(info);
+        item.appendChild(toggle);
+        list.appendChild(item);
+      });
+    }
+
+    // --- Render KPI cards from JSON ---
+    function renderKPI(data) {
+      const container = document.getElementById('panel-kpi');
+      container.innerHTML = '';
+      data.forEach(item => {
+        const card = document.createElement('div');
+        card.className = 'kpi-card';
+        card.innerHTML =
+          '<div class="label">' + escapeHTML(item.label) + '</div>' +
+          '<div class="value">' + escapeHTML(item.value) + '</div>' +
+          '<div class="change ' + escapeHTML(item.direction) + '">' + escapeHTML(item.change) + ' ' + escapeHTML(item.comparison) + '</div>';
+        container.appendChild(card);
+      });
+    }
+
+    // --- Render bar chart from JSON ---
+    function renderRevenue(data) {
+      document.getElementById('revenueTitle').textContent = data.title;
+      const chart = document.getElementById('barChart');
+      chart.innerHTML = '';
+      const maxVal = Math.max(...data.data.map(d => d.value));
+      data.data.forEach(d => {
+        const group = document.createElement('div');
+        group.className = 'bar-group';
+        const bar = document.createElement('div');
+        bar.className = 'bar';
+        bar.style.height = (d.value / maxVal * 100) + '%';
+        bar.title = d.label + ': ' + d.value + '%';
+        const label = document.createElement('span');
+        label.className = 'bar-label';
+        label.textContent = d.label;
+        group.appendChild(bar);
+        group.appendChild(label);
+        chart.appendChild(group);
+      });
+    }
+
+    // --- Render donut chart from JSON ---
+    function renderTraffic(data) {
+      document.getElementById('trafficTitle').textContent = data.title;
+      const svg = document.getElementById('donutSvg');
+      svg.innerHTML = '';
+      data.sources.forEach(s => {
+        const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        circle.setAttribute('cx', '21');
+        circle.setAttribute('cy', '21');
+        circle.setAttribute('r', '15.9');
+        circle.setAttribute('fill', 'transparent');
+        circle.setAttribute('stroke', s.color);
+        circle.setAttribute('stroke-width', '5');
+        circle.setAttribute('stroke-dasharray', s.dasharray);
+        circle.setAttribute('stroke-dashoffset', s.dashoffset);
+        svg.appendChild(circle);
+      });
+
+      const legend = document.getElementById('donutLegend');
+      legend.innerHTML = '';
+      data.sources.forEach(s => {
+        const item = document.createElement('div');
+        item.className = 'legend-item';
+        item.innerHTML =
+          '<span class="legend-dot" style="background:' + escapeHTML(s.color) + '"></span>' +
+          escapeHTML(s.name) +
+          '<span class="legend-value">' + s.percentage + '%</span>';
+        legend.appendChild(item);
+      });
+    }
+
+    // --- Render users table from JSON ---
+    function renderUsers(data) {
+      document.getElementById('usersTitle').textContent = data.title;
+      const thead = document.getElementById('usersHead');
+      thead.innerHTML = '<tr>' + data.columns.map(c => '<th>' + escapeHTML(c) + '</th>').join('') + '</tr>';
+      const tbody = document.getElementById('usersBody');
+      tbody.innerHTML = '';
+      data.rows.forEach(r => {
+        const tr = document.createElement('tr');
+        tr.innerHTML =
+          '<td>' + escapeHTML(r.name) + '</td>' +
+          '<td>' + escapeHTML(r.email) + '</td>' +
+          '<td><span class="status-badge ' + escapeHTML(r.status) + '">' + escapeHTML(r.statusLabel) + '</span></td>' +
+          '<td>' + escapeHTML(r.registered) + '</td>';
+        tbody.appendChild(tr);
+      });
+    }
+
+    function escapeHTML(str) {
+      const div = document.createElement('div');
+      div.appendChild(document.createTextNode(String(str)));
+      return div.innerHTML;
+    }
+
+    // --- Load all JSON data and render ---
+    async function loadDashboard() {
+      const [kpiRes, revenueRes, trafficRes, usersRes] = await Promise.all([
+        fetch('dashboard-data-kpi.json'),
+        fetch('dashboard-data-revenue.json'),
+        fetch('dashboard-data-traffic.json'),
+        fetch('dashboard-data-users.json')
+      ]);
+      const [kpiData, revenueData, trafficData, usersData] = await Promise.all([
+        kpiRes.json(), revenueRes.json(), trafficRes.json(), usersRes.json()
+      ]);
+      renderKPI(kpiData);
+      renderRevenue(revenueData);
+      renderTraffic(trafficData);
+      renderUsers(usersData);
+      buildSettingsPage();
+      applyPanelVisibility();
+    }
+
+    loadDashboard();
   </script>
 </body>
 </html>

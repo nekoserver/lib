@@ -1,0 +1,11 @@
+{
+  "title": "Monthly Revenue",
+  "data": [
+    { "label": "Sep", "value": 65 },
+    { "label": "Oct", "value": 78 },
+    { "label": "Nov", "value": 52 },
+    { "label": "Dec", "value": 90 },
+    { "label": "Jan", "value": 85 },
+    { "label": "Feb", "value": 96 }
+  ]
+}

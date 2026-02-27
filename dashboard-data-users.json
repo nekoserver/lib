@@ -1,0 +1,11 @@
+{
+  "title": "Recent Users",
+  "columns": ["Name", "Email", "Status", "Registered"],
+  "rows": [
+    { "name": "Tanaka Taro", "email": "tanaka@example.com", "status": "active", "statusLabel": "Active", "registered": "2026-02-25" },
+    { "name": "Suzuki Hanako", "email": "suzuki@example.com", "status": "active", "statusLabel": "Active", "registered": "2026-02-24" },
+    { "name": "Sato Ichiro", "email": "sato@example.com", "status": "pending", "statusLabel": "Pending", "registered": "2026-02-23" },
+    { "name": "Yamada Yuki", "email": "yamada@example.com", "status": "inactive", "statusLabel": "Inactive", "registered": "2026-02-20" },
+    { "name": "Takahashi Mei", "email": "takahashi@example.com", "status": "active", "statusLabel": "Active", "registered": "2026-02-18" }
+  ]
+}

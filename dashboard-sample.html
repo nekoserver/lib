@@ -415,6 +415,105 @@
       color: var(--danger);
     }
 
+    /* Schedule */
+    .schedule-card {
+      background: var(--bg-secondary);
+      border-radius: 12px;
+      padding: 24px;
+      box-shadow: var(--card-shadow);
+      border: 1px solid var(--border-color);
+      margin-bottom: 32px;
+      transition: background 0.3s, border-color 0.3s;
+    }
+
+    .schedule-card h3 {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 16px;
+    }
+
+    .schedule-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .schedule-item {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 12px 16px;
+      border-radius: 8px;
+      border: 1px solid var(--border-color);
+      transition: background 0.2s, border-color 0.3s;
+    }
+
+    .schedule-item:hover {
+      background: var(--bg-primary);
+    }
+
+    .schedule-date {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-width: 56px;
+      font-size: 12px;
+      color: var(--text-secondary);
+      line-height: 1.4;
+    }
+
+    .schedule-date .day {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .schedule-info {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .schedule-name {
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .schedule-time {
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    .category-badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .category-badge.meeting {
+      background: rgba(67, 97, 238, 0.15);
+      color: var(--accent);
+    }
+
+    .category-badge.release {
+      background: rgba(46, 196, 182, 0.15);
+      color: var(--success);
+    }
+
+    .category-badge.event {
+      background: rgba(255, 159, 28, 0.15);
+      color: var(--warning);
+    }
+
+    .category-badge.deadline {
+      background: rgba(231, 29, 54, 0.15);
+      color: var(--danger);
+    }
+
     /* Settings page */
     .settings-list {
       display: flex;
@@ -515,6 +614,10 @@
               <tbody id="usersBody"></tbody>
             </table>
           </div>
+          <div id="panel-schedule" class="schedule-card panel">
+            <h3 id="scheduleTitle"></h3>
+            <div class="schedule-list" id="scheduleList"></div>
+          </div>
         </div>
 
         <!-- Settings Page -->
@@ -542,7 +645,8 @@
       { id: 'kpi',     cookieName: 'dash_panel_kpi',     label: 'KPI Cards',         desc: 'Total Revenue, Active Users, Conversion Rate, Avg. Session' },
       { id: 'revenue', cookieName: 'dash_panel_revenue',  label: 'Monthly Revenue',   desc: 'Bar chart showing monthly revenue trends' },
       { id: 'traffic', cookieName: 'dash_panel_traffic',  label: 'Traffic Sources',   desc: 'Donut chart showing traffic source breakdown' },
-      { id: 'users',   cookieName: 'dash_panel_users',    label: 'Recent Users',      desc: 'Table of recently registered users' }
+      { id: 'users',   cookieName: 'dash_panel_users',    label: 'Recent Users',      desc: 'Table of recently registered users' },
+      { id: 'schedule', cookieName: 'dash_panel_schedule', label: 'Schedule',          desc: 'Upcoming meetings, releases, events, and deadlines' }
     ];
 
     // --- Read panel visibility from cookies (default: ON) ---
@@ -736,6 +840,30 @@
       });
     }
 
+    // --- Render schedule from JSON ---
+    function renderSchedule(data) {
+      document.getElementById('scheduleTitle').textContent = data.title;
+      const list = document.getElementById('scheduleList');
+      list.innerHTML = '';
+      data.events.forEach(ev => {
+        const d = new Date(ev.date);
+        const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        const item = document.createElement('div');
+        item.className = 'schedule-item';
+        item.innerHTML =
+          '<div class="schedule-date">' +
+            '<span class="day">' + d.getDate() + '</span>' +
+            '<span>' + escapeHTML(monthNames[d.getMonth()]) + '</span>' +
+          '</div>' +
+          '<div class="schedule-info">' +
+            '<span class="schedule-name">' + escapeHTML(ev.name) + '</span>' +
+            '<span class="schedule-time">' + escapeHTML(ev.time) + '</span>' +
+          '</div>' +
+          '<span class="category-badge ' + escapeHTML(ev.category) + '">' + escapeHTML(ev.categoryLabel) + '</span>';
+        list.appendChild(item);
+      });
+    }
+
     function escapeHTML(str) {
       const div = document.createElement('div');
       div.appendChild(document.createTextNode(String(str)));
@@ -744,19 +872,21 @@
 
     // --- Load all JSON data and render ---
     async function loadDashboard() {
-      const [kpiRes, revenueRes, trafficRes, usersRes] = await Promise.all([
+      const [kpiRes, revenueRes, trafficRes, usersRes, scheduleRes] = await Promise.all([
         fetch('dashboard-data-kpi.json'),
         fetch('dashboard-data-revenue.json'),
         fetch('dashboard-data-traffic.json'),
-        fetch('dashboard-data-users.json')
+        fetch('dashboard-data-users.json'),
+        fetch('dashboard-data-schedule.json')
       ]);
-      const [kpiData, revenueData, trafficData, usersData] = await Promise.all([
-        kpiRes.json(), revenueRes.json(), trafficRes.json(), usersRes.json()
+      const [kpiData, revenueData, trafficData, usersData, scheduleData] = await Promise.all([
+        kpiRes.json(), revenueRes.json(), trafficRes.json(), usersRes.json(), scheduleRes.json()
       ]);
       renderKPI(kpiData);
       renderRevenue(revenueData);
       renderTraffic(trafficData);
       renderUsers(usersData);
+      renderSchedule(scheduleData);
       buildSettingsPage();
       applyPanelVisibility();
     }

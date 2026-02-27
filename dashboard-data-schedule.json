@@ -1,0 +1,13 @@
+{
+  "title": "Schedule",
+  "events": [
+    { "date": "2026-02-27", "time": "10:00", "name": "Weekly Stand-up", "category": "meeting", "categoryLabel": "Meeting" },
+    { "date": "2026-02-27", "time": "14:00", "name": "Design Review", "category": "meeting", "categoryLabel": "Meeting" },
+    { "date": "2026-02-28", "time": "09:00", "name": "Sprint Planning", "category": "meeting", "categoryLabel": "Meeting" },
+    { "date": "2026-02-28", "time": "13:00", "name": "API v2 Release", "category": "release", "categoryLabel": "Release" },
+    { "date": "2026-03-01", "time": "11:00", "name": "Client Presentation", "category": "event", "categoryLabel": "Event" },
+    { "date": "2026-03-02", "time": "10:00", "name": "Code Freeze", "category": "deadline", "categoryLabel": "Deadline" },
+    { "date": "2026-03-03", "time": "15:00", "name": "1-on-1 with Manager", "category": "meeting", "categoryLabel": "Meeting" },
+    { "date": "2026-03-05", "time": "09:00", "name": "Q1 Report Due", "category": "deadline", "categoryLabel": "Deadline" }
+  ]
+}

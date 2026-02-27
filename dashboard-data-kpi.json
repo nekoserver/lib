@@ -1,0 +1,30 @@
+[
+  {
+    "label": "Total Revenue",
+    "value": "¥12,450,000",
+    "change": "+12.5%",
+    "direction": "up",
+    "comparison": "vs last month"
+  },
+  {
+    "label": "Active Users",
+    "value": "8,294",
+    "change": "+5.2%",
+    "direction": "up",
+    "comparison": "vs last month"
+  },
+  {
+    "label": "Conversion Rate",
+    "value": "3.24%",
+    "change": "-0.8%",
+    "direction": "down",
+    "comparison": "vs last month"
+  },
+  {
+    "label": "Avg. Session",
+    "value": "4m 32s",
+    "change": "+18.3%",
+    "direction": "up",
+    "comparison": "vs last month"
+  }
+]

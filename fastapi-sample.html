@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FastAPI JSON Yield サンプル</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #0f1117;
+      color: #e2e8f0;
+      min-height: 100vh;
+      padding: 2rem 1rem;
+    }
+
+    .container {
+      max-width: 960px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      text-align: center;
+      font-size: 1.6rem;
+      font-weight: 600;
+      color: #f8fafc;
+      margin-bottom: 0.5rem;
+      letter-spacing: 0.02em;
+    }
+
+    .subtitle {
+      text-align: center;
+      color: #94a3b8;
+      font-size: 0.85rem;
+      margin-bottom: 2rem;
+    }
+
+    /* --- Layout --- */
+    .panels {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.2rem;
+      margin-bottom: 1.2rem;
+    }
+
+    @media (max-width: 700px) {
+      .panels { grid-template-columns: 1fr; }
+    }
+
+    .panel {
+      background: #1a1d2e;
+      border: 1px solid #2a2d3e;
+      border-radius: 10px;
+      padding: 1.2rem;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .panel-title {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 0.8rem;
+    }
+
+    /* --- Server Code --- */
+    .code-block {
+      background: #111322;
+      border: 1px solid #2a2d3e;
+      border-radius: 8px;
+      padding: 1rem;
+      overflow-x: auto;
+      font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+      font-size: 0.78rem;
+      line-height: 1.7;
+      color: #c9d1d9;
+      flex: 1;
+      tab-size: 4;
+    }
+
+    .code-block .kw { color: #c678dd; }
+    .code-block .fn { color: #61afef; }
+    .code-block .str { color: #98c379; }
+    .code-block .dec { color: #e5c07b; }
+    .code-block .cmt { color: #5c6370; font-style: italic; }
+    .code-block .num { color: #d19a66; }
+    .code-block .op { color: #56b6c2; }
+
+    /* --- Controls --- */
+    .controls {
+      display: flex;
+      gap: 0.6rem;
+      flex-wrap: wrap;
+      align-items: center;
+      margin-bottom: 1.2rem;
+    }
+
+    .controls label {
+      font-size: 0.8rem;
+      color: #94a3b8;
+    }
+
+    .controls input, .controls select {
+      background: #1a1d2e;
+      border: 1px solid #2a2d3e;
+      border-radius: 6px;
+      color: #e2e8f0;
+      padding: 0.45rem 0.7rem;
+      font-size: 0.82rem;
+      font-family: inherit;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .controls input:focus, .controls select:focus {
+      border-color: #6366f1;
+    }
+
+    .controls input[type="number"] {
+      width: 70px;
+    }
+
+    .controls input[type="text"] {
+      width: 260px;
+    }
+
+    .btn {
+      padding: 0.5rem 1.2rem;
+      border: none;
+      border-radius: 6px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.1s;
+    }
+
+    .btn:active { transform: scale(0.97); }
+
+    .btn-primary {
+      background: #6366f1;
+      color: #fff;
+    }
+
+    .btn-primary:hover { background: #5558e6; }
+
+    .btn-primary:disabled {
+      background: #3a3d5c;
+      color: #666;
+      cursor: not-allowed;
+    }
+
+    .btn-stop {
+      background: #ef4444;
+      color: #fff;
+    }
+
+    .btn-stop:hover { background: #dc2626; }
+
+    .btn-clear {
+      background: #374151;
+      color: #d1d5db;
+    }
+
+    .btn-clear:hover { background: #4b5563; }
+
+    /* --- Stream Output --- */
+    .output-area {
+      background: #111322;
+      border: 1px solid #2a2d3e;
+      border-radius: 10px;
+      padding: 1rem;
+      min-height: 200px;
+      max-height: 480px;
+      overflow-y: auto;
+      font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+      font-size: 0.8rem;
+      line-height: 1.6;
+    }
+
+    .output-area::-webkit-scrollbar { width: 6px; }
+    .output-area::-webkit-scrollbar-track { background: transparent; }
+    .output-area::-webkit-scrollbar-thumb { background: #3a3d5e; border-radius: 3px; }
+
+    .stream-item {
+      padding: 0.35rem 0.6rem;
+      border-radius: 4px;
+      margin-bottom: 0.3rem;
+      animation: fadeIn 0.3s ease;
+      word-break: break-all;
+    }
+
+    .stream-item.json-line {
+      background: #1a2332;
+      border-left: 3px solid #6366f1;
+    }
+
+    .stream-item.error-line {
+      background: #2d1b1b;
+      border-left: 3px solid #ef4444;
+      color: #fca5a5;
+    }
+
+    .stream-item.info-line {
+      background: #1a2520;
+      border-left: 3px solid #22c55e;
+      color: #86efac;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .json-key { color: #7dd3fc; }
+    .json-str { color: #98c379; }
+    .json-num { color: #d19a66; }
+    .json-bool { color: #c678dd; }
+    .json-null { color: #5c6370; }
+    .json-brace { color: #abb2bf; }
+
+    /* --- Status Bar --- */
+    .status-bar {
+      display: flex;
+      align-items: center;
+      gap: 0.8rem;
+      margin-top: 0.8rem;
+      font-size: 0.78rem;
+      color: #64748b;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #374151;
+      transition: background 0.3s;
+    }
+
+    .status-dot.connected { background: #22c55e; animation: pulse 1.5s infinite; }
+    .status-dot.error { background: #ef4444; }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    .stats {
+      margin-left: auto;
+      display: flex;
+      gap: 1rem;
+    }
+
+    .stats span { color: #94a3b8; }
+    .stats strong { color: #e2e8f0; }
+
+    /* --- Tabs --- */
+    .tab-bar {
+      display: flex;
+      gap: 0.3rem;
+      margin-bottom: 1rem;
+    }
+
+    .tab-btn {
+      padding: 0.4rem 1rem;
+      border: 1px solid #2a2d3e;
+      border-bottom: none;
+      border-radius: 6px 6px 0 0;
+      background: #1a1d2e;
+      color: #94a3b8;
+      font-size: 0.78rem;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s;
+    }
+
+    .tab-btn.active {
+      background: #111322;
+      color: #e2e8f0;
+      border-color: #6366f1;
+      border-bottom: 1px solid #111322;
+    }
+
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>FastAPI JSON Yield サンプル</h1>
+    <p class="subtitle">StreamingResponse + yield でJSONを逐次送信するデモ（フロントエンドシミュレーション）</p>
+
+    <!-- Server / Client Code -->
+    <div class="panels">
+      <div class="panel">
+        <div class="panel-title">Server（FastAPI）</div>
+        <div class="code-block" id="server-code"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-title">Client（JavaScript）</div>
+        <div class="code-block" id="client-code"></div>
+      </div>
+    </div>
+
+    <!-- Controls -->
+    <div class="controls">
+      <label>エンドポイント:</label>
+      <select id="endpoint-select">
+        <option value="items">GET /stream/items</option>
+        <option value="logs">GET /stream/logs</option>
+        <option value="progress">GET /stream/progress</option>
+      </select>
+
+      <label>件数:</label>
+      <input type="number" id="item-count" value="10" min="1" max="100">
+
+      <label>間隔(ms):</label>
+      <input type="number" id="interval-ms" value="300" min="50" max="5000" step="50">
+
+      <button class="btn btn-primary" id="btn-start">Stream 開始</button>
+      <button class="btn btn-stop" id="btn-stop" disabled>停止</button>
+      <button class="btn btn-clear" id="btn-clear">クリア</button>
+    </div>
+
+    <!-- Output Tabs -->
+    <div class="tab-bar">
+      <button class="tab-btn active" data-tab="formatted">Formatted</button>
+      <button class="tab-btn" data-tab="raw">Raw</button>
+    </div>
+
+    <div id="tab-formatted" class="tab-content active">
+      <div class="output-area" id="output-formatted"></div>
+    </div>
+    <div id="tab-raw" class="tab-content">
+      <div class="output-area" id="output-raw"></div>
+    </div>
+
+    <!-- Status Bar -->
+    <div class="status-bar">
+      <div class="status-dot" id="status-dot"></div>
+      <span id="status-text">待機中</span>
+      <div class="stats">
+        <span>受信: <strong id="stat-count">0</strong></span>
+        <span>経過: <strong id="stat-elapsed">0.0s</strong></span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ============================================================
+    // Server-side code display (syntax highlighted)
+    // ============================================================
+    const serverCodeHTML = `<span class="kw">from</span> fastapi <span class="kw">import</span> FastAPI
+<span class="kw">from</span> fastapi.responses <span class="kw">import</span> StreamingResponse
+<span class="kw">import</span> json, asyncio, time, random
+
+app = <span class="fn">FastAPI</span>()
+
+<span class="kw">async def</span> <span class="fn">generate_items</span>(count: <span class="dec">int</span>):
+    <span class="str">"""JSON を1行ずつ yield する"""</span>
+    <span class="kw">for</span> i <span class="kw">in</span> <span class="fn">range</span>(count):
+        item = {
+            <span class="str">"id"</span>: i + <span class="num">1</span>,
+            <span class="str">"name"</span>: <span class="str">f"item_{i+1}"</span>,
+            <span class="str">"value"</span>: <span class="fn">round</span>(<span class="fn">random.uniform</span>(<span class="num">1</span>, <span class="num">100</span>), <span class="num">2</span>),
+            <span class="str">"ts"</span>: <span class="fn">time.time</span>()
+        }
+        <span class="kw">yield</span> json.<span class="fn">dumps</span>(item) + <span class="str">"\\n"</span>
+        <span class="kw">await</span> asyncio.<span class="fn">sleep</span>(<span class="num">0.3</span>)
+
+<span class="dec">@app.get</span>(<span class="str">"/stream/items"</span>)
+<span class="kw">async def</span> <span class="fn">stream_items</span>(count: <span class="dec">int</span> = <span class="num">10</span>):
+    <span class="kw">return</span> <span class="fn">StreamingResponse</span>(
+        <span class="fn">generate_items</span>(count),
+        media_type=<span class="str">"application/x-ndjson"</span>
+    )`;
+
+    const clientCodeHTML = `<span class="kw">const</span> response = <span class="kw">await</span> <span class="fn">fetch</span>(<span class="str">"/stream/items?count=10"</span>);
+<span class="kw">const</span> reader = response.body
+  .<span class="fn">pipeThrough</span>(<span class="kw">new</span> <span class="fn">TextDecoderStream</span>())
+  .<span class="fn">getReader</span>();
+
+<span class="kw">let</span> buffer = <span class="str">""</span>;
+
+<span class="kw">while</span> (<span class="num">true</span>) {
+  <span class="kw">const</span> { value, done } = <span class="kw">await</span> reader.<span class="fn">read</span>();
+  <span class="kw">if</span> (done) <span class="kw">break</span>;
+
+  buffer += value;
+  <span class="kw">const</span> lines = buffer.<span class="fn">split</span>(<span class="str">"\\n"</span>);
+  buffer = lines.<span class="fn">pop</span>(); <span class="cmt">// 未完結行を保持</span>
+
+  <span class="kw">for</span> (<span class="kw">const</span> line <span class="kw">of</span> lines) {
+    <span class="kw">if</span> (!line.<span class="fn">trim</span>()) <span class="kw">continue</span>;
+    <span class="kw">const</span> item = JSON.<span class="fn">parse</span>(line);
+    console.<span class="fn">log</span>(<span class="str">"受信:"</span>, item);
+  }
+}`;
+
+    document.getElementById('server-code').innerHTML = serverCodeHTML;
+    document.getElementById('client-code').innerHTML = clientCodeHTML;
+
+    // ============================================================
+    // Simulated data generators (mimics server-side yield)
+    // ============================================================
+    const generators = {
+      items(index) {
+        return {
+          id: index + 1,
+          name: `item_${index + 1}`,
+          value: Math.round(Math.random() * 9900 + 100) / 100,
+          ts: Date.now() / 1000
+        };
+      },
+      logs(index) {
+        const levels = ['INFO', 'INFO', 'INFO', 'WARN', 'DEBUG', 'ERROR'];
+        const msgs = [
+          'リクエスト処理完了',
+          'データベース接続確立',
+          'キャッシュヒット',
+          'レスポンスタイムが閾値超過',
+          'バックグラウンドタスク開始',
+          'メモリ使用量: 正常範囲',
+          '認証トークン検証成功',
+          'ワーカープロセス起動'
+        ];
+        return {
+          seq: index + 1,
+          level: levels[Math.floor(Math.random() * levels.length)],
+          message: msgs[Math.floor(Math.random() * msgs.length)],
+          timestamp: new Date().toISOString()
+        };
+      },
+      progress(index) {
+        const total = parseInt(document.getElementById('item-count').value) || 10;
+        const pct = Math.round(((index + 1) / total) * 100);
+        const stages = ['初期化', 'データ取得', '変換処理', '検証', '書き込み', '完了処理'];
+        return {
+          step: index + 1,
+          total: total,
+          percent: pct,
+          stage: stages[Math.min(Math.floor((index / total) * stages.length), stages.length - 1)],
+          elapsed_ms: (index + 1) * (parseInt(document.getElementById('interval-ms').value) || 300)
+        };
+      }
+    };
+
+    // ============================================================
+    // Syntax-highlight JSON values
+    // ============================================================
+    function highlightJSON(obj, indent = 0) {
+      const pad = '  '.repeat(indent);
+      const padInner = '  '.repeat(indent + 1);
+
+      if (obj === null) return `<span class="json-null">null</span>`;
+      if (typeof obj === 'boolean') return `<span class="json-bool">${obj}</span>`;
+      if (typeof obj === 'number') return `<span class="json-num">${obj}</span>`;
+      if (typeof obj === 'string') {
+        const escaped = obj.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        return `<span class="json-str">"${escaped}"</span>`;
+      }
+      if (Array.isArray(obj)) {
+        if (obj.length === 0) return `<span class="json-brace">[]</span>`;
+        const items = obj.map(v => padInner + highlightJSON(v, indent + 1));
+        return `<span class="json-brace">[</span>\n${items.join(',\n')}\n${pad}<span class="json-brace">]</span>`;
+      }
+      const keys = Object.keys(obj);
+      if (keys.length === 0) return `<span class="json-brace">{}</span>`;
+      const entries = keys.map(k => {
+        const keyStr = `<span class="json-key">"${k}"</span>`;
+        return `${padInner}${keyStr}: ${highlightJSON(obj[k], indent + 1)}`;
+      });
+      return `<span class="json-brace">{</span>\n${entries.join(',\n')}\n${pad}<span class="json-brace">}</span>`;
+    }
+
+    // ============================================================
+    // DOM elements
+    // ============================================================
+    const btnStart = document.getElementById('btn-start');
+    const btnStop = document.getElementById('btn-stop');
+    const btnClear = document.getElementById('btn-clear');
+    const outputFormatted = document.getElementById('output-formatted');
+    const outputRaw = document.getElementById('output-raw');
+    const statusDot = document.getElementById('status-dot');
+    const statusText = document.getElementById('status-text');
+    const statCount = document.getElementById('stat-count');
+    const statElapsed = document.getElementById('stat-elapsed');
+    const endpointSelect = document.getElementById('endpoint-select');
+
+    let streamTimer = null;
+    let startTime = 0;
+    let itemIndex = 0;
+    let elapsedTimer = null;
+
+    // ============================================================
+    // Tab switching
+    // ============================================================
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById(`tab-${btn.dataset.tab}`).classList.add('active');
+      });
+    });
+
+    // ============================================================
+    // Stream simulation
+    // ============================================================
+    function appendItem(data) {
+      // Formatted
+      const div = document.createElement('div');
+      div.className = 'stream-item json-line';
+      div.innerHTML = highlightJSON(data);
+      outputFormatted.appendChild(div);
+      outputFormatted.scrollTop = outputFormatted.scrollHeight;
+
+      // Raw
+      const raw = document.createElement('div');
+      raw.className = 'stream-item json-line';
+      raw.textContent = JSON.stringify(data);
+      outputRaw.appendChild(raw);
+      outputRaw.scrollTop = outputRaw.scrollHeight;
+
+      itemIndex++;
+      statCount.textContent = itemIndex;
+    }
+
+    function appendInfo(msg) {
+      for (const out of [outputFormatted, outputRaw]) {
+        const div = document.createElement('div');
+        div.className = 'stream-item info-line';
+        div.textContent = msg;
+        out.appendChild(div);
+        out.scrollTop = out.scrollHeight;
+      }
+    }
+
+    function startElapsedTimer() {
+      startTime = performance.now();
+      elapsedTimer = setInterval(() => {
+        const sec = ((performance.now() - startTime) / 1000).toFixed(1);
+        statElapsed.textContent = sec + 's';
+      }, 100);
+    }
+
+    function stopElapsedTimer() {
+      if (elapsedTimer) {
+        clearInterval(elapsedTimer);
+        elapsedTimer = null;
+      }
+    }
+
+    function startStream() {
+      const count = parseInt(document.getElementById('item-count').value) || 10;
+      const interval = parseInt(document.getElementById('interval-ms').value) || 300;
+      const endpoint = endpointSelect.value;
+      const gen = generators[endpoint];
+
+      itemIndex = 0;
+      statCount.textContent = '0';
+      btnStart.disabled = true;
+      btnStop.disabled = false;
+      statusDot.className = 'status-dot connected';
+      statusText.textContent = `ストリーミング中 — ${endpointSelect.options[endpointSelect.selectedIndex].text}`;
+
+      appendInfo(`>>> Stream 開始: /${endpoint}?count=${count}  interval=${interval}ms`);
+      startElapsedTimer();
+
+      let i = 0;
+      streamTimer = setInterval(() => {
+        if (i >= count) {
+          stopStream(true);
+          return;
+        }
+        appendItem(gen(i));
+        i++;
+      }, interval);
+    }
+
+    function stopStream(completed) {
+      if (streamTimer) {
+        clearInterval(streamTimer);
+        streamTimer = null;
+      }
+      stopElapsedTimer();
+      btnStart.disabled = false;
+      btnStop.disabled = true;
+
+      if (completed) {
+        statusDot.className = 'status-dot';
+        statusText.textContent = '完了';
+        appendInfo(`<<< Stream 完了: ${itemIndex} 件受信`);
+      } else {
+        statusDot.className = 'status-dot error';
+        statusText.textContent = '中断';
+        appendInfo(`<<< Stream 中断: ${itemIndex} 件受信`);
+      }
+    }
+
+    function clearOutput() {
+      outputFormatted.innerHTML = '';
+      outputRaw.innerHTML = '';
+      statCount.textContent = '0';
+      statElapsed.textContent = '0.0s';
+      statusDot.className = 'status-dot';
+      statusText.textContent = '待機中';
+    }
+
+    btnStart.addEventListener('click', startStream);
+    btnStop.addEventListener('click', () => stopStream(false));
+    btnClear.addEventListener('click', clearOutput);
+  </script>
+</body>
+</html>

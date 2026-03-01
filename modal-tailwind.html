@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tailwind CSS モーダル集</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = {
+  theme: { extend: {
+    animation: {
+      'fade-in': 'fadeIn .3s ease-out',
+      'slide-up': 'slideUp .3s ease-out',
+      'slide-down': 'slideDown .3s ease-out',
+      'slide-left': 'slideLeft .35s ease-out',
+      'slide-right': 'slideRight .35s ease-out',
+      'zoom-in': 'zoomIn .25s ease-out',
+      'bounce-in': 'bounceIn .5s ease-out',
+    },
+    keyframes: {
+      fadeIn: { from: { opacity: 0 }, to: { opacity: 1 } },
+      slideUp: { from: { transform: 'translateY(40px)', opacity: 0 }, to: { transform: 'translateY(0)', opacity: 1 } },
+      slideDown: { from: { transform: 'translateY(-40px)', opacity: 0 }, to: { transform: 'translateY(0)', opacity: 1 } },
+      slideLeft: { from: { transform: 'translateX(100%)' }, to: { transform: 'translateX(0)' } },
+      slideRight: { from: { transform: 'translateX(-100%)' }, to: { transform: 'translateX(0)' } },
+      zoomIn: { from: { transform: 'scale(0.8)', opacity: 0 }, to: { transform: 'scale(1)', opacity: 1 } },
+      bounceIn: {
+        '0%': { transform: 'scale(0.3)', opacity: 0 },
+        '50%': { transform: 'scale(1.05)', opacity: 1 },
+        '70%': { transform: 'scale(0.95)' },
+        '100%': { transform: 'scale(1)' }
+      },
+    }
+  }}
+}
+</script>
+<style>
+pre { background: #1e1e2e; color: #cdd6f4; padding: 1rem; border-radius: 8px; font-size: 0.78rem; overflow-x: auto; white-space: pre; }
+</style>
+</head>
+<body class="bg-gray-50 text-gray-800 font-sans">
+
+<div class="text-center pt-10 pb-4 px-4">
+  <h1 class="text-3xl font-bold text-gray-900">Tailwind CSS モーダル集</h1>
+  <p class="text-gray-500 mt-1">Alpine.js + Tailwind で構築 &mdash; 10 例</p>
+</div>
+
+<div class="max-w-6xl mx-auto px-4 pb-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+
+  <!-- 1. 基本モーダル (slide-up) -->
+  <div class="bg-white rounded-xl shadow p-5 text-center" x-data="{ open: false }">
+    <h3 class="font-semibold mb-3">1. 基本 (Slide Up)</h3>
+    <button @click="open=true" class="px-5 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition">開く</button>
+    <template x-if="open">
+      <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 animate-fade-in" @click.self="open=false">
+        <div class="bg-white rounded-xl p-6 w-[90%] max-w-md shadow-xl animate-slide-up">
+          <div class="flex justify-between items-center mb-3">
+            <h2 class="text-xl font-bold">基本モーダル</h2>
+            <button @click="open=false" class="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
+          </div>
+          <p class="text-gray-600">Tailwind CSS + Alpine.js で構築したシンプルなモーダルです。</p>
+          <div class="mt-4 flex justify-end gap-2">
+            <button @click="open=false" class="px-4 py-2 border rounded-lg text-gray-600 hover:bg-gray-50">閉じる</button>
+            <button class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">保存</button>
+          </div>
+        </div>
+      </div>
+    </template>
+  </div>
+
+  <!-- 2. Zoom In -->
+  <div class="bg-white rounded-xl shadow p-5 text-center" x-data="{ open: false }">
+    <h3 class="font-semibold mb-3">2. Zoom In</h3>
+    <button @click="open=true" class="px-5 py-2 bg-violet-600 text-white rounded-lg hover:bg-violet-700 transition">開く</button>
+    <template x-if="open">
+      <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 animate-fade-in" @click.self="open=false">
+        <div class="bg-white rounded-xl p-6 w-[90%] max-w-md shadow-xl animate-zoom-in">
+          <h2 class="text-xl font-bold mb-2">Zoom In モーダル</h2>
+          <p class="text-gray-600">中央からズームインするアニメーション付き。</p>
+          <button @click="open=false" class="mt-4 px-4 py-2 bg-violet-600 text-white rounded-lg hover:bg-violet-700">閉じる</button>
+        </div>
+      </div>
+    </template>
+  </div>
+
+  <!-- 3. Bounce In -->
+  <div class="bg-white rounded-xl shadow p-5 text-center" x-data="{ open: false }">
+    <h3 class="font-semibold mb-3">3. Bounce In</h3>
+    <button @click="open=true" class="px-5 py-2 bg-pink-600 text-white rounded-lg hover:bg-pink-700 transition">開く</button>
+    <template x-if="open">
+      <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 animate-fade-in" @click.self="open=false">
+        <div class="bg-white rounded-xl p-6 w-[90%] max-w-md shadow-xl animate-bounce-in">
+          <h2 class="text-xl font-bold mb-2">Bounce In モーダル</h2>
+          <p class="text-gray-600">バウンスアニメーション付きモーダル。通知や成功メッセージに。</p>
+          <button @click="open=false" class="mt-4 px-4 py-2 bg-pink-600 text-white rounded-lg hover:bg-pink-700">閉じる</button>
+        </div>
+      </div>
+    </template>
+  </div>
+
+  <!-- 4. Slide Down (トップから) -->
+  <div class="bg-white rounded-xl shadow p-5 text-center" x-data="{ open: false }">
+    <h3 class="font-semibold mb-3">4. Slide Down</h3>
+    <button @click="open=true" class="px-5 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition">開く</button>
+    <template x-if="open">
+      <div class="fixed inset-0 z-50 flex items-start justify-center pt-20 bg-black/50 animate-fade-in" @click.self="open=false">
+        <div class="bg-white rounded-xl p-6 w-[90%] max-w-md shadow-xl animate-slide-down">
+          <h2 class="text-xl font-bold mb-2">Slide Down モーダル</h2>
+          <p class="text-gray-600">上部から降りてくるアニメーション。通知やアラートに適しています。</p>
+          <button @click="open=false" class="mt-4 px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700">閉じる</button>
+        </div>
+      </div>
+    </template>
+  </div>
+
+  <!-- 5. 確認ダイアログ -->
+  <div class="bg-white rounded-xl shadow p-5 text-center" x-data="{ open: false }">
+    <h3 class="font-semibold mb-3">5. 確認ダイアログ</h3>
+    <button @click="open=true" class="px-5 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition">削除</button>
+    <template x-if="open">
+      <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 animate-fade-in">
+        <div class="bg-white rounded-xl p-6 w-[90%] max-w-sm shadow-xl animate-zoom-in text-center">
+          <div class="w-14 h-14 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3">
+            <svg class="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/>
+            </svg>
+          </div>
+          <h2 class="text-lg font-bold mb-1">本当に削除しますか？</h2>
+          <p class="text-gray-500 text-sm">この操作は取り消せません。</p>
+          <div class="flex gap-3 justify-center mt-4">
+            <button @click="open=false" class="px-4 py-2 border rounded-lg text-gray-600 hover:bg-gray-50">キャンセル</button>
+            <button @click="open=false" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">削除する</button>
+          </div>
+        </div>
+      </div>
+    </template>
+  </div>
+
+  <!-- 6. フォームモーダル -->
+  <div class="bg-white rounded-xl shadow p-5 text-center" x-data="{ open: false }">
+    <h3 class="font-semibold mb-3">6. フォームモーダル</h3>
+    <button @click="open=true" class="px-5 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition">新規作成</button>
+    <template x-if="open">
+      <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 animate-fade-in" @click.self="open=false">
+        <div class="bg-white rounded-xl p-6 w-[90%] max-w-md shadow-xl animate-slide-up">
+          <h2 class="text-xl font-bold mb-4">新規タスク作成</h2>
+          <form class="space-y-3 text-left">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">タスク名</label>
+              <input type="text" class="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none" placeholder="タスク名を入力">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">説明</label>
+              <textarea rows="3" class="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none" placeholder="説明を入力"></textarea>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">優先度</label>
+              <select class="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 outline-none">
+                <option>低</option><option>中</option><option selected>高</option>
+              </select>
+            </div>
+          </form>
+          <div class="flex justify-end gap-2 mt-5">
+            <button @click="open=false" class="px-4 py-2 border rounded-lg text-gray-600 hover:bg-gray-50">キャンセル</button>
+            <button @click="open=false" class="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">作成</button>
+          </div>
+        </div>
+      </div>
+    </template>
+  </div>
+
+  <!-- 7. サイドパネル (右) -->
+  <div class="bg-white rounded-xl shadow p-5 text-center" x-data="{ open: false }">
+    <h3 class="font-semibold mb-3">7. サイドパネル（右）</h3>
+    <button @click="open=true" class="px-5 py-2 bg-cyan-600 text-white rounded-lg hover:bg-cyan-700 transition">開く</button>
+    <template x-if="open">
+      <div class="fixed inset-0 z-50 flex justify-end bg-black/50 animate-fade-in" @click.self="open=false">
+        <div class="bg-white w-80 h-full shadow-xl animate-slide-left p-6 overflow-y-auto">
+          <div class="flex justify-between items-center mb-4">
+            <h2 class="text-lg font-bold">設定</h2>
+            <button @click="open=false" class="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
+          </div>
+          <div class="space-y-4 text-left">
+            <div class="flex justify-between items-center"><span>ダークモード</span><div class="w-10 h-6 bg-gray-300 rounded-full relative cursor-pointer"><div class="w-4 h-4 bg-white rounded-full absolute top-1 left-1 shadow"></div></div></div>
+            <div class="flex justify-between items-center"><span>通知</span><div class="w-10 h-6 bg-indigo-600 rounded-full relative cursor-pointer"><div class="w-4 h-4 bg-white rounded-full absolute top-1 right-1 shadow"></div></div></div>
+            <div class="flex justify-between items-center"><span>自動保存</span><div class="w-10 h-6 bg-indigo-600 rounded-full relative cursor-pointer"><div class="w-4 h-4 bg-white rounded-full absolute top-1 right-1 shadow"></div></div></div>
+          </div>
+        </div>
+      </div>
+    </template>
+  </div>
+
+  <!-- 8. ボトムシート -->
+  <div class="bg-white rounded-xl shadow p-5 text-center" x-data="{ open: false }">
+    <h3 class="font-semibold mb-3">8. ボトムシート</h3>
+    <button @click="open=true" class="px-5 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition">開く</button>
+    <template x-if="open">
+      <div class="fixed inset-0 z-50 flex items-end bg-black/50 animate-fade-in" @click.self="open=false">
+        <div class="bg-white w-full rounded-t-2xl p-6 shadow-xl animate-slide-up max-h-[60vh]">
+          <div class="w-10 h-1 bg-gray-300 rounded-full mx-auto mb-4"></div>
+          <h2 class="text-lg font-bold mb-2">共有</h2>
+          <div class="grid grid-cols-4 gap-4 text-center text-sm text-gray-600 mt-4">
+            <div><div class="w-12 h-12 bg-blue-100 rounded-full mx-auto flex items-center justify-center text-blue-600 text-xl">T</div><p class="mt-1">Twitter</p></div>
+            <div><div class="w-12 h-12 bg-blue-100 rounded-full mx-auto flex items-center justify-center text-blue-800 text-xl">F</div><p class="mt-1">Facebook</p></div>
+            <div><div class="w-12 h-12 bg-green-100 rounded-full mx-auto flex items-center justify-center text-green-600 text-xl">L</div><p class="mt-1">LINE</p></div>
+            <div><div class="w-12 h-12 bg-gray-100 rounded-full mx-auto flex items-center justify-center text-gray-600 text-xl">M</div><p class="mt-1">メール</p></div>
+          </div>
+          <button @click="open=false" class="w-full mt-5 px-4 py-2 border rounded-lg text-gray-600 hover:bg-gray-50">キャンセル</button>
+        </div>
+      </div>
+    </template>
+  </div>
+
+  <!-- 9. 画像プレビュー -->
+  <div class="bg-white rounded-xl shadow p-5 text-center" x-data="{ open: false }">
+    <h3 class="font-semibold mb-3">9. 画像プレビュー</h3>
+    <button @click="open=true" class="px-5 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-800 transition">画像を見る</button>
+    <template x-if="open">
+      <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/90 animate-fade-in" @click="open=false">
+        <button @click="open=false" class="absolute top-4 right-6 text-white text-3xl hover:text-gray-300">&times;</button>
+        <img src="https://picsum.photos/900/600" alt="preview" class="max-w-[90vw] max-h-[85vh] rounded-lg animate-zoom-in">
+      </div>
+    </template>
+  </div>
+
+  <!-- 10. 成功メッセージ -->
+  <div class="bg-white rounded-xl shadow p-5 text-center" x-data="{ open: false }">
+    <h3 class="font-semibold mb-3">10. 成功メッセージ</h3>
+    <button @click="open=true" class="px-5 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition">送信</button>
+    <template x-if="open">
+      <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 animate-fade-in" @click.self="open=false">
+        <div class="bg-white rounded-xl p-8 w-[90%] max-w-sm shadow-xl animate-bounce-in text-center">
+          <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg class="w-10 h-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+            </svg>
+          </div>
+          <h2 class="text-xl font-bold mb-1">送信完了！</h2>
+          <p class="text-gray-500 text-sm">メッセージが正常に送信されました。</p>
+          <button @click="open=false" class="mt-5 px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">OK</button>
+        </div>
+      </div>
+    </template>
+  </div>
+
+</div>
+
+<!-- ===== コードスニペット ===== -->
+<div class="max-w-6xl mx-auto px-4 pb-12">
+  <h3 class="text-xl font-bold mb-3">コードスニペット</h3>
+
+  <details class="mb-3">
+    <summary class="font-semibold cursor-pointer">基本モーダル (Alpine.js + Tailwind)</summary>
+    <pre>&lt;div x-data="{ open: false }"&gt;
+  &lt;button @click="open = true"
+    class="px-5 py-2 bg-indigo-600 text-white rounded-lg"&gt;開く&lt;/button&gt;
+
+  &lt;template x-if="open"&gt;
+    &lt;div class="fixed inset-0 z-50 flex items-center justify-center
+                bg-black/50" @click.self="open = false"&gt;
+      &lt;div class="bg-white rounded-xl p-6 w-[90%] max-w-md shadow-xl"&gt;
+        &lt;h2 class="text-xl font-bold"&gt;タイトル&lt;/h2&gt;
+        &lt;p class="text-gray-600 mt-2"&gt;内容&lt;/p&gt;
+        &lt;button @click="open = false"
+          class="mt-4 px-4 py-2 bg-indigo-600 text-white rounded-lg"&gt;
+          閉じる
+        &lt;/button&gt;
+      &lt;/div&gt;
+    &lt;/div&gt;
+  &lt;/template&gt;
+&lt;/div&gt;</pre>
+  </details>
+
+  <details class="mb-3">
+    <summary class="font-semibold cursor-pointer">確認ダイアログ</summary>
+    <pre>&lt;div x-data="{ open: false }"&gt;
+  &lt;button @click="open = true"
+    class="px-5 py-2 bg-red-600 text-white rounded-lg"&gt;削除&lt;/button&gt;
+
+  &lt;template x-if="open"&gt;
+    &lt;div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"&gt;
+      &lt;div class="bg-white rounded-xl p-6 max-w-sm text-center shadow-xl"&gt;
+        &lt;!-- アイコン --&gt;
+        &lt;div class="w-14 h-14 bg-red-100 rounded-full
+                    flex items-center justify-center mx-auto mb-3"&gt;
+          &lt;svg class="w-8 h-8 text-red-600" ...&gt;...&lt;/svg&gt;
+        &lt;/div&gt;
+        &lt;h2 class="text-lg font-bold"&gt;本当に削除しますか？&lt;/h2&gt;
+        &lt;p class="text-gray-500 text-sm"&gt;この操作は取り消せません。&lt;/p&gt;
+        &lt;div class="flex gap-3 justify-center mt-4"&gt;
+          &lt;button @click="open=false" class="..."&gt;キャンセル&lt;/button&gt;
+          &lt;button @click="open=false" class="..."&gt;削除する&lt;/button&gt;
+        &lt;/div&gt;
+      &lt;/div&gt;
+    &lt;/div&gt;
+  &lt;/template&gt;
+&lt;/div&gt;</pre>
+  </details>
+
+  <details class="mb-3">
+    <summary class="font-semibold cursor-pointer">カスタムアニメーション (tailwind.config)</summary>
+    <pre>tailwind.config = {
+  theme: { extend: {
+    animation: {
+      'fade-in':   'fadeIn .3s ease-out',
+      'slide-up':  'slideUp .3s ease-out',
+      'zoom-in':   'zoomIn .25s ease-out',
+      'bounce-in': 'bounceIn .5s ease-out',
+    },
+    keyframes: {
+      fadeIn:   { from: { opacity: 0 }, to: { opacity: 1 } },
+      slideUp:  { from: { transform: 'translateY(40px)', opacity: 0 },
+                  to:   { transform: 'translateY(0)',     opacity: 1 } },
+      zoomIn:   { from: { transform: 'scale(0.8)', opacity: 0 },
+                  to:   { transform: 'scale(1)',    opacity: 1 } },
+      bounceIn: {
+        '0%':   { transform: 'scale(0.3)', opacity: 0 },
+        '50%':  { transform: 'scale(1.05)', opacity: 1 },
+        '70%':  { transform: 'scale(0.95)' },
+        '100%': { transform: 'scale(1)' }
+      },
+    }
+  }}
+}</pre>
+  </details>
+</div>
+
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+</body>
+</html>

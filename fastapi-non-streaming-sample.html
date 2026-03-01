@@ -168,6 +168,7 @@
     .method-post { background: #1e3a5f; color: #93c5fd; }
     .method-put { background: #713f12; color: #fcd34d; }
     .method-delete { background: #7f1d1d; color: #fca5a5; }
+    .method-patch { background: #4a1d6a; color: #d8b4fe; }
 
     /* --- Output Area --- */
     .output-area {
@@ -312,10 +313,96 @@
       border-color: #6366f1;
     }
 
-    .body-input-area .body-label {
+    .body-input-area textarea.readonly-mode {
+      opacity: 0.7;
+      cursor: default;
+    }
+
+    /* --- Body Header --- */
+    .body-header {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 0.4rem;
+      flex-wrap: wrap;
+    }
+
+    .body-header .body-label {
       font-size: 0.78rem;
       color: #94a3b8;
-      margin-bottom: 0.4rem;
+    }
+
+    .btn-sm {
+      padding: 0.2rem 0.6rem;
+      border: 1px solid #2a2d3e;
+      border-radius: 4px;
+      background: #1a1d2e;
+      color: #94a3b8;
+      font-size: 0.72rem;
+      font-family: inherit;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-weight: 600;
+    }
+
+    .btn-sm:hover {
+      background: #2a2d3e;
+      color: #e2e8f0;
+    }
+
+    .btn-sm.btn-toggle-active {
+      background: #6366f1;
+      color: #fff;
+      border-color: #6366f1;
+    }
+
+    .btn-sm.btn-edit-active {
+      background: #059669;
+      color: #fff;
+      border-color: #059669;
+    }
+
+    .body-content {
+      transition: max-height 0.3s ease, opacity 0.3s ease;
+      overflow: hidden;
+    }
+
+    .body-content.collapsed {
+      max-height: 0;
+      opacity: 0;
+      margin: 0;
+    }
+
+    .body-content.expanded {
+      max-height: 500px;
+      opacity: 1;
+    }
+
+    /* --- Validation Error --- */
+    .validation-errors {
+      background: #2d1b1b;
+      border: 1px solid #ef4444;
+      border-radius: 6px;
+      padding: 0.6rem 0.8rem;
+      margin-top: 0.4rem;
+      font-size: 0.75rem;
+      color: #fca5a5;
+      display: none;
+    }
+
+    .validation-errors.visible {
+      display: block;
+    }
+
+    .validation-errors ul {
+      list-style: none;
+      padding: 0;
+    }
+
+    .validation-errors li::before {
+      content: "! ";
+      font-weight: 700;
+      color: #ef4444;
     }
 
     /* --- Endpoint Info --- */
@@ -339,24 +426,54 @@
       margin-top: 0.3rem;
       font-size: 0.75rem;
     }
+
+    /* --- Code Snippet Section --- */
+    .code-snippet-section {
+      margin-bottom: 1.2rem;
+    }
+
+    .code-snippet-toggle {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 0.8rem;
+    }
+
+    .code-snippet-toggle .toggle-label {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .code-panels-wrapper {
+      transition: max-height 0.4s ease, opacity 0.3s ease;
+      overflow: hidden;
+    }
+
+    .code-panels-wrapper.collapsed {
+      max-height: 0;
+      opacity: 0;
+    }
+
+    .code-panels-wrapper.expanded {
+      max-height: 2000px;
+      opacity: 1;
+    }
+
+    /* --- Edit Controls --- */
+    .edit-controls {
+      display: flex;
+      gap: 0.4rem;
+      margin-left: auto;
+    }
   </style>
 </head>
 <body>
   <div class="container">
     <h1>FastAPI 非ストリーミング サンプル</h1>
     <p class="subtitle">通常のJSON レスポンスを返すREST API デモ（フロントエンドシミュレーション）</p>
-
-    <!-- Server / Client Code -->
-    <div class="panels">
-      <div class="panel">
-        <div class="panel-title">Server（FastAPI）</div>
-        <div class="code-block" id="server-code"></div>
-      </div>
-      <div class="panel">
-        <div class="panel-title">Client（JavaScript）</div>
-        <div class="code-block" id="client-code"></div>
-      </div>
-    </div>
 
     <!-- Controls -->
     <div class="controls">
@@ -369,10 +486,42 @@
     <!-- Endpoint Info -->
     <div class="endpoint-info" id="endpoint-info"></div>
 
+    <!-- Code Snippet Section (collapsible) -->
+    <div class="code-snippet-section">
+      <div class="code-snippet-toggle">
+        <span class="toggle-label">コードスニペット</span>
+        <button class="btn-sm" id="btn-toggle-code">展開する</button>
+      </div>
+      <div class="code-panels-wrapper collapsed" id="code-panels-wrapper">
+        <div class="panels">
+          <div class="panel">
+            <div class="panel-title">Server（FastAPI）</div>
+            <div class="code-block" id="server-code"></div>
+          </div>
+          <div class="panel">
+            <div class="panel-title">Client（JavaScript）</div>
+            <div class="code-block" id="client-code"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Request Body -->
     <div class="body-input-area" id="body-input-area">
-      <div class="body-label">Request Body (JSON):</div>
-      <textarea id="request-body" spellcheck="false"></textarea>
+      <div class="body-header">
+        <span class="body-label">Request Body (JSON):</span>
+        <button class="btn-sm" id="btn-toggle-body">閉じる</button>
+        <div class="edit-controls">
+          <button class="btn-sm" id="btn-edit-body">変更する</button>
+          <button class="btn-sm" id="btn-reset-body">リセット</button>
+        </div>
+      </div>
+      <div class="body-content expanded" id="body-content">
+        <textarea id="request-body" spellcheck="false" readonly></textarea>
+      </div>
+      <div class="validation-errors" id="validation-errors">
+        <ul id="validation-errors-list"></ul>
+      </div>
     </div>
 
     <!-- Output Tabs -->
@@ -399,6 +548,20 @@
   </div>
 
   <script>
+    // ============================================================
+    // Cookie helpers
+    // ============================================================
+    function setCookie(name, value, days) {
+      const d = new Date();
+      d.setTime(d.getTime() + (days || 365) * 24 * 60 * 60 * 1000);
+      document.cookie = `${name}=${encodeURIComponent(value)};expires=${d.toUTCString()};path=/;SameSite=Lax`;
+    }
+
+    function getCookie(name) {
+      const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
+      return match ? decodeURIComponent(match[2]) : null;
+    }
+
     // ============================================================
     // Endpoint definitions
     // ============================================================
@@ -508,6 +671,11 @@ console.<span class="fn">log</span>(user.name);`,
         desc: 'Pydanticモデルでバリデーションしてユーザーを作成',
         hasBody: true,
         defaultBody: JSON.stringify({ name: "山田花子", email: "yamada@example.com", is_active: true }, null, 2),
+        validation: {
+          name: { required: true, type: 'string', minLength: 1, maxLength: 50, label: 'name' },
+          email: { required: true, type: 'email', label: 'email' },
+          is_active: { required: false, type: 'boolean', label: 'is_active' }
+        },
         serverCode: `<span class="kw">from</span> fastapi <span class="kw">import</span> FastAPI
 <span class="kw">from</span> pydantic <span class="kw">import</span> BaseModel, EmailStr, Field
 
@@ -579,6 +747,11 @@ app = <span class="fn">FastAPI</span>()
         desc: 'ユーザー情報を更新（部分更新はPATCHで実装可）',
         hasBody: true,
         defaultBody: JSON.stringify({ name: "田中次郎", email: "tanaka.jiro@example.com", is_active: false }, null, 2),
+        validation: {
+          name: { required: true, type: 'string', minLength: 1, maxLength: 50, label: 'name' },
+          email: { required: true, type: 'email', label: 'email' },
+          is_active: { required: true, type: 'boolean', label: 'is_active' }
+        },
         serverCode: `<span class="kw">from</span> fastapi <span class="kw">import</span> FastAPI, HTTPException
 <span class="kw">from</span> pydantic <span class="kw">import</span> BaseModel, EmailStr
 
@@ -635,6 +808,80 @@ console.<span class="fn">log</span>(result.message);`,
                 is_active: body.is_active !== undefined ? body.is_active : true,
                 updated_at: new Date().toISOString()
               }
+            }
+          };
+        }
+      },
+      {
+        id: 'patch_user',
+        method: 'PATCH',
+        path: '/users/{user_id}',
+        desc: '部分的にユーザー情報を更新（送信フィールドのみ更新）',
+        hasBody: true,
+        defaultBody: JSON.stringify({ name: "田中三郎" }, null, 2),
+        validation: {
+          name: { required: false, type: 'string', minLength: 1, maxLength: 50, label: 'name' },
+          email: { required: false, type: 'email', label: 'email' },
+          is_active: { required: false, type: 'boolean', label: 'is_active' }
+        },
+        serverCode: `<span class="kw">from</span> fastapi <span class="kw">import</span> FastAPI, HTTPException
+<span class="kw">from</span> pydantic <span class="kw">import</span> BaseModel, EmailStr
+<span class="kw">from</span> typing <span class="kw">import</span> Optional
+
+app = <span class="fn">FastAPI</span>()
+
+<span class="kw">class</span> <span class="cls">UserPatch</span>(<span class="cls">BaseModel</span>):
+    name: Optional[<span class="dec">str</span>] = <span class="num">None</span>
+    email: Optional[<span class="cls">EmailStr</span>] = <span class="num">None</span>
+    is_active: Optional[<span class="dec">bool</span>] = <span class="num">None</span>
+
+<span class="dec">@app.patch</span>(<span class="str">"/users/{user_id}"</span>)
+<span class="kw">def</span> <span class="fn">patch_user</span>(user_id: <span class="dec">int</span>, patch: <span class="cls">UserPatch</span>):
+    existing = <span class="fn">find_user</span>(user_id)
+    <span class="kw">if</span> existing <span class="kw">is</span> <span class="num">None</span>:
+        <span class="kw">raise</span> <span class="fn">HTTPException</span>(
+            status_code=<span class="num">404</span>,
+            detail=<span class="str">f"User {user_id} not found"</span>
+        )
+    update_data = patch.<span class="fn">dict</span>(exclude_unset=<span class="num">True</span>)
+    updated = <span class="fn">update_in_db</span>(user_id, update_data)
+    <span class="kw">return</span> {
+        <span class="str">"message"</span>: <span class="str">"User partially updated"</span>,
+        <span class="str">"updated_fields"</span>: <span class="fn">list</span>(update_data.<span class="fn">keys</span>()),
+        <span class="str">"user"</span>: updated
+    }`,
+        clientCode: `<span class="kw">const</span> userId = <span class="num">1</span>;
+<span class="cmt">// 変更したいフィールドのみ送信</span>
+<span class="kw">const</span> patch = { name: <span class="str">"田中三郎"</span> };
+
+<span class="kw">const</span> response = <span class="kw">await</span> <span class="fn">fetch</span>(<span class="str">\`/users/\${userId}\`</span>, {
+  method: <span class="str">"PATCH"</span>,
+  headers: { <span class="str">"Content-Type"</span>: <span class="str">"application/json"</span> },
+  body: JSON.<span class="fn">stringify</span>(patch)
+});
+
+<span class="kw">const</span> result = <span class="kw">await</span> response.<span class="fn">json</span>();
+console.<span class="fn">log</span>(result.updated_fields); <span class="cmt">// ["name"]</span>
+console.<span class="fn">log</span>(result.user);`,
+        simulate(body) {
+          if (!body || Object.keys(body).length === 0) {
+            return {
+              status: 422,
+              body: { detail: [{ loc: ["body"], msg: "At least one field is required", type: "value_error" }] }
+            };
+          }
+          const found = Math.random() > 0.2;
+          if (!found) {
+            return { status: 404, body: { detail: "User 999 not found" } };
+          }
+          const base = { id: 1, name: '田中太郎', email: 'tanaka@example.com', is_active: true };
+          const merged = { ...base, ...body, updated_at: new Date().toISOString() };
+          return {
+            status: 200,
+            body: {
+              message: "User partially updated",
+              updated_fields: Object.keys(body),
+              user: merged
             }
           };
         }
@@ -734,7 +981,7 @@ app = <span class="fn">FastAPI</span>()
 
 console.<span class="fn">log</span>(<span class="str">\`\${result.total}件中 \${result.items.length}件表示\`</span>);
 result.items.<span class="fn">forEach</span>(item =&gt; {
-  console.<span class="fn">log</span>(<span class="str">\`\${item.name}: ¥\${item.price}\`</span>);
+  console.<span class="fn">log</span>(<span class="str">\`\${item.name}: \\&yen;\${item.price}\`</span>);
 });`,
         simulate() {
           const items = [
@@ -750,6 +997,85 @@ result.items.<span class="fn">forEach</span>(item =&gt; {
               page: 1,
               size: 20,
               items: items
+            }
+          };
+        }
+      },
+      {
+        id: 'auth_login',
+        method: 'POST',
+        path: '/auth/login',
+        desc: 'メールアドレスとパスワードでログインしJWTトークンを取得',
+        hasBody: true,
+        defaultBody: JSON.stringify({ email: "tanaka@example.com", password: "secret123" }, null, 2),
+        validation: {
+          email: { required: true, type: 'email', label: 'email' },
+          password: { required: true, type: 'string', minLength: 6, label: 'password' }
+        },
+        serverCode: `<span class="kw">from</span> fastapi <span class="kw">import</span> FastAPI, HTTPException
+<span class="kw">from</span> pydantic <span class="kw">import</span> BaseModel, EmailStr
+
+app = <span class="fn">FastAPI</span>()
+
+<span class="kw">class</span> <span class="cls">LoginRequest</span>(<span class="cls">BaseModel</span>):
+    email: <span class="cls">EmailStr</span>
+    password: <span class="dec">str</span>
+
+<span class="kw">class</span> <span class="cls">TokenResponse</span>(<span class="cls">BaseModel</span>):
+    access_token: <span class="dec">str</span>
+    token_type: <span class="dec">str</span>
+    expires_in: <span class="dec">int</span>
+
+<span class="dec">@app.post</span>(<span class="str">"/auth/login"</span>, response_model=<span class="cls">TokenResponse</span>)
+<span class="kw">def</span> <span class="fn">login</span>(req: <span class="cls">LoginRequest</span>):
+    user = <span class="fn">authenticate_user</span>(req.email, req.password)
+    <span class="kw">if</span> user <span class="kw">is</span> <span class="num">None</span>:
+        <span class="kw">raise</span> <span class="fn">HTTPException</span>(
+            status_code=<span class="num">401</span>,
+            detail=<span class="str">"Invalid email or password"</span>
+        )
+    token = <span class="fn">create_access_token</span>(user)
+    <span class="kw">return</span> {
+        <span class="str">"access_token"</span>: token,
+        <span class="str">"token_type"</span>: <span class="str">"bearer"</span>,
+        <span class="str">"expires_in"</span>: <span class="num">3600</span>
+    }`,
+        clientCode: `<span class="kw">const</span> credentials = {
+  email: <span class="str">"tanaka@example.com"</span>,
+  password: <span class="str">"secret123"</span>
+};
+
+<span class="kw">const</span> response = <span class="kw">await</span> <span class="fn">fetch</span>(<span class="str">"/auth/login"</span>, {
+  method: <span class="str">"POST"</span>,
+  headers: { <span class="str">"Content-Type"</span>: <span class="str">"application/json"</span> },
+  body: JSON.<span class="fn">stringify</span>(credentials)
+});
+
+<span class="kw">if</span> (response.ok) {
+  <span class="kw">const</span> data = <span class="kw">await</span> response.<span class="fn">json</span>();
+  localStorage.<span class="fn">setItem</span>(<span class="str">"token"</span>, data.access_token);
+  console.<span class="fn">log</span>(<span class="str">"ログイン成功"</span>);
+} <span class="kw">else</span> {
+  <span class="kw">const</span> err = <span class="kw">await</span> response.<span class="fn">json</span>();
+  console.<span class="fn">error</span>(err.detail);
+}`,
+        simulate(body) {
+          if (!body || !body.email || !body.password) {
+            return {
+              status: 422,
+              body: { detail: [{ loc: ["body"], msg: "email and password are required", type: "value_error.missing" }] }
+            };
+          }
+          const valid = Math.random() > 0.3;
+          if (!valid) {
+            return { status: 401, body: { detail: "Invalid email or password" } };
+          }
+          return {
+            status: 200,
+            body: {
+              access_token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9." + btoa(JSON.stringify({ sub: body.email, exp: Date.now() + 3600000 })),
+              token_type: "bearer",
+              expires_in: 3600
             }
           };
         }
@@ -834,6 +1160,10 @@ console.<span class="fn">log</span>(profile.permissions);`,
           ],
           shipping_address: "東京都渋谷区1-2-3"
         }, null, 2),
+        validation: {
+          items: { required: true, type: 'array', minLength: 1, label: 'items' },
+          shipping_address: { required: true, type: 'string', minLength: 1, label: 'shipping_address' }
+        },
         serverCode: `<span class="kw">from</span> fastapi <span class="kw">import</span> FastAPI
 <span class="kw">from</span> pydantic <span class="kw">import</span> BaseModel
 <span class="kw">from</span> datetime <span class="kw">import</span> datetime
@@ -878,7 +1208,7 @@ app = <span class="fn">FastAPI</span>()
 <span class="kw">if</span> (response.status === <span class="num">201</span>) {
   <span class="kw">const</span> result = <span class="kw">await</span> response.<span class="fn">json</span>();
   console.<span class="fn">log</span>(<span class="str">\`注文ID: \${result.order_id}\`</span>);
-  console.<span class="fn">log</span>(<span class="str">\`合計: ¥\${result.total_price}\`</span>);
+  console.<span class="fn">log</span>(<span class="str">\`合計: \\&yen;\${result.total_price}\`</span>);
 }`,
         simulate(body) {
           if (!body || !body.items || !body.items.length) {
@@ -904,6 +1234,52 @@ app = <span class="fn">FastAPI</span>()
             }
           };
         }
+      },
+      {
+        id: 'health_check',
+        method: 'GET',
+        path: '/health',
+        desc: 'ヘルスチェック用エンドポイント（サービス稼働状態を確認）',
+        hasBody: false,
+        serverCode: `<span class="kw">from</span> fastapi <span class="kw">import</span> FastAPI
+<span class="kw">from</span> datetime <span class="kw">import</span> datetime
+
+app = <span class="fn">FastAPI</span>()
+
+<span class="dec">@app.get</span>(<span class="str">"/health"</span>)
+<span class="kw">def</span> <span class="fn">health_check</span>():
+    <span class="kw">return</span> {
+        <span class="str">"status"</span>: <span class="str">"healthy"</span>,
+        <span class="str">"timestamp"</span>: datetime.<span class="fn">utcnow</span>().<span class="fn">isoformat</span>(),
+        <span class="str">"version"</span>: <span class="str">"1.0.0"</span>,
+        <span class="str">"services"</span>: {
+            <span class="str">"database"</span>: <span class="str">"connected"</span>,
+            <span class="str">"cache"</span>: <span class="str">"connected"</span>
+        }
+    }`,
+        clientCode: `<span class="kw">const</span> response = <span class="kw">await</span> <span class="fn">fetch</span>(<span class="str">"/health"</span>);
+<span class="kw">const</span> health = <span class="kw">await</span> response.<span class="fn">json</span>();
+
+<span class="kw">if</span> (health.status === <span class="str">"healthy"</span>) {
+  console.<span class="fn">log</span>(<span class="str">"サービス正常稼働中"</span>);
+  console.<span class="fn">log</span>(<span class="str">\`バージョン: \${health.version}\`</span>);
+} <span class="kw">else</span> {
+  console.<span class="fn">error</span>(<span class="str">"サービス異常検出"</span>);
+}`,
+        simulate() {
+          return {
+            status: 200,
+            body: {
+              status: "healthy",
+              timestamp: new Date().toISOString(),
+              version: "1.0.0",
+              services: {
+                database: "connected",
+                cache: "connected"
+              }
+            }
+          };
+        }
       }
     ];
 
@@ -923,8 +1299,17 @@ app = <span class="fn">FastAPI</span>()
     const endpointInfo = document.getElementById('endpoint-info');
     const bodyInputArea = document.getElementById('body-input-area');
     const requestBody = document.getElementById('request-body');
+    const bodyContent = document.getElementById('body-content');
+    const btnToggleBody = document.getElementById('btn-toggle-body');
+    const btnEditBody = document.getElementById('btn-edit-body');
+    const btnResetBody = document.getElementById('btn-reset-body');
+    const btnToggleCode = document.getElementById('btn-toggle-code');
+    const codePanelsWrapper = document.getElementById('code-panels-wrapper');
+    const validationErrors = document.getElementById('validation-errors');
+    const validationErrorsList = document.getElementById('validation-errors-list');
 
     let requestCount = 0;
+    let isEditing = false;
 
     // ============================================================
     // Populate endpoint select
@@ -973,6 +1358,175 @@ app = <span class="fn">FastAPI</span>()
     }
 
     // ============================================================
+    // Toggle body visibility (with cookie)
+    // ============================================================
+    function getBodyExpanded() {
+      const val = getCookie('bodyExpanded');
+      return val === null ? true : val === 'true';
+    }
+
+    function setBodyExpanded(expanded) {
+      setCookie('bodyExpanded', expanded ? 'true' : 'false');
+      if (expanded) {
+        bodyContent.classList.remove('collapsed');
+        bodyContent.classList.add('expanded');
+        btnToggleBody.textContent = '閉じる';
+      } else {
+        bodyContent.classList.remove('expanded');
+        bodyContent.classList.add('collapsed');
+        btnToggleBody.textContent = '展開する';
+      }
+    }
+
+    btnToggleBody.addEventListener('click', () => {
+      const isExpanded = bodyContent.classList.contains('expanded');
+      setBodyExpanded(!isExpanded);
+    });
+
+    // ============================================================
+    // Toggle code snippet visibility (with cookie)
+    // ============================================================
+    function getCodeVisible() {
+      const val = getCookie('codeSnippetVisible');
+      return val === null ? false : val === 'true';
+    }
+
+    function setCodeVisible(visible) {
+      setCookie('codeSnippetVisible', visible ? 'true' : 'false');
+      if (visible) {
+        codePanelsWrapper.classList.remove('collapsed');
+        codePanelsWrapper.classList.add('expanded');
+        btnToggleCode.textContent = '閉じる';
+        btnToggleCode.classList.add('btn-toggle-active');
+      } else {
+        codePanelsWrapper.classList.remove('expanded');
+        codePanelsWrapper.classList.add('collapsed');
+        btnToggleCode.textContent = '展開する';
+        btnToggleCode.classList.remove('btn-toggle-active');
+      }
+    }
+
+    btnToggleCode.addEventListener('click', () => {
+      const isVisible = codePanelsWrapper.classList.contains('expanded');
+      setCodeVisible(!isVisible);
+    });
+
+    // ============================================================
+    // Edit body mode
+    // ============================================================
+    function setEditMode(editing) {
+      isEditing = editing;
+      if (editing) {
+        requestBody.removeAttribute('readonly');
+        requestBody.classList.remove('readonly-mode');
+        btnEditBody.textContent = '確定';
+        btnEditBody.classList.add('btn-edit-active');
+        requestBody.focus();
+      } else {
+        requestBody.setAttribute('readonly', '');
+        requestBody.classList.add('readonly-mode');
+        btnEditBody.textContent = '変更する';
+        btnEditBody.classList.remove('btn-edit-active');
+        hideValidationErrors();
+      }
+    }
+
+    btnEditBody.addEventListener('click', () => {
+      if (isEditing) {
+        // Validate JSON before confirming
+        try {
+          JSON.parse(requestBody.value);
+          setEditMode(false);
+        } catch (e) {
+          showValidationErrors([`JSON構文エラー: ${e.message}`]);
+        }
+      } else {
+        setEditMode(true);
+      }
+    });
+
+    btnResetBody.addEventListener('click', () => {
+      const ep = endpoints.find(e => e.id === endpointSelect.value);
+      if (ep && ep.defaultBody) {
+        requestBody.value = ep.defaultBody;
+        hideValidationErrors();
+      }
+    });
+
+    // ============================================================
+    // Validation
+    // ============================================================
+    function showValidationErrors(errors) {
+      validationErrorsList.innerHTML = '';
+      errors.forEach(err => {
+        const li = document.createElement('li');
+        li.textContent = err;
+        validationErrorsList.appendChild(li);
+      });
+      validationErrors.classList.add('visible');
+    }
+
+    function hideValidationErrors() {
+      validationErrors.classList.remove('visible');
+      validationErrorsList.innerHTML = '';
+    }
+
+    function isValidEmail(str) {
+      return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(str);
+    }
+
+    function validateRequestBody(ep, body) {
+      const errors = [];
+      if (!ep.validation) return errors;
+
+      for (const [field, rules] of Object.entries(ep.validation)) {
+        const value = body[field];
+
+        if (rules.required && (value === undefined || value === null || value === '')) {
+          errors.push(`${rules.label} は必須項目です`);
+          continue;
+        }
+
+        if (value === undefined || value === null) continue;
+
+        if (rules.type === 'string') {
+          if (typeof value !== 'string') {
+            errors.push(`${rules.label} は文字列である必要があります`);
+          } else {
+            if (rules.minLength && value.length < rules.minLength) {
+              errors.push(`${rules.label} は${rules.minLength}文字以上で入力してください`);
+            }
+            if (rules.maxLength && value.length > rules.maxLength) {
+              errors.push(`${rules.label} は${rules.maxLength}文字以下で入力してください`);
+            }
+          }
+        }
+
+        if (rules.type === 'email') {
+          if (typeof value !== 'string' || !isValidEmail(value)) {
+            errors.push(`${rules.label} は有効なメールアドレス形式で入力してください`);
+          }
+        }
+
+        if (rules.type === 'boolean') {
+          if (typeof value !== 'boolean') {
+            errors.push(`${rules.label} は true または false で入力してください`);
+          }
+        }
+
+        if (rules.type === 'array') {
+          if (!Array.isArray(value)) {
+            errors.push(`${rules.label} は配列である必要があります`);
+          } else if (rules.minLength && value.length < rules.minLength) {
+            errors.push(`${rules.label} は${rules.minLength}件以上必要です`);
+          }
+        }
+      }
+
+      return errors;
+    }
+
+    // ============================================================
     // Update display when endpoint changes
     // ============================================================
     function updateDisplay() {
@@ -986,13 +1540,16 @@ app = <span class="fn">FastAPI</span>()
       if (ep.hasBody) {
         bodyInputArea.classList.add('visible');
         requestBody.value = ep.defaultBody || '{}';
+        setEditMode(false);
+        setBodyExpanded(getBodyExpanded());
       } else {
         bodyInputArea.classList.remove('visible');
       }
+
+      hideValidationErrors();
     }
 
     endpointSelect.addEventListener('change', updateDisplay);
-    updateDisplay();
 
     // ============================================================
     // Tab switching
@@ -1031,9 +1588,25 @@ app = <span class="fn">FastAPI</span>()
         try {
           body = JSON.parse(requestBody.value);
         } catch (e) {
+          showValidationErrors([`JSON パースエラー: ${e.message}`]);
           appendToOutput(`JSON パースエラー: ${e.message}`, 'error-line');
           return;
         }
+
+        // Run validation
+        const errors = validateRequestBody(ep, body);
+        if (errors.length > 0) {
+          showValidationErrors(errors);
+          appendToOutput(`バリデーションエラー: ${errors.join(', ')}`, 'error-line');
+          return;
+        }
+
+        hideValidationErrors();
+      }
+
+      // If still in edit mode, confirm first
+      if (isEditing) {
+        setEditMode(false);
       }
 
       // Show request line
@@ -1041,7 +1614,6 @@ app = <span class="fn">FastAPI</span>()
 
       // Show request body if applicable
       if (body) {
-        const bodyFormatted = document.createElement('div');
         appendToOutput(`<span style="color:#64748b">Request Body:</span>\n${highlightJSON(body)}`, 'json-line');
       }
 
@@ -1089,6 +1661,13 @@ app = <span class="fn">FastAPI</span>()
       statTime.textContent = '-';
       statusText.textContent = '待機中';
     });
+
+    // ============================================================
+    // Initialize from cookies
+    // ============================================================
+    updateDisplay();
+    setBodyExpanded(getBodyExpanded());
+    setCodeVisible(getCodeVisible());
   </script>
 </body>
 </html>

@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CSS Transition Playground</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Segoe UI', 'Hiragino Sans', sans-serif;
+    background: #0f0f1a;
+    color: #e0e0e0;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  h1 {
+    text-align: center;
+    padding: 32px 16px 8px;
+    font-size: 1.8rem;
+    background: linear-gradient(90deg, #ff6ec7, #7873f5, #4fc3f7);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .subtitle {
+    text-align: center;
+    color: #888;
+    margin-bottom: 32px;
+    font-size: 0.9rem;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 24px;
+    padding: 0 24px 48px;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  .card {
+    background: #1a1a2e;
+    border-radius: 16px;
+    padding: 24px;
+    border: 1px solid #2a2a4a;
+    transition: border-color 0.3s;
+  }
+
+  .card:hover {
+    border-color: #4a4a7a;
+  }
+
+  .card h2 {
+    font-size: 1rem;
+    margin-bottom: 8px;
+    color: #b0b0d0;
+  }
+
+  .card p {
+    font-size: 0.8rem;
+    color: #666;
+    margin-bottom: 16px;
+  }
+
+  .demo-area {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 200px;
+    background: #12121f;
+    border-radius: 12px;
+    overflow: hidden;
+    position: relative;
+  }
+
+  /* === 1. Morphing Button === */
+  .morph-btn {
+    padding: 14px 36px;
+    font-size: 1rem;
+    border: none;
+    border-radius: 50px;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: #fff;
+    cursor: pointer;
+    transition: all 0.5s cubic-bezier(0.68, -0.55, 0.27, 1.55);
+    width: 180px;
+    height: 50px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .morph-btn:hover {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    padding: 0;
+    background: linear-gradient(135deg, #f093fb, #f5576c);
+    box-shadow: 0 0 30px rgba(245, 87, 108, 0.5);
+  }
+
+  .morph-btn span {
+    transition: opacity 0.2s;
+  }
+
+  .morph-btn:hover span {
+    opacity: 0;
+  }
+
+  .morph-btn::after {
+    content: '✦';
+    position: absolute;
+    opacity: 0;
+    font-size: 1.4rem;
+    transition: opacity 0.3s 0.2s, transform 0.5s;
+    transform: rotate(0deg);
+  }
+
+  .morph-btn:hover::after {
+    opacity: 1;
+    transform: rotate(180deg);
+  }
+
+  /* === 2. Card Flip === */
+  .flip-container {
+    width: 160px;
+    height: 160px;
+    perspective: 800px;
+    cursor: pointer;
+  }
+
+  .flip-inner {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+    transform-style: preserve-3d;
+  }
+
+  .flip-container:hover .flip-inner {
+    transform: rotateY(180deg);
+  }
+
+  .flip-front, .flip-back {
+    position: absolute;
+    inset: 0;
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backface-visibility: hidden;
+    font-size: 2rem;
+  }
+
+  .flip-front {
+    background: linear-gradient(135deg, #0f3443, #34e89e);
+  }
+
+  .flip-back {
+    background: linear-gradient(135deg, #f12711, #f5af19);
+    transform: rotateY(180deg);
+    font-size: 3rem;
+  }
+
+  /* === 3. Staggered Bars === */
+  .bars-container {
+    display: flex;
+    align-items: flex-end;
+    gap: 6px;
+    height: 160px;
+    padding: 0 20px;
+  }
+
+  .bar {
+    width: 20px;
+    border-radius: 4px 4px 0 0;
+    transition: height 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+    cursor: pointer;
+  }
+
+  .bars-container:hover .bar {
+    height: var(--target-h) !important;
+  }
+
+  .bar:nth-child(1)  { height: 20px; --target-h: 120px; background: #ff6b6b; transition-delay: 0.00s; }
+  .bar:nth-child(2)  { height: 20px; --target-h:  80px; background: #ffa36b; transition-delay: 0.05s; }
+  .bar:nth-child(3)  { height: 20px; --target-h: 140px; background: #ffd56b; transition-delay: 0.10s; }
+  .bar:nth-child(4)  { height: 20px; --target-h:  60px; background: #c4ff6b; transition-delay: 0.15s; }
+  .bar:nth-child(5)  { height: 20px; --target-h: 100px; background: #6bff8d; transition-delay: 0.20s; }
+  .bar:nth-child(6)  { height: 20px; --target-h: 130px; background: #6bffd5; transition-delay: 0.25s; }
+  .bar:nth-child(7)  { height: 20px; --target-h:  90px; background: #6bcfff; transition-delay: 0.30s; }
+  .bar:nth-child(8)  { height: 20px; --target-h: 150px; background: #6b8dff; transition-delay: 0.35s; }
+  .bar:nth-child(9)  { height: 20px; --target-h:  70px; background: #a36bff; transition-delay: 0.40s; }
+  .bar:nth-child(10) { height: 20px; --target-h: 110px; background: #e06bff; transition-delay: 0.45s; }
+
+  /* === 4. Neon Glow Text === */
+  .neon-text {
+    font-size: 2.5rem;
+    font-weight: 900;
+    letter-spacing: 4px;
+    color: #fff;
+    text-shadow: 0 0 5px #fff;
+    transition: text-shadow 0.4s, color 0.4s, letter-spacing 0.5s;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .neon-text:hover {
+    color: #0ff;
+    letter-spacing: 12px;
+    text-shadow:
+      0 0 10px #0ff,
+      0 0 20px #0ff,
+      0 0 40px #0ff,
+      0 0 80px #08f,
+      0 0 120px #08f;
+  }
+
+  /* === 5. Expanding Circles === */
+  .circles-area {
+    position: relative;
+    width: 100%;
+    height: 200px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .circle {
+    position: absolute;
+    border-radius: 50%;
+    transition: all 0.7s cubic-bezier(0.34, 1.56, 0.64, 1);
+    cursor: pointer;
+    opacity: 0.7;
+  }
+
+  .circle:nth-child(1) { width: 40px; height: 40px; background: #ff6ec7; }
+  .circle:nth-child(2) { width: 40px; height: 40px; background: #7873f5; }
+  .circle:nth-child(3) { width: 40px; height: 40px; background: #4fc3f7; }
+  .circle:nth-child(4) { width: 40px; height: 40px; background: #81c784; }
+  .circle:nth-child(5) { width: 40px; height: 40px; background: #ffb74d; }
+
+  .circles-area:hover .circle:nth-child(1) { transform: translate(-80px, -50px) scale(1.8); opacity: 0.9; }
+  .circles-area:hover .circle:nth-child(2) { transform: translate(70px, -40px) scale(1.4); opacity: 0.9; }
+  .circles-area:hover .circle:nth-child(3) { transform: translate(-60px, 50px) scale(1.6); opacity: 0.9; }
+  .circles-area:hover .circle:nth-child(4) { transform: translate(80px, 40px) scale(1.2); opacity: 0.9; }
+  .circles-area:hover .circle:nth-child(5) { transform: translate(0, -70px) scale(2.0); opacity: 0.9; }
+
+  .circles-area:hover .circle {
+    box-shadow: 0 0 20px currentColor;
+  }
+
+  /* === 6. Accordion === */
+  .accordion {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 12px;
+  }
+
+  .accordion-item {
+    background: #1e1e3a;
+    border-radius: 8px;
+    overflow: hidden;
+    cursor: pointer;
+  }
+
+  .accordion-header {
+    padding: 12px 16px;
+    font-size: 0.85rem;
+    color: #aaa;
+    transition: color 0.3s, background 0.3s;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .accordion-header::after {
+    content: '▸';
+    transition: transform 0.3s;
+  }
+
+  .accordion-body {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.5s cubic-bezier(0.4, 0, 0.2, 1), padding 0.3s;
+    padding: 0 16px;
+    font-size: 0.8rem;
+    color: #777;
+    line-height: 1.6;
+  }
+
+  .accordion-item.open .accordion-header {
+    color: #4fc3f7;
+    background: #252548;
+  }
+
+  .accordion-item.open .accordion-header::after {
+    transform: rotate(90deg);
+  }
+
+  .accordion-item.open .accordion-body {
+    max-height: 120px;
+    padding: 8px 16px 14px;
+  }
+
+  /* === 7. Progress Ring === */
+  .ring-area {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .ring-container {
+    position: relative;
+    width: 130px;
+    height: 130px;
+    cursor: pointer;
+  }
+
+  .ring-bg, .ring-fill {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    border: 8px solid transparent;
+  }
+
+  .ring-bg {
+    border-color: #2a2a4a;
+  }
+
+  .ring-fill {
+    border-color: #764ba2 transparent transparent transparent;
+    transform: rotate(-45deg);
+    transition: transform 1s cubic-bezier(0.4, 0, 0.2, 1),
+                border-color 0.5s;
+  }
+
+  .ring-container:hover .ring-fill {
+    transform: rotate(225deg);
+    border-color: #4fc3f7 transparent transparent transparent;
+  }
+
+  .ring-label {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    font-weight: 700;
+    transition: color 0.5s;
+    color: #764ba2;
+  }
+
+  .ring-container:hover .ring-label {
+    color: #4fc3f7;
+  }
+
+  .ring-hint {
+    font-size: 0.75rem;
+    color: #555;
+  }
+
+  /* === 8. Liquid Button === */
+  .liquid-btn {
+    position: relative;
+    padding: 16px 48px;
+    font-size: 1.1rem;
+    font-weight: 600;
+    border: 2px solid #4fc3f7;
+    background: transparent;
+    color: #4fc3f7;
+    border-radius: 50px;
+    cursor: pointer;
+    overflow: hidden;
+    transition: color 0.4s;
+    z-index: 1;
+  }
+
+  .liquid-btn::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    background: #4fc3f7;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1),
+                height 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: -1;
+  }
+
+  .liquid-btn:hover {
+    color: #0f0f1a;
+  }
+
+  .liquid-btn:hover::before {
+    width: 300px;
+    height: 300px;
+  }
+
+  /* === 9. Floating Cards === */
+  .floating-cards {
+    display: flex;
+    gap: 12px;
+    perspective: 600px;
+  }
+
+  .float-card {
+    width: 70px;
+    height: 100px;
+    border-radius: 10px;
+    transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1),
+                box-shadow 0.4s;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+  }
+
+  .float-card:nth-child(1) { background: linear-gradient(135deg, #ff6b6b, #c0392b); }
+  .float-card:nth-child(2) { background: linear-gradient(135deg, #ffd56b, #e67e22); }
+  .float-card:nth-child(3) { background: linear-gradient(135deg, #6bff8d, #27ae60); }
+  .float-card:nth-child(4) { background: linear-gradient(135deg, #6b8dff, #2980b9); }
+
+  .float-card:hover {
+    transform: translateY(-20px) rotateX(10deg) scale(1.1);
+    box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+  }
+
+  /* === 10. Typewriter Cursor === */
+  .typewriter-area {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Courier New', monospace;
+    font-size: 1.3rem;
+    color: #4fc3f7;
+  }
+
+  .typewriter-text {
+    overflow: hidden;
+    white-space: nowrap;
+    width: 0;
+    transition: width 2s steps(20, end);
+    border-right: 3px solid #4fc3f7;
+    animation: blink-caret 0.8s step-end infinite;
+  }
+
+  .typewriter-area:hover .typewriter-text {
+    width: 260px;
+  }
+
+  @keyframes blink-caret {
+    50% { border-color: transparent; }
+  }
+
+  /* === 11. Color Shift Grid === */
+  .color-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 36px);
+    gap: 6px;
+  }
+
+  .color-cell {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    background: #2a2a4a;
+    transition: background 0.3s, transform 0.3s, border-radius 0.4s;
+    cursor: pointer;
+  }
+
+  .color-cell:hover {
+    transform: scale(1.3) rotate(45deg);
+    border-radius: 4px;
+  }
+
+  .color-cell:nth-child(5n+1):hover { background: #ff6b6b; box-shadow: 0 0 12px #ff6b6b; }
+  .color-cell:nth-child(5n+2):hover { background: #ffd56b; box-shadow: 0 0 12px #ffd56b; }
+  .color-cell:nth-child(5n+3):hover { background: #6bff8d; box-shadow: 0 0 12px #6bff8d; }
+  .color-cell:nth-child(5n+4):hover { background: #6b8dff; box-shadow: 0 0 12px #6b8dff; }
+  .color-cell:nth-child(5n+5):hover { background: #e06bff; box-shadow: 0 0 12px #e06bff; }
+
+  /* === 12. Sliding Panels === */
+  .panels {
+    display: flex;
+    width: 100%;
+    height: 200px;
+    overflow: hidden;
+  }
+
+  .panel {
+    flex: 1;
+    transition: flex 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .panel:nth-child(1) { background: linear-gradient(180deg, #1a1a3e, #2d1b69); }
+  .panel:nth-child(2) { background: linear-gradient(180deg, #1a2e3e, #1b4569); }
+  .panel:nth-child(3) { background: linear-gradient(180deg, #1a3e2e, #1b6945); }
+  .panel:nth-child(4) { background: linear-gradient(180deg, #3e2e1a, #69451b); }
+  .panel:nth-child(5) { background: linear-gradient(180deg, #3e1a2e, #691b45); }
+
+  .panel-label {
+    writing-mode: vertical-rl;
+    font-size: 0.8rem;
+    color: #aaa;
+    letter-spacing: 2px;
+    transition: transform 0.4s, opacity 0.3s;
+  }
+
+  .panel:hover {
+    flex: 4;
+  }
+
+  .panel:hover .panel-label {
+    writing-mode: horizontal-tb;
+    transform: scale(1.2);
+  }
+
+  /* Footer */
+  footer {
+    text-align: center;
+    padding: 24px;
+    color: #444;
+    font-size: 0.75rem;
+  }
+</style>
+</head>
+<body>
+
+<h1>CSS Transition Playground</h1>
+<p class="subtitle">ホバーして遊んでみよう — JavaScript なしの CSS トランジションデモ集</p>
+
+<div class="grid">
+
+  <!-- 1 -->
+  <div class="card">
+    <h2>Morphing Button</h2>
+    <p>ホバーするとボタンが丸く変形します</p>
+    <div class="demo-area">
+      <button class="morph-btn"><span>Hover me</span></button>
+    </div>
+  </div>
+
+  <!-- 2 -->
+  <div class="card">
+    <h2>3D Card Flip</h2>
+    <p>perspective を使った 3D フリップ</p>
+    <div class="demo-area">
+      <div class="flip-container">
+        <div class="flip-inner">
+          <div class="flip-front">🎴</div>
+          <div class="flip-back">🎉</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3 -->
+  <div class="card">
+    <h2>Staggered Bars</h2>
+    <p>transition-delay でバーが順番に伸びます</p>
+    <div class="demo-area">
+      <div class="bars-container">
+        <div class="bar"></div><div class="bar"></div><div class="bar"></div>
+        <div class="bar"></div><div class="bar"></div><div class="bar"></div>
+        <div class="bar"></div><div class="bar"></div><div class="bar"></div>
+        <div class="bar"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4 -->
+  <div class="card">
+    <h2>Neon Glow</h2>
+    <p>text-shadow でネオン効果＋文字間隔が広がる</p>
+    <div class="demo-area">
+      <div class="neon-text">NEON</div>
+    </div>
+  </div>
+
+  <!-- 5 -->
+  <div class="card">
+    <h2>Expanding Circles</h2>
+    <p>重なった円が弾けるように散らばります</p>
+    <div class="demo-area">
+      <div class="circles-area">
+        <div class="circle"></div><div class="circle"></div>
+        <div class="circle"></div><div class="circle"></div>
+        <div class="circle"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 6 -->
+  <div class="card">
+    <h2>Smooth Accordion</h2>
+    <p>max-height トランジションのアコーディオン</p>
+    <div class="demo-area">
+      <div class="accordion">
+        <div class="accordion-item open" onclick="toggleAccordion(this)">
+          <div class="accordion-header">transition-property</div>
+          <div class="accordion-body">変化させる CSS プロパティを指定します。all を使うと全てのプロパティが対象になります。</div>
+        </div>
+        <div class="accordion-item" onclick="toggleAccordion(this)">
+          <div class="accordion-header">transition-duration</div>
+          <div class="accordion-body">トランジションの所要時間を設定します。0.3s〜0.5s が自然な感覚の目安です。</div>
+        </div>
+        <div class="accordion-item" onclick="toggleAccordion(this)">
+          <div class="accordion-header">transition-timing-function</div>
+          <div class="accordion-body">ease, linear, cubic-bezier() などで加減速カーブを調整できます。</div>
+        </div>
+        <div class="accordion-item" onclick="toggleAccordion(this)">
+          <div class="accordion-header">transition-delay</div>
+          <div class="accordion-body">トランジション開始までの待ち時間。スタガーアニメーションに便利です。</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 7 -->
+  <div class="card">
+    <h2>Progress Ring</h2>
+    <p>border を回転させた擬似プログレスリング</p>
+    <div class="demo-area">
+      <div class="ring-area">
+        <div class="ring-container">
+          <div class="ring-bg"></div>
+          <div class="ring-fill"></div>
+          <div class="ring-label">75%</div>
+        </div>
+        <span class="ring-hint">ホバーで充填</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 8 -->
+  <div class="card">
+    <h2>Liquid Fill Button</h2>
+    <p>::before 擬似要素の円が広がる液体ボタン</p>
+    <div class="demo-area">
+      <button class="liquid-btn">Click Me</button>
+    </div>
+  </div>
+
+  <!-- 9 -->
+  <div class="card">
+    <h2>Floating Cards</h2>
+    <p>translateY + rotateX で浮き上がるカード</p>
+    <div class="demo-area">
+      <div class="floating-cards">
+        <div class="float-card">♠</div>
+        <div class="float-card">♥</div>
+        <div class="float-card">♣</div>
+        <div class="float-card">♦</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 10 -->
+  <div class="card">
+    <h2>Typewriter Effect</h2>
+    <p>width + steps() でタイプライター風に文字出現</p>
+    <div class="demo-area">
+      <div class="typewriter-area">
+        <div class="typewriter-text">Hello, CSS Transitions!</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 11 -->
+  <div class="card">
+    <h2>Color Shift Grid</h2>
+    <p>個別セルがホバーで回転＋カラーシフト</p>
+    <div class="demo-area">
+      <div class="color-grid">
+        <div class="color-cell"></div><div class="color-cell"></div><div class="color-cell"></div><div class="color-cell"></div><div class="color-cell"></div>
+        <div class="color-cell"></div><div class="color-cell"></div><div class="color-cell"></div><div class="color-cell"></div><div class="color-cell"></div>
+        <div class="color-cell"></div><div class="color-cell"></div><div class="color-cell"></div><div class="color-cell"></div><div class="color-cell"></div>
+        <div class="color-cell"></div><div class="color-cell"></div><div class="color-cell"></div><div class="color-cell"></div><div class="color-cell"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 12 -->
+  <div class="card">
+    <h2>Sliding Panels</h2>
+    <p>flex の伸縮でパネルがスライド展開</p>
+    <div class="demo-area">
+      <div class="panels">
+        <div class="panel"><span class="panel-label">Purple</span></div>
+        <div class="panel"><span class="panel-label">Ocean</span></div>
+        <div class="panel"><span class="panel-label">Forest</span></div>
+        <div class="panel"><span class="panel-label">Amber</span></div>
+        <div class="panel"><span class="panel-label">Rose</span></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<footer>CSS Transition Playground — Pure CSS (except accordion toggle)</footer>
+
+<script>
+function toggleAccordion(item) {
+  item.classList.toggle('open');
+}
+</script>
+</body>
+</html>

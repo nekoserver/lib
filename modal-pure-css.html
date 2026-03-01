@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pure CSS モーダル集</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', 'Hiragino Sans', sans-serif; background: #f0f2f5; color: #333; line-height: 1.6; }
+h1 { text-align: center; padding: 2rem 1rem 0.5rem; font-size: 1.8rem; }
+h1 small { display: block; font-size: 0.9rem; color: #888; font-weight: normal; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1.2rem; max-width: 1200px; margin: 1.5rem auto; padding: 0 1rem 3rem; }
+.card { background: #fff; border-radius: 12px; padding: 1.5rem; box-shadow: 0 2px 8px rgba(0,0,0,.08); text-align: center; }
+.card h3 { margin-bottom: 0.8rem; font-size: 1rem; }
+.btn { display: inline-block; padding: 0.55rem 1.4rem; border-radius: 8px; cursor: pointer; font-size: 0.9rem; text-decoration: none; border: none; color: #fff; background: #4f46e5; transition: background .2s; }
+.btn:hover { background: #4338ca; }
+pre { background: #1e1e2e; color: #cdd6f4; padding: 1rem; border-radius: 8px; overflow-x: auto; font-size: 0.78rem; text-align: left; line-height: 1.5; margin-top: 1rem; white-space: pre; }
+.snippet { max-width: 1200px; margin: 0 auto 2rem; padding: 0 1rem; }
+.snippet summary { cursor: pointer; font-weight: bold; font-size: 1.1rem; margin-bottom: 0.5rem; }
+
+/* ==================== 1. :target モーダル ==================== */
+.modal-target-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.5); display: flex; align-items: center; justify-content: center; opacity: 0; visibility: hidden; transition: opacity .3s, visibility .3s; z-index: 1000; }
+.modal-target-overlay:target { opacity: 1; visibility: visible; }
+.modal-target-box { background: #fff; border-radius: 12px; padding: 2rem; max-width: 500px; width: 90%; position: relative; }
+.modal-target-box .close { position: absolute; top: 0.5rem; right: 1rem; font-size: 1.5rem; text-decoration: none; color: #999; }
+
+/* ==================== 2. checkbox hack モーダル ==================== */
+.modal-cb-toggle { display: none; }
+.modal-cb-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.5); display: flex; align-items: center; justify-content: center; opacity: 0; visibility: hidden; transition: opacity .3s, visibility .3s; z-index: 1000; }
+.modal-cb-toggle:checked ~ .modal-cb-overlay { opacity: 1; visibility: visible; }
+.modal-cb-box { background: #fff; border-radius: 12px; padding: 2rem; max-width: 500px; width: 90%; position: relative; }
+.modal-cb-box .close-label { position: absolute; top: 0.5rem; right: 1rem; font-size: 1.5rem; cursor: pointer; color: #999; }
+
+/* ==================== 3. details/summary モーダル ==================== */
+.modal-details { position: relative; display: inline-block; }
+.modal-details[open] .modal-details-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 999; }
+.modal-details[open] .modal-details-box { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #fff; border-radius: 12px; padding: 2rem; max-width: 500px; width: 90%; z-index: 1000; }
+
+/* ==================== 4. :focus-within モーダル ==================== */
+.modal-focus-container { position: relative; }
+.modal-focus-trigger { /* styled as .btn */ }
+.modal-focus-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.5); display: flex; align-items: center; justify-content: center; opacity: 0; visibility: hidden; transition: opacity .3s, visibility .3s; z-index: 1000; }
+.modal-focus-container:focus-within .modal-focus-overlay { opacity: 1; visibility: visible; }
+.modal-focus-box { background: #fff; border-radius: 12px; padding: 2rem; max-width: 500px; width: 90%; }
+
+/* ==================== 5. サイドパネル (左) ==================== */
+.panel-left-toggle { display: none; }
+.panel-left { position: fixed; top: 0; left: -320px; width: 300px; height: 100%; background: #fff; box-shadow: 2px 0 12px rgba(0,0,0,.15); transition: left .35s ease; z-index: 1001; padding: 2rem; }
+.panel-left-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,.4); opacity: 0; visibility: hidden; transition: opacity .3s; z-index: 1000; }
+.panel-left-toggle:checked ~ .panel-left { left: 0; }
+.panel-left-toggle:checked ~ .panel-left-backdrop { opacity: 1; visibility: visible; }
+
+/* ==================== 6. サイドパネル (右) ==================== */
+.panel-right-toggle { display: none; }
+.panel-right { position: fixed; top: 0; right: -320px; width: 300px; height: 100%; background: #fff; box-shadow: -2px 0 12px rgba(0,0,0,.15); transition: right .35s ease; z-index: 1001; padding: 2rem; }
+.panel-right-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,.4); opacity: 0; visibility: hidden; transition: opacity .3s; z-index: 1000; }
+.panel-right-toggle:checked ~ .panel-right { right: 0; }
+.panel-right-toggle:checked ~ .panel-right-backdrop { opacity: 1; visibility: visible; }
+
+/* ==================== 7. ボトムシート ==================== */
+.bottom-sheet-toggle { display: none; }
+.bottom-sheet-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,.4); opacity: 0; visibility: hidden; transition: opacity .3s; z-index: 1000; }
+.bottom-sheet { position: fixed; bottom: -100%; left: 0; right: 0; background: #fff; border-radius: 16px 16px 0 0; padding: 2rem; transition: bottom .4s ease; z-index: 1001; max-height: 60vh; }
+.bottom-sheet::before { content: ''; display: block; width: 40px; height: 4px; background: #ccc; border-radius: 2px; margin: 0 auto 1rem; }
+.bottom-sheet-toggle:checked ~ .bottom-sheet { bottom: 0; }
+.bottom-sheet-toggle:checked ~ .bottom-sheet-backdrop { opacity: 1; visibility: visible; }
+
+/* ==================== 8. フルスクリーン モーダル ==================== */
+.fullscreen-toggle { display: none; }
+.fullscreen-overlay { position: fixed; inset: 0; background: #fff; opacity: 0; visibility: hidden; transition: opacity .3s; z-index: 1000; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 2rem; }
+.fullscreen-toggle:checked ~ .fullscreen-overlay { opacity: 1; visibility: visible; }
+
+/* ==================== 9. 通知バー (トップ) ==================== */
+.topbar-toggle { display: none; }
+.topbar { position: fixed; top: -80px; left: 0; right: 0; background: #4f46e5; color: #fff; padding: 1rem 2rem; text-align: center; transition: top .35s ease; z-index: 1000; display: flex; align-items: center; justify-content: space-between; }
+.topbar-toggle:checked ~ .topbar { top: 0; }
+
+/* ==================== 10. 確認ダイアログ風 ==================== */
+.confirm-toggle { display: none; }
+.confirm-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.5); display: flex; align-items: center; justify-content: center; opacity: 0; visibility: hidden; transition: opacity .3s; z-index: 1000; }
+.confirm-toggle:checked ~ .confirm-overlay { opacity: 1; visibility: visible; }
+.confirm-box { background: #fff; border-radius: 12px; padding: 2rem; max-width: 400px; width: 90%; text-align: center; }
+.confirm-box .actions { display: flex; gap: 0.8rem; justify-content: center; margin-top: 1.2rem; }
+.btn-danger { background: #ef4444; }
+.btn-danger:hover { background: #dc2626; }
+.btn-outline { background: transparent; color: #666; border: 1px solid #ccc; }
+.btn-outline:hover { background: #f5f5f5; }
+
+/* ==================== 11. 画像ライトボックス ==================== */
+.lightbox-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.85); display: flex; align-items: center; justify-content: center; opacity: 0; visibility: hidden; transition: opacity .3s; z-index: 1000; }
+.lightbox-overlay:target { opacity: 1; visibility: visible; }
+.lightbox-overlay img { max-width: 90vw; max-height: 85vh; border-radius: 8px; }
+.lightbox-overlay .close { position: absolute; top: 1rem; right: 1.5rem; font-size: 2rem; color: #fff; text-decoration: none; }
+
+/* ==================== 12. ツールチップ風ポップオーバー ==================== */
+.popover-wrap { position: relative; display: inline-block; }
+.popover-toggle { display: none; }
+.popover-content { position: absolute; bottom: calc(100% + 10px); left: 50%; transform: translateX(-50%) scale(0.9); background: #1e1e2e; color: #fff; padding: 0.8rem 1.2rem; border-radius: 8px; font-size: 0.85rem; white-space: nowrap; opacity: 0; visibility: hidden; transition: opacity .2s, transform .2s; z-index: 100; }
+.popover-content::after { content: ''; position: absolute; top: 100%; left: 50%; transform: translateX(-50%); border: 6px solid transparent; border-top-color: #1e1e2e; }
+.popover-toggle:checked ~ .popover-content { opacity: 1; visibility: visible; transform: translateX(-50%) scale(1); }
+</style>
+</head>
+<body>
+
+<h1>Pure CSS モーダル集<small>JavaScript 不要 &mdash; 12パターン</small></h1>
+
+<div class="grid">
+
+  <!-- 1. :target -->
+  <div class="card">
+    <h3>1. :target モーダル</h3>
+    <a href="#target-modal" class="btn">開く</a>
+  </div>
+
+  <!-- 2. checkbox hack -->
+  <div class="card">
+    <h3>2. Checkbox Hack</h3>
+    <label for="cb-modal" class="btn">開く</label>
+  </div>
+
+  <!-- 3. details/summary -->
+  <div class="card">
+    <h3>3. details/summary</h3>
+    <details class="modal-details">
+      <summary class="btn">開く</summary>
+      <div class="modal-details-overlay"></div>
+      <div class="modal-details-box">
+        <h2>details/summary モーダル</h2>
+        <p>HTML5 の <code>&lt;details&gt;</code> 要素を利用したモーダルです。</p>
+        <br>
+        <summary class="btn" onclick="this.closest('details').open=false">閉じる</summary>
+      </div>
+    </details>
+  </div>
+
+  <!-- 4. :focus-within -->
+  <div class="card">
+    <h3>4. :focus-within</h3>
+    <div class="modal-focus-container">
+      <button class="btn modal-focus-trigger">開く</button>
+      <div class="modal-focus-overlay">
+        <div class="modal-focus-box" tabindex="-1">
+          <h2>:focus-within モーダル</h2>
+          <p>コンテナ内にフォーカスがある間表示されます。</p>
+          <br>
+          <button class="btn" onclick="this.closest('.modal-focus-container').querySelector('.modal-focus-trigger').blur(); this.blur();">閉じる</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 5. サイドパネル 左 -->
+  <div class="card">
+    <h3>5. サイドパネル（左）</h3>
+    <label for="panel-left" class="btn">開く</label>
+  </div>
+
+  <!-- 6. サイドパネル 右 -->
+  <div class="card">
+    <h3>6. サイドパネル（右）</h3>
+    <label for="panel-right" class="btn">開く</label>
+  </div>
+
+  <!-- 7. ボトムシート -->
+  <div class="card">
+    <h3>7. ボトムシート</h3>
+    <label for="bottom-sheet" class="btn">開く</label>
+  </div>
+
+  <!-- 8. フルスクリーン -->
+  <div class="card">
+    <h3>8. フルスクリーン</h3>
+    <label for="fullscreen" class="btn">開く</label>
+  </div>
+
+  <!-- 9. 通知バー -->
+  <div class="card">
+    <h3>9. 通知バー（トップ）</h3>
+    <label for="topbar" class="btn">表示</label>
+  </div>
+
+  <!-- 10. 確認ダイアログ -->
+  <div class="card">
+    <h3>10. 確認ダイアログ</h3>
+    <label for="confirm" class="btn btn-danger">削除する</label>
+  </div>
+
+  <!-- 11. ライトボックス -->
+  <div class="card">
+    <h3>11. 画像ライトボックス</h3>
+    <a href="#lightbox1" class="btn">画像を見る</a>
+  </div>
+
+  <!-- 12. ポップオーバー -->
+  <div class="card">
+    <h3>12. ポップオーバー</h3>
+    <div class="popover-wrap">
+      <input type="checkbox" id="popover1" class="popover-toggle">
+      <label for="popover1" class="btn">ヒント表示</label>
+      <div class="popover-content">これはツールチップ風ポップオーバーです</div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== モーダル実体 ===== -->
+
+<!-- 1. :target モーダル -->
+<div id="target-modal" class="modal-target-overlay">
+  <div class="modal-target-box">
+    <a href="#" class="close">&times;</a>
+    <h2>:target モーダル</h2>
+    <p>URLフラグメント (<code>#id</code>) を利用した Pure CSS モーダルです。<br>ブラウザの戻るボタンでも閉じられます。</p>
+  </div>
+</div>
+
+<!-- 2. checkbox hack -->
+<input type="checkbox" id="cb-modal" class="modal-cb-toggle">
+<div class="modal-cb-overlay">
+  <div class="modal-cb-box">
+    <label for="cb-modal" class="close-label">&times;</label>
+    <h2>Checkbox Hack モーダル</h2>
+    <p>隠し <code>&lt;input type="checkbox"&gt;</code> と <code>:checked</code> 擬似クラスで制御します。</p>
+  </div>
+</div>
+
+<!-- 5. サイドパネル 左 -->
+<input type="checkbox" id="panel-left" class="panel-left-toggle">
+<div class="panel-left">
+  <label for="panel-left" style="float:right;font-size:1.5rem;cursor:pointer">&times;</label>
+  <h2>左パネル</h2>
+  <p>ナビゲーションやフィルターに使えるサイドパネルです。</p>
+  <ul style="margin-top:1rem"><li>メニュー 1</li><li>メニュー 2</li><li>メニュー 3</li></ul>
+</div>
+<label for="panel-left" class="panel-left-backdrop"></label>
+
+<!-- 6. サイドパネル 右 -->
+<input type="checkbox" id="panel-right" class="panel-right-toggle">
+<div class="panel-right">
+  <label for="panel-right" style="float:right;font-size:1.5rem;cursor:pointer">&times;</label>
+  <h2>右パネル</h2>
+  <p>設定や詳細情報の表示に適したサイドパネルです。</p>
+</div>
+<label for="panel-right" class="panel-right-backdrop"></label>
+
+<!-- 7. ボトムシート -->
+<input type="checkbox" id="bottom-sheet" class="bottom-sheet-toggle">
+<label for="bottom-sheet" class="bottom-sheet-backdrop"></label>
+<div class="bottom-sheet">
+  <h2>ボトムシート</h2>
+  <p>モバイルでよく見られるボトムシートパターンです。</p>
+  <br>
+  <label for="bottom-sheet" class="btn">閉じる</label>
+</div>
+
+<!-- 8. フルスクリーン -->
+<input type="checkbox" id="fullscreen" class="fullscreen-toggle">
+<div class="fullscreen-overlay">
+  <h2>フルスクリーン モーダル</h2>
+  <p>画面全体を覆うモーダルです。設定画面やウィザードに適しています。</p>
+  <br>
+  <label for="fullscreen" class="btn">閉じる</label>
+</div>
+
+<!-- 9. 通知バー -->
+<input type="checkbox" id="topbar" class="topbar-toggle">
+<div class="topbar">
+  <span>新機能がリリースされました！詳しくはこちら。</span>
+  <label for="topbar" style="cursor:pointer;font-size:1.3rem">&times;</label>
+</div>
+
+<!-- 10. 確認ダイアログ -->
+<input type="checkbox" id="confirm" class="confirm-toggle">
+<div class="confirm-overlay">
+  <div class="confirm-box">
+    <h2>本当に削除しますか？</h2>
+    <p style="color:#666;margin-top:.5rem">この操作は取り消せません。</p>
+    <div class="actions">
+      <label for="confirm" class="btn btn-outline">キャンセル</label>
+      <label for="confirm" class="btn btn-danger">削除する</label>
+    </div>
+  </div>
+</div>
+
+<!-- 11. ライトボックス -->
+<div id="lightbox1" class="lightbox-overlay">
+  <a href="#" class="close">&times;</a>
+  <img src="https://picsum.photos/800/500" alt="サンプル画像">
+</div>
+
+<!-- ===== コードスニペット ===== -->
+<div class="snippet">
+  <details>
+    <summary>コードスニペット: :target モーダル</summary>
+    <pre>&lt;!-- HTML --&gt;
+&lt;a href="#my-modal"&gt;開く&lt;/a&gt;
+
+&lt;div id="my-modal" class="modal-target-overlay"&gt;
+  &lt;div class="modal-target-box"&gt;
+    &lt;a href="#" class="close"&gt;&amp;times;&lt;/a&gt;
+    &lt;h2&gt;タイトル&lt;/h2&gt;
+    &lt;p&gt;内容&lt;/p&gt;
+  &lt;/div&gt;
+&lt;/div&gt;
+
+/* CSS */
+.modal-target-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.5);
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; visibility: hidden;
+  transition: opacity .3s, visibility .3s;
+}
+.modal-target-overlay:target {
+  opacity: 1; visibility: visible;
+}</pre>
+  </details>
+
+  <details>
+    <summary>コードスニペット: Checkbox Hack モーダル</summary>
+    <pre>&lt;input type="checkbox" id="cb-modal" class="modal-cb-toggle"&gt;
+&lt;label for="cb-modal" class="btn"&gt;開く&lt;/label&gt;
+
+&lt;div class="modal-cb-overlay"&gt;
+  &lt;div class="modal-cb-box"&gt;
+    &lt;label for="cb-modal" class="close-label"&gt;&amp;times;&lt;/label&gt;
+    &lt;h2&gt;タイトル&lt;/h2&gt;
+    &lt;p&gt;内容&lt;/p&gt;
+  &lt;/div&gt;
+&lt;/div&gt;
+
+/* CSS */
+.modal-cb-toggle { display: none; }
+.modal-cb-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.5);
+  opacity: 0; visibility: hidden;
+  transition: opacity .3s;
+}
+.modal-cb-toggle:checked ~ .modal-cb-overlay {
+  opacity: 1; visibility: visible;
+}</pre>
+  </details>
+
+  <details>
+    <summary>コードスニペット: ボトムシート</summary>
+    <pre>&lt;input type="checkbox" id="bs" class="bottom-sheet-toggle"&gt;
+&lt;label for="bs"&gt;開く&lt;/label&gt;
+&lt;label for="bs" class="bottom-sheet-backdrop"&gt;&lt;/label&gt;
+&lt;div class="bottom-sheet"&gt;
+  &lt;h2&gt;タイトル&lt;/h2&gt;
+  &lt;p&gt;内容&lt;/p&gt;
+  &lt;label for="bs" class="btn"&gt;閉じる&lt;/label&gt;
+&lt;/div&gt;
+
+/* CSS */
+.bottom-sheet {
+  position: fixed; bottom: -100%;
+  left: 0; right: 0;
+  background: #fff;
+  border-radius: 16px 16px 0 0;
+  padding: 2rem;
+  transition: bottom .4s ease;
+}
+.bottom-sheet-toggle:checked ~ .bottom-sheet {
+  bottom: 0;
+}</pre>
+  </details>
+
+  <details>
+    <summary>コードスニペット: 確認ダイアログ</summary>
+    <pre>&lt;input type="checkbox" id="confirm" class="confirm-toggle"&gt;
+&lt;label for="confirm" class="btn btn-danger"&gt;削除する&lt;/label&gt;
+
+&lt;div class="confirm-overlay"&gt;
+  &lt;div class="confirm-box"&gt;
+    &lt;h2&gt;本当に削除しますか？&lt;/h2&gt;
+    &lt;p&gt;この操作は取り消せません。&lt;/p&gt;
+    &lt;div class="actions"&gt;
+      &lt;label for="confirm" class="btn btn-outline"&gt;キャンセル&lt;/label&gt;
+      &lt;label for="confirm" class="btn btn-danger"&gt;削除する&lt;/label&gt;
+    &lt;/div&gt;
+  &lt;/div&gt;
+&lt;/div&gt;</pre>
+  </details>
+</div>
+
+</body>
+</html>

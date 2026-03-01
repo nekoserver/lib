@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Native HTML Dialog &amp; Popover API モーダル集</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', 'Hiragino Sans', sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; color: #333; line-height: 1.6; }
+h1 { text-align: center; padding: 2.5rem 1rem 0.5rem; font-size: 1.8rem; color: #fff; }
+h1 small { display: block; font-size: 0.9rem; color: rgba(255,255,255,.7); font-weight: normal; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1rem; max-width: 1200px; margin: 1.5rem auto; padding: 0 1rem 3rem; }
+.card { background: rgba(255,255,255,.95); backdrop-filter: blur(10px); border-radius: 16px; padding: 1.5rem; text-align: center; box-shadow: 0 4px 16px rgba(0,0,0,.1); }
+.card h3 { margin-bottom: 0.8rem; font-size: 0.95rem; }
+.btn { display: inline-block; padding: 0.55rem 1.4rem; border-radius: 10px; cursor: pointer; font-size: 0.85rem; text-decoration: none; border: none; color: #fff; background: #6366f1; transition: background .2s, transform .1s; font-family: inherit; }
+.btn:hover { background: #4f46e5; }
+.btn:active { transform: scale(0.97); }
+.btn-green { background: #10b981; }
+.btn-green:hover { background: #059669; }
+.btn-red { background: #ef4444; }
+.btn-red:hover { background: #dc2626; }
+.btn-gray { background: #6b7280; }
+.btn-gray:hover { background: #4b5563; }
+.btn-outline { background: transparent; color: #6366f1; border: 1px solid #c7d2fe; }
+.btn-outline:hover { background: #eef2ff; }
+
+pre { background: #1e1e2e; color: #cdd6f4; padding: 1rem; border-radius: 12px; font-size: 0.78rem; overflow-x: auto; white-space: pre; line-height: 1.5; margin-top: 1rem; }
+.snippet { max-width: 1200px; margin: 0 auto 2rem; padding: 0 1rem; }
+.snippet summary { cursor: pointer; font-weight: bold; margin-bottom: 0.5rem; color: #fff; }
+.snippet details { margin-bottom: 0.5rem; }
+
+/* ===== dialog 共通スタイル ===== */
+dialog { border: none; border-radius: 16px; padding: 0; box-shadow: 0 12px 40px rgba(0,0,0,.2); max-width: 90vw; }
+dialog::backdrop { background: rgba(0,0,0,.5); animation: backdrop-fade .3s ease-out; }
+@keyframes backdrop-fade { from { opacity: 0; } to { opacity: 1; } }
+dialog[open] { animation: dialog-pop .3s ease-out; }
+@keyframes dialog-pop { from { opacity: 0; transform: scale(0.9) translateY(20px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+.dialog-content { padding: 1.5rem 2rem; }
+.dialog-header { display: flex; align-items: center; justify-content: space-between; padding: 1rem 1.5rem; border-bottom: 1px solid #e5e7eb; }
+.dialog-header h2 { font-size: 1.15rem; }
+.dialog-close { background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #9ca3af; padding: 4px 8px; border-radius: 8px; }
+.dialog-close:hover { background: #f3f4f6; color: #374151; }
+.dialog-footer { display: flex; justify-content: flex-end; gap: 0.5rem; padding: 1rem 1.5rem; border-top: 1px solid #e5e7eb; }
+.dialog-body { padding: 1.5rem; color: #4b5563; }
+
+/* ===== 1. 基本 dialog ===== */
+#dialog1 { max-width: 480px; width: 480px; }
+
+/* ===== 2. フォーム dialog ===== */
+#dialog2 { max-width: 500px; width: 500px; }
+#dialog2 .form-group { margin-bottom: 1rem; }
+#dialog2 label { display: block; font-size: 0.85rem; font-weight: 600; color: #374151; margin-bottom: 4px; }
+#dialog2 input, #dialog2 select, #dialog2 textarea { width: 100%; padding: 0.5rem 0.75rem; border: 1px solid #d1d5db; border-radius: 8px; font-size: 0.9rem; font-family: inherit; outline: none; }
+#dialog2 input:focus, #dialog2 textarea:focus { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,.15); }
+
+/* ===== 3. 確認 dialog ===== */
+#dialog3 { max-width: 380px; width: 380px; text-align: center; }
+#dialog3 .icon { font-size: 3rem; margin-bottom: 0.5rem; }
+
+/* ===== 4. フルスクリーン dialog ===== */
+#dialog4 { max-width: 100vw; width: 100vw; max-height: 100vh; height: 100vh; border-radius: 0; margin: 0; }
+#dialog4[open] { animation: dialog-slide-up .35s ease-out; }
+@keyframes dialog-slide-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
+
+/* ===== 5. サイドパネル dialog ===== */
+#dialog5 { max-width: 360px; width: 360px; height: 100vh; max-height: 100vh; margin: 0; margin-left: auto; border-radius: 16px 0 0 16px; }
+#dialog5[open] { animation: dialog-slide-left .3s ease-out; }
+@keyframes dialog-slide-left { from { transform: translateX(100%); } to { transform: translateX(0); } }
+
+/* ===== 6. ボトムシート dialog ===== */
+#dialog6 { max-width: 100%; width: 100%; margin: 0; margin-top: auto; border-radius: 20px 20px 0 0; max-height: 60vh; }
+#dialog6[open] { animation: dialog-slide-from-bottom .35s ease-out; }
+@keyframes dialog-slide-from-bottom { from { transform: translateY(100%); } to { transform: translateY(0); } }
+#dialog6 .drag-handle { width: 36px; height: 4px; background: #d1d5db; border-radius: 2px; margin: 8px auto 0; }
+#dialog6 .sheet-item { display: flex; align-items: center; gap: 14px; padding: 14px 0; border-bottom: 1px solid #f3f4f6; cursor: pointer; }
+#dialog6 .sheet-item:hover { color: #6366f1; }
+#dialog6 .sheet-icon { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; }
+
+/* ===== 7. 画像プレビュー dialog ===== */
+#dialog7 { background: transparent; box-shadow: none; max-width: 90vw; }
+#dialog7::backdrop { background: rgba(0,0,0,.85); }
+#dialog7 img { border-radius: 12px; max-width: 90vw; max-height: 85vh; display: block; }
+#dialog7 .img-close { position: absolute; top: -12px; right: -12px; background: #fff; border: none; width: 32px; height: 32px; border-radius: 50%; font-size: 1.2rem; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,.3); display: flex; align-items: center; justify-content: center; }
+
+/* ===== 8. Toast / Snackbar dialog ===== */
+#dialog8 { position: fixed; bottom: 1rem; right: 1rem; margin: 0; margin-left: auto; max-width: 360px; width: auto; border-radius: 12px; background: #1f2937; color: #f9fafb; }
+#dialog8[open] { animation: toast-in .3s ease-out; }
+@keyframes toast-in { from { transform: translateX(120%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+#dialog8::backdrop { background: transparent; }
+
+/* ===== 9. Popover ===== */
+[popover] { border: none; border-radius: 12px; padding: 1rem 1.2rem; box-shadow: 0 8px 24px rgba(0,0,0,.15); }
+[popover]:popover-open { animation: popover-in .2s ease-out; }
+@keyframes popover-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+.popover-menu { list-style: none; min-width: 180px; }
+.popover-menu li { padding: 8px 12px; border-radius: 8px; cursor: pointer; font-size: 0.9rem; }
+.popover-menu li:hover { background: #f3f4f6; }
+
+/* ===== 10. Popover Tooltip ===== */
+.tooltip-popover { font-size: 0.8rem; background: #1f2937; color: #f9fafb; padding: 8px 14px; border-radius: 8px; max-width: 240px; }
+</style>
+</head>
+<body>
+
+<h1>Native HTML Dialog &amp; Popover API<small>ブラウザネイティブ API &mdash; 10 パターン</small></h1>
+
+<div class="grid">
+  <div class="card">
+    <h3>1. 基本 &lt;dialog&gt;</h3>
+    <button class="btn" onclick="dialog1.showModal()">開く</button>
+  </div>
+  <div class="card">
+    <h3>2. フォーム Dialog</h3>
+    <button class="btn btn-green" onclick="dialog2.showModal()">新規作成</button>
+  </div>
+  <div class="card">
+    <h3>3. 確認 Dialog</h3>
+    <button class="btn btn-red" onclick="dialog3.showModal()">削除</button>
+  </div>
+  <div class="card">
+    <h3>4. フルスクリーン</h3>
+    <button class="btn" onclick="dialog4.showModal()">開く</button>
+  </div>
+  <div class="card">
+    <h3>5. サイドパネル</h3>
+    <button class="btn" onclick="dialog5.showModal()">開く</button>
+  </div>
+  <div class="card">
+    <h3>6. ボトムシート</h3>
+    <button class="btn" onclick="dialog6.showModal()">開く</button>
+  </div>
+  <div class="card">
+    <h3>7. 画像プレビュー</h3>
+    <button class="btn btn-gray" onclick="dialog7.showModal()">画像を見る</button>
+  </div>
+  <div class="card">
+    <h3>8. Toast 通知</h3>
+    <button class="btn" onclick="showToast()">表示</button>
+  </div>
+  <div class="card">
+    <h3>9. Popover メニュー</h3>
+    <button class="btn" popovertarget="popover1">メニュー</button>
+  </div>
+  <div class="card">
+    <h3>10. Popover Tooltip</h3>
+    <button class="btn btn-outline" popovertarget="tooltip1">ヒント</button>
+  </div>
+</div>
+
+<!-- ===== Dialog 実体 ===== -->
+
+<!-- 1. 基本 -->
+<dialog id="dialog1">
+  <div class="dialog-header">
+    <h2>基本ダイアログ</h2>
+    <button class="dialog-close" onclick="dialog1.close()">&times;</button>
+  </div>
+  <div class="dialog-body">
+    <p>HTML <code>&lt;dialog&gt;</code> 要素を使ったネイティブモーダルです。</p>
+    <p style="margin-top:0.8rem"><code>showModal()</code> でモーダル表示、<code>show()</code> で非モーダル表示。<code>::backdrop</code> 擬似要素でオーバーレイをスタイリングできます。</p>
+  </div>
+  <div class="dialog-footer">
+    <button class="btn btn-outline" onclick="dialog1.close()">閉じる</button>
+    <button class="btn" onclick="dialog1.close()">OK</button>
+  </div>
+</dialog>
+
+<!-- 2. フォーム -->
+<dialog id="dialog2">
+  <div class="dialog-header">
+    <h2>新規タスク</h2>
+    <button class="dialog-close" onclick="dialog2.close()">&times;</button>
+  </div>
+  <form method="dialog">
+    <div class="dialog-body">
+      <div class="form-group">
+        <label>タスク名</label>
+        <input type="text" placeholder="タスク名を入力" required>
+      </div>
+      <div class="form-group">
+        <label>説明</label>
+        <textarea rows="3" placeholder="説明を入力"></textarea>
+      </div>
+      <div class="form-group">
+        <label>優先度</label>
+        <select>
+          <option>低</option><option selected>中</option><option>高</option><option>緊急</option>
+        </select>
+      </div>
+    </div>
+    <div class="dialog-footer">
+      <button type="button" class="btn btn-outline" onclick="dialog2.close()">キャンセル</button>
+      <button type="submit" class="btn btn-green" value="create">作成</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- 3. 確認 -->
+<dialog id="dialog3">
+  <div class="dialog-content" style="padding:2rem">
+    <div class="icon" style="color:#ef4444">&#9888;</div>
+    <h2 style="margin-bottom:0.5rem">本当に削除しますか？</h2>
+    <p style="color:#6b7280">この操作は元に戻せません。関連するすべてのデータが失われます。</p>
+    <div style="display:flex;gap:0.5rem;justify-content:center;margin-top:1.5rem">
+      <button class="btn btn-outline" onclick="dialog3.close()">キャンセル</button>
+      <button class="btn btn-red" onclick="dialog3.close()">削除する</button>
+    </div>
+  </div>
+</dialog>
+
+<!-- 4. フルスクリーン -->
+<dialog id="dialog4">
+  <div class="dialog-header">
+    <div style="display:flex;align-items:center;gap:12px">
+      <button class="dialog-close" onclick="dialog4.close()" style="font-size:1.3rem">&larr;</button>
+      <h2>設定</h2>
+    </div>
+    <button class="btn" onclick="dialog4.close()">保存</button>
+  </div>
+  <div class="dialog-body" style="max-width:600px;margin:0 auto">
+    <h3 style="margin-bottom:1rem">一般設定</h3>
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:1rem 0;border-bottom:1px solid #e5e7eb"><span>ダークモード</span><input type="checkbox"></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:1rem 0;border-bottom:1px solid #e5e7eb"><span>通知</span><input type="checkbox" checked></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:1rem 0;border-bottom:1px solid #e5e7eb"><span>自動更新</span><input type="checkbox" checked></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:1rem 0;border-bottom:1px solid #e5e7eb"><span>言語</span><span style="color:#6366f1">日本語</span></div>
+    <h3 style="margin:1.5rem 0 1rem">アカウント</h3>
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:1rem 0;border-bottom:1px solid #e5e7eb"><span>メール</span><span style="color:#6b7280">user@example.com</span></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:1rem 0"><span>パスワード変更</span><span style="color:#6366f1;cursor:pointer">変更</span></div>
+  </div>
+</dialog>
+
+<!-- 5. サイドパネル -->
+<dialog id="dialog5">
+  <div class="dialog-header">
+    <h2>通知</h2>
+    <button class="dialog-close" onclick="dialog5.close()">&times;</button>
+  </div>
+  <div class="dialog-body" style="padding:0.5rem 1.5rem">
+    <div style="padding:12px 0;border-bottom:1px solid #f3f4f6">
+      <div style="font-weight:600;font-size:0.9rem">新しいコメント</div>
+      <div style="font-size:0.8rem;color:#6b7280;margin-top:2px">田中さんがあなたの投稿にコメントしました</div>
+      <div style="font-size:0.75rem;color:#9ca3af;margin-top:4px">5分前</div>
+    </div>
+    <div style="padding:12px 0;border-bottom:1px solid #f3f4f6">
+      <div style="font-weight:600;font-size:0.9rem">タスク完了</div>
+      <div style="font-size:0.8rem;color:#6b7280;margin-top:2px">「UI改修」が完了としてマークされました</div>
+      <div style="font-size:0.75rem;color:#9ca3af;margin-top:4px">30分前</div>
+    </div>
+    <div style="padding:12px 0;border-bottom:1px solid #f3f4f6">
+      <div style="font-weight:600;font-size:0.9rem">招待</div>
+      <div style="font-size:0.8rem;color:#6b7280;margin-top:2px">佐藤さんからプロジェクトへの招待</div>
+      <div style="font-size:0.75rem;color:#9ca3af;margin-top:4px">1時間前</div>
+    </div>
+    <div style="padding:12px 0;">
+      <div style="font-weight:600;font-size:0.9rem">システム更新</div>
+      <div style="font-size:0.8rem;color:#6b7280;margin-top:2px">v2.5.0 へのアップデートが利用可能です</div>
+      <div style="font-size:0.75rem;color:#9ca3af;margin-top:4px">3時間前</div>
+    </div>
+  </div>
+</dialog>
+
+<!-- 6. ボトムシート -->
+<dialog id="dialog6">
+  <div class="drag-handle"></div>
+  <div class="dialog-body">
+    <h3 style="margin-bottom:1rem">共有方法を選択</h3>
+    <div class="sheet-item" onclick="dialog6.close()"><div class="sheet-icon" style="background:#e0f2fe;color:#0284c7">&#128279;</div><div><strong>リンクをコピー</strong><br><small style="color:#9ca3af">クリップボードにコピー</small></div></div>
+    <div class="sheet-item" onclick="dialog6.close()"><div class="sheet-icon" style="background:#dbeafe;color:#2563eb">&#9993;</div><div><strong>メールで送信</strong><br><small style="color:#9ca3af">メールアプリで開く</small></div></div>
+    <div class="sheet-item" onclick="dialog6.close()"><div class="sheet-icon" style="background:#dcfce7;color:#16a34a">&#128172;</div><div><strong>メッセージ</strong><br><small style="color:#9ca3af">LINEやSMSで送信</small></div></div>
+    <div class="sheet-item" onclick="dialog6.close()"><div class="sheet-icon" style="background:#f3e8ff;color:#7c3aed">&#128228;</div><div><strong>AirDrop</strong><br><small style="color:#9ca3af">近くのデバイスに送信</small></div></div>
+    <button class="btn btn-outline" style="width:100%;margin-top:1rem" onclick="dialog6.close()">キャンセル</button>
+  </div>
+</dialog>
+
+<!-- 7. 画像プレビュー -->
+<dialog id="dialog7" onclick="if(event.target===this)dialog7.close()">
+  <div style="position:relative;display:inline-block">
+    <img src="https://picsum.photos/900/600" alt="プレビュー">
+    <button class="img-close" onclick="dialog7.close()">&times;</button>
+  </div>
+</dialog>
+
+<!-- 8. Toast -->
+<dialog id="dialog8">
+  <div style="display:flex;align-items:center;gap:12px;padding:0.8rem 1rem">
+    <span style="font-size:1.2rem">&#10003;</span>
+    <span style="flex:1">保存が完了しました</span>
+    <button style="background:none;border:none;color:#818cf8;cursor:pointer;font-weight:600;font-size:0.85rem" onclick="dialog8.close()">元に戻す</button>
+  </div>
+</dialog>
+
+<!-- 9. Popover メニュー -->
+<div popover id="popover1">
+  <ul class="popover-menu">
+    <li onclick="document.getElementById('popover1').hidePopover()">&#9998; 編集</li>
+    <li onclick="document.getElementById('popover1').hidePopover()">&#128203; 複製</li>
+    <li onclick="document.getElementById('popover1').hidePopover()">&#128279; リンクをコピー</li>
+    <li onclick="document.getElementById('popover1').hidePopover()" style="color:#ef4444">&#128465; 削除</li>
+  </ul>
+</div>
+
+<!-- 10. Popover Tooltip -->
+<div popover id="tooltip1" class="tooltip-popover">
+  Popover API はポップオーバーの表示を宣言的に制御できる新しい Web API です。<code>popover</code> 属性と <code>popovertarget</code> 属性だけで動作します。
+</div>
+
+<!-- バックドロップクリックで dialog を閉じる -->
+<script>
+document.querySelectorAll('dialog').forEach(d => {
+  d.addEventListener('click', e => {
+    if (e.target === d) d.close();
+  });
+});
+
+function showToast() {
+  dialog8.show(); // 非モーダル表示
+  setTimeout(() => dialog8.close(), 4000);
+}
+</script>
+
+<!-- コードスニペット -->
+<div class="snippet">
+  <h3 style="color:#fff;font-size:1.2rem;margin-bottom:1rem">コードスニペット</h3>
+
+  <details>
+    <summary>基本 &lt;dialog&gt;</summary>
+    <pre>&lt;dialog id="myDialog"&gt;
+  &lt;div class="dialog-header"&gt;
+    &lt;h2&gt;タイトル&lt;/h2&gt;
+    &lt;button onclick="myDialog.close()"&gt;&amp;times;&lt;/button&gt;
+  &lt;/div&gt;
+  &lt;div class="dialog-body"&gt;内容&lt;/div&gt;
+  &lt;div class="dialog-footer"&gt;
+    &lt;button onclick="myDialog.close()"&gt;閉じる&lt;/button&gt;
+  &lt;/div&gt;
+&lt;/dialog&gt;
+
+&lt;button onclick="myDialog.showModal()"&gt;開く&lt;/button&gt;
+
+/* showModal() = モーダル (::backdrop あり)
+   show()      = 非モーダル (backdrop なし)
+   close()     = 閉じる */
+
+/* CSS: ::backdrop でオーバーレイをスタイリング */
+dialog::backdrop {
+  background: rgba(0,0,0,.5);
+}
+
+/* dialog[open] でアニメーション */
+dialog[open] {
+  animation: pop .3s ease-out;
+}
+@keyframes pop {
+  from { opacity: 0; transform: scale(0.9); }
+  to   { opacity: 1; transform: scale(1); }
+}</pre>
+  </details>
+
+  <details>
+    <summary>form method="dialog"</summary>
+    <pre>&lt;!-- form method="dialog" で submit 時に dialog が自動で閉じる --&gt;
+&lt;dialog id="formDialog"&gt;
+  &lt;form method="dialog"&gt;
+    &lt;label&gt;名前&lt;/label&gt;
+    &lt;input type="text" required&gt;
+    &lt;button type="submit" value="ok"&gt;OK&lt;/button&gt;
+  &lt;/form&gt;
+&lt;/dialog&gt;
+
+&lt;script&gt;
+formDialog.addEventListener('close', () =&gt; {
+  console.log(formDialog.returnValue); // "ok"
+});
+&lt;/script&gt;</pre>
+  </details>
+
+  <details>
+    <summary>バックドロップクリックで閉じる</summary>
+    <pre>&lt;script&gt;
+// dialog 要素自体をクリック = backdrop 領域
+dialog.addEventListener('click', (e) =&gt; {
+  if (e.target === dialog) dialog.close();
+});
+&lt;/script&gt;</pre>
+  </details>
+
+  <details>
+    <summary>Popover API</summary>
+    <pre>&lt;!-- 宣言的な Popover --&gt;
+&lt;button popovertarget="myPopover"&gt;開く&lt;/button&gt;
+&lt;div popover id="myPopover"&gt;
+  ポップオーバーの内容
+&lt;/div&gt;
+
+&lt;!-- 属性 --&gt;
+&lt;!-- popover          = auto (ライトディスミス有効) --&gt;
+&lt;!-- popover="manual"  = 手動制御のみ --&gt;
+&lt;!-- popovertarget     = 対象のポップオーバーID --&gt;
+&lt;!-- popovertargetaction = toggle / show / hide --&gt;
+
+&lt;!-- JavaScript API --&gt;
+&lt;script&gt;
+element.showPopover();
+element.hidePopover();
+element.togglePopover();
+&lt;/script&gt;</pre>
+  </details>
+
+  <details>
+    <summary>サイドパネル / ボトムシートの CSS</summary>
+    <pre>/* サイドパネル: 右端に固定 */
+#sidePanel {
+  max-width: 360px; width: 360px;
+  height: 100vh; max-height: 100vh;
+  margin: 0; margin-left: auto;
+  border-radius: 16px 0 0 16px;
+}
+#sidePanel[open] {
+  animation: slide-left .3s ease-out;
+}
+@keyframes slide-left {
+  from { transform: translateX(100%); }
+  to   { transform: translateX(0); }
+}
+
+/* ボトムシート: 画面下部に固定 */
+#bottomSheet {
+  max-width: 100%; width: 100%;
+  margin: 0; margin-top: auto;
+  border-radius: 20px 20px 0 0;
+  max-height: 60vh;
+}
+#bottomSheet[open] {
+  animation: slide-up .35s ease-out;
+}
+@keyframes slide-up {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}</pre>
+  </details>
+</div>
+
+</body>
+</html>

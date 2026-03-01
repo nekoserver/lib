@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bulma モーダル集</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@1.0.2/css/bulma.min.css">
+<style>
+body { background: #f5f5f5; }
+pre { background: #1e1e2e; color: #cdd6f4; padding: 1rem; border-radius: 8px; font-size: 0.78rem; overflow-x: auto; white-space: pre; }
+.demo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1rem; }
+</style>
+</head>
+<body>
+
+<section class="hero is-link is-small">
+  <div class="hero-body has-text-centered">
+    <p class="title">Bulma モーダル集</p>
+    <p class="subtitle">Bulma CSS フレームワーク &mdash; 8 パターン</p>
+  </div>
+</section>
+
+<section class="section">
+<div class="container">
+<div class="demo-grid mb-5">
+
+  <!-- 1. 基本モーダル -->
+  <div class="card">
+    <div class="card-content has-text-centered">
+      <p class="title is-6">1. 基本モーダル</p>
+      <button class="button is-primary" onclick="toggleModal('modal1')">開く</button>
+    </div>
+  </div>
+
+  <!-- 2. カード型モーダル -->
+  <div class="card">
+    <div class="card-content has-text-centered">
+      <p class="title is-6">2. カード型モーダル</p>
+      <button class="button is-info" onclick="toggleModal('modal2')">開く</button>
+    </div>
+  </div>
+
+  <!-- 3. 画像モーダル -->
+  <div class="card">
+    <div class="card-content has-text-centered">
+      <p class="title is-6">3. 画像モーダル</p>
+      <button class="button is-dark" onclick="toggleModal('modal3')">画像を見る</button>
+    </div>
+  </div>
+
+  <!-- 4. フォームモーダル -->
+  <div class="card">
+    <div class="card-content has-text-centered">
+      <p class="title is-6">4. フォーム入力</p>
+      <button class="button is-success" onclick="toggleModal('modal4')">新規登録</button>
+    </div>
+  </div>
+
+  <!-- 5. 確認ダイアログ -->
+  <div class="card">
+    <div class="card-content has-text-centered">
+      <p class="title is-6">5. 確認ダイアログ</p>
+      <button class="button is-danger" onclick="toggleModal('modal5')">削除する</button>
+    </div>
+  </div>
+
+  <!-- 6. 長いコンテンツ -->
+  <div class="card">
+    <div class="card-content has-text-centered">
+      <p class="title is-6">6. スクロール可能</p>
+      <button class="button is-warning" onclick="toggleModal('modal6')">開く</button>
+    </div>
+  </div>
+
+  <!-- 7. 通知モーダル -->
+  <div class="card">
+    <div class="card-content has-text-centered">
+      <p class="title is-6">7. 通知 (Notification)</p>
+      <button class="button is-link" onclick="toggleModal('modal7')">表示</button>
+    </div>
+  </div>
+
+  <!-- 8. ステップモーダル -->
+  <div class="card">
+    <div class="card-content has-text-centered">
+      <p class="title is-6">8. ステップ (ウィザード)</p>
+      <button class="button is-primary is-light" onclick="toggleModal('modal8')">開始</button>
+    </div>
+  </div>
+
+</div>
+
+<!-- ===== モーダル実体 ===== -->
+
+<!-- 1. 基本 -->
+<div class="modal" id="modal1">
+  <div class="modal-background" onclick="toggleModal('modal1')"></div>
+  <div class="modal-content">
+    <div class="box">
+      <h2 class="title is-4">基本モーダル</h2>
+      <p>Bulma の <code>.modal</code> クラスを使ったシンプルなモーダルです。<code>.is-active</code> クラスの付け外しで表示を制御します。</p>
+    </div>
+  </div>
+  <button class="modal-close is-large" onclick="toggleModal('modal1')"></button>
+</div>
+
+<!-- 2. カード型 -->
+<div class="modal" id="modal2">
+  <div class="modal-background" onclick="toggleModal('modal2')"></div>
+  <div class="modal-card">
+    <header class="modal-card-head">
+      <p class="modal-card-title">カード型モーダル</p>
+      <button class="delete" onclick="toggleModal('modal2')"></button>
+    </header>
+    <section class="modal-card-body">
+      <p>ヘッダー・ボディ・フッターの3セクション構成のカード型モーダルです。</p>
+      <p class="mt-3">フォームやコンテンツの表示に適しています。</p>
+    </section>
+    <footer class="modal-card-foot">
+      <div class="buttons">
+        <button class="button is-info">保存</button>
+        <button class="button" onclick="toggleModal('modal2')">キャンセル</button>
+      </div>
+    </footer>
+  </div>
+</div>
+
+<!-- 3. 画像 -->
+<div class="modal" id="modal3">
+  <div class="modal-background" onclick="toggleModal('modal3')"></div>
+  <div class="modal-content">
+    <p class="image is-4by3">
+      <img src="https://picsum.photos/800/600" alt="サンプル画像">
+    </p>
+  </div>
+  <button class="modal-close is-large" onclick="toggleModal('modal3')"></button>
+</div>
+
+<!-- 4. フォーム -->
+<div class="modal" id="modal4">
+  <div class="modal-background" onclick="toggleModal('modal4')"></div>
+  <div class="modal-card">
+    <header class="modal-card-head">
+      <p class="modal-card-title">新規ユーザー登録</p>
+      <button class="delete" onclick="toggleModal('modal4')"></button>
+    </header>
+    <section class="modal-card-body">
+      <div class="field">
+        <label class="label">名前</label>
+        <div class="control"><input class="input" type="text" placeholder="山田太郎"></div>
+      </div>
+      <div class="field">
+        <label class="label">メールアドレス</label>
+        <div class="control"><input class="input" type="email" placeholder="user@example.com"></div>
+      </div>
+      <div class="field">
+        <label class="label">ロール</label>
+        <div class="control">
+          <div class="select is-fullwidth">
+            <select><option>管理者</option><option>編集者</option><option>閲覧者</option></select>
+          </div>
+        </div>
+      </div>
+      <div class="field">
+        <div class="control">
+          <label class="checkbox"><input type="checkbox"> 利用規約に同意する</label>
+        </div>
+      </div>
+    </section>
+    <footer class="modal-card-foot">
+      <div class="buttons">
+        <button class="button is-success">登録</button>
+        <button class="button" onclick="toggleModal('modal4')">キャンセル</button>
+      </div>
+    </footer>
+  </div>
+</div>
+
+<!-- 5. 確認ダイアログ -->
+<div class="modal" id="modal5">
+  <div class="modal-background"></div>
+  <div class="modal-card" style="max-width:400px">
+    <header class="modal-card-head has-background-danger">
+      <p class="modal-card-title has-text-white">削除の確認</p>
+    </header>
+    <section class="modal-card-body has-text-centered">
+      <span class="icon is-large has-text-danger"><i style="font-size:3rem">&#9888;</i></span>
+      <p class="mt-3"><strong>この操作は取り消せません。</strong></p>
+      <p>選択されたアイテムを本当に削除しますか？</p>
+    </section>
+    <footer class="modal-card-foot is-justify-content-center">
+      <div class="buttons">
+        <button class="button" onclick="toggleModal('modal5')">キャンセル</button>
+        <button class="button is-danger" onclick="toggleModal('modal5')">削除する</button>
+      </div>
+    </footer>
+  </div>
+</div>
+
+<!-- 6. スクロール可能 -->
+<div class="modal" id="modal6">
+  <div class="modal-background" onclick="toggleModal('modal6')"></div>
+  <div class="modal-card">
+    <header class="modal-card-head">
+      <p class="modal-card-title">利用規約</p>
+      <button class="delete" onclick="toggleModal('modal6')"></button>
+    </header>
+    <section class="modal-card-body">
+      <div class="content">
+        <h4>第1条（適用）</h4>
+        <p>本規約は、本サービスの利用に関するすべてのユーザーに適用されます。ユーザーは、本規約に同意した上で本サービスを利用するものとします。</p>
+        <h4>第2条（利用登録）</h4>
+        <p>利用を希望する者が本規約に同意の上、所定の方法で登録申請を行い、当社がこれを承認したとき、利用登録が完了するものとします。</p>
+        <h4>第3条（禁止事項）</h4>
+        <p>ユーザーは、以下の行為を行ってはなりません。法令または公序良俗に違反する行為、当社のサーバーまたはネットワークの機能を破壊したり妨害する行為。</p>
+        <h4>第4条（免責事項）</h4>
+        <p>当社は、本サービスに起因してユーザーに生じたあらゆる損害について一切の責任を負いません。</p>
+        <h4>第5条（変更）</h4>
+        <p>当社は、必要と判断した場合には、ユーザーに通知することなく本規約を変更することができるものとします。</p>
+      </div>
+    </section>
+    <footer class="modal-card-foot">
+      <div class="buttons">
+        <button class="button is-warning" onclick="toggleModal('modal6')">同意する</button>
+      </div>
+    </footer>
+  </div>
+</div>
+
+<!-- 7. 通知 -->
+<div class="modal" id="modal7">
+  <div class="modal-background" onclick="toggleModal('modal7')"></div>
+  <div class="modal-content">
+    <div class="notification is-success is-light">
+      <button class="delete" onclick="toggleModal('modal7')"></button>
+      <strong>保存が完了しました！</strong>
+      <p>変更内容は正常に保存されました。</p>
+    </div>
+  </div>
+</div>
+
+<!-- 8. ステップ -->
+<div class="modal" id="modal8">
+  <div class="modal-background"></div>
+  <div class="modal-card">
+    <header class="modal-card-head">
+      <p class="modal-card-title">セットアップ ウィザード</p>
+    </header>
+    <section class="modal-card-body" id="wizard-body">
+      <nav class="breadcrumb is-centered" aria-label="breadcrumbs">
+        <ul>
+          <li class="is-active" id="step-nav-1"><a>ステップ 1</a></li>
+          <li id="step-nav-2"><a>ステップ 2</a></li>
+          <li id="step-nav-3"><a>ステップ 3</a></li>
+        </ul>
+      </nav>
+      <div id="step1">
+        <h4 class="title is-5">プロフィール設定</h4>
+        <div class="field">
+          <label class="label">表示名</label>
+          <div class="control"><input class="input" type="text" placeholder="表示名"></div>
+        </div>
+      </div>
+      <div id="step2" style="display:none">
+        <h4 class="title is-5">通知設定</h4>
+        <div class="field"><label class="checkbox"><input type="checkbox" checked> メール通知を受け取る</label></div>
+        <div class="field"><label class="checkbox"><input type="checkbox"> プッシュ通知を受け取る</label></div>
+      </div>
+      <div id="step3" style="display:none">
+        <h4 class="title is-5">完了</h4>
+        <p class="has-text-centered" style="font-size:3rem">&#10003;</p>
+        <p class="has-text-centered">セットアップが完了しました！</p>
+      </div>
+    </section>
+    <footer class="modal-card-foot is-justify-content-space-between">
+      <button class="button" id="wizard-prev" onclick="wizardNav(-1)" disabled>戻る</button>
+      <button class="button is-primary" id="wizard-next" onclick="wizardNav(1)">次へ</button>
+    </footer>
+  </div>
+</div>
+
+<!-- コードスニペット -->
+<h3 class="title is-4 mt-6">コードスニペット</h3>
+
+<details class="mb-4">
+  <summary><strong>基本モーダル</strong></summary>
+  <pre>&lt;!-- Bulma 基本モーダル --&gt;
+&lt;div class="modal" id="myModal"&gt;
+  &lt;div class="modal-background"&gt;&lt;/div&gt;
+  &lt;div class="modal-content"&gt;
+    &lt;div class="box"&gt;
+      &lt;h2 class="title"&gt;タイトル&lt;/h2&gt;
+      &lt;p&gt;内容&lt;/p&gt;
+    &lt;/div&gt;
+  &lt;/div&gt;
+  &lt;button class="modal-close is-large"&gt;&lt;/button&gt;
+&lt;/div&gt;
+
+&lt;script&gt;
+// .is-active の付け外しで表示制御
+document.getElementById('myModal').classList.toggle('is-active');
+&lt;/script&gt;</pre>
+</details>
+
+<details class="mb-4">
+  <summary><strong>カード型モーダル</strong></summary>
+  <pre>&lt;div class="modal" id="cardModal"&gt;
+  &lt;div class="modal-background"&gt;&lt;/div&gt;
+  &lt;div class="modal-card"&gt;
+    &lt;header class="modal-card-head"&gt;
+      &lt;p class="modal-card-title"&gt;タイトル&lt;/p&gt;
+      &lt;button class="delete"&gt;&lt;/button&gt;
+    &lt;/header&gt;
+    &lt;section class="modal-card-body"&gt;
+      &lt;p&gt;内容&lt;/p&gt;
+    &lt;/section&gt;
+    &lt;footer class="modal-card-foot"&gt;
+      &lt;button class="button is-success"&gt;保存&lt;/button&gt;
+      &lt;button class="button"&gt;キャンセル&lt;/button&gt;
+    &lt;/footer&gt;
+  &lt;/div&gt;
+&lt;/div&gt;</pre>
+</details>
+
+<details class="mb-4">
+  <summary><strong>ステップウィザード JavaScript</strong></summary>
+  <pre>let currentStep = 1;
+const totalSteps = 3;
+
+function wizardNav(dir) {
+  document.getElementById('step' + currentStep).style.display = 'none';
+  document.getElementById('step-nav-' + currentStep).classList.remove('is-active');
+  currentStep += dir;
+  document.getElementById('step' + currentStep).style.display = '';
+  document.getElementById('step-nav-' + currentStep).classList.add('is-active');
+  document.getElementById('wizard-prev').disabled = (currentStep === 1);
+  const nextBtn = document.getElementById('wizard-next');
+  if (currentStep === totalSteps) {
+    nextBtn.textContent = '完了';
+    nextBtn.onclick = () => toggleModal('modal8');
+  } else {
+    nextBtn.textContent = '次へ';
+    nextBtn.onclick = () => wizardNav(1);
+  }
+}</pre>
+</details>
+
+</div>
+</section>
+
+<script>
+function toggleModal(id) {
+  document.getElementById(id).classList.toggle('is-active');
+}
+
+let currentStep = 1;
+function wizardNav(dir) {
+  document.getElementById('step' + currentStep).style.display = 'none';
+  document.getElementById('step-nav-' + currentStep).classList.remove('is-active');
+  currentStep += dir;
+  document.getElementById('step' + currentStep).style.display = '';
+  document.getElementById('step-nav-' + currentStep).classList.add('is-active');
+  document.getElementById('wizard-prev').disabled = (currentStep === 1);
+  const nextBtn = document.getElementById('wizard-next');
+  if (currentStep === 3) {
+    nextBtn.textContent = '完了';
+    nextBtn.onclick = () => { toggleModal('modal8'); currentStep = 1; resetWizard(); };
+  } else {
+    nextBtn.textContent = '次へ';
+    nextBtn.onclick = () => wizardNav(1);
+  }
+}
+function resetWizard() {
+  for (let i = 1; i <= 3; i++) {
+    document.getElementById('step' + i).style.display = i === 1 ? '' : 'none';
+    document.getElementById('step-nav-' + i).classList.toggle('is-active', i === 1);
+  }
+  document.getElementById('wizard-prev').disabled = true;
+  document.getElementById('wizard-next').textContent = '次へ';
+  document.getElementById('wizard-next').onclick = () => wizardNav(1);
+}
+</script>
+</body>
+</html>

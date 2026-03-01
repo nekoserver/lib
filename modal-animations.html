@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CSS アニメーション モーダル集</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', 'Hiragino Sans', sans-serif; background: #0f172a; color: #e2e8f0; line-height: 1.6; }
+h1 { text-align: center; padding: 2.5rem 1rem 0.5rem; font-size: 1.8rem; }
+h1 small { display: block; font-size: 0.9rem; color: #94a3b8; font-weight: normal; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1rem; max-width: 1200px; margin: 1.5rem auto; padding: 0 1rem 3rem; }
+.card { background: #1e293b; border-radius: 12px; padding: 1.5rem; text-align: center; border: 1px solid #334155; transition: border-color .2s; }
+.card:hover { border-color: #6366f1; }
+.card h3 { margin-bottom: 0.8rem; font-size: 0.95rem; color: #cbd5e1; }
+.btn { display: inline-block; padding: 0.55rem 1.4rem; border-radius: 8px; cursor: pointer; font-size: 0.85rem; text-decoration: none; border: none; color: #fff; background: #6366f1; transition: background .2s; }
+.btn:hover { background: #4f46e5; }
+pre { background: #0f172a; color: #a5b4fc; padding: 1rem; border-radius: 8px; font-size: 0.78rem; overflow-x: auto; white-space: pre; line-height: 1.5; margin-top: 1rem; border: 1px solid #334155; }
+.snippet { max-width: 1200px; margin: 0 auto 2rem; padding: 0 1rem; }
+.snippet summary { cursor: pointer; font-weight: bold; color: #a5b4fc; margin-bottom: 0.5rem; }
+
+/* Overlay common */
+.overlay { position: fixed; inset: 0; background: rgba(0,0,0,.6); display: flex; align-items: center; justify-content: center; z-index: 1000; opacity: 0; visibility: hidden; transition: opacity .3s, visibility .3s; }
+.overlay.active { opacity: 1; visibility: visible; }
+.modal-box { background: #1e293b; border-radius: 16px; padding: 2rem; max-width: 480px; width: 90%; border: 1px solid #334155; color: #e2e8f0; position: relative; }
+.modal-box h2 { margin-bottom: 0.5rem; }
+.modal-box p { color: #94a3b8; }
+.close-btn { position: absolute; top: 0.8rem; right: 1rem; background: none; border: none; color: #64748b; font-size: 1.5rem; cursor: pointer; }
+.close-btn:hover { color: #e2e8f0; }
+
+/* ===== 1. Fade ===== */
+@keyframes anim-fade { from { opacity: 0; } to { opacity: 1; } }
+.anim-fade .modal-box { animation: anim-fade .4s ease-out; }
+
+/* ===== 2. Scale Up ===== */
+@keyframes anim-scale-up { from { transform: scale(0.7); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+.anim-scale-up .modal-box { animation: anim-scale-up .35s cubic-bezier(.34,1.56,.64,1); }
+
+/* ===== 3. Scale Down ===== */
+@keyframes anim-scale-down { from { transform: scale(1.2); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+.anim-scale-down .modal-box { animation: anim-scale-down .35s ease-out; }
+
+/* ===== 4. Slide Top ===== */
+@keyframes anim-slide-top { from { transform: translateY(-60px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+.anim-slide-top .modal-box { animation: anim-slide-top .4s ease-out; }
+
+/* ===== 5. Slide Bottom ===== */
+@keyframes anim-slide-bottom { from { transform: translateY(60px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+.anim-slide-bottom .modal-box { animation: anim-slide-bottom .4s ease-out; }
+
+/* ===== 6. Slide Left ===== */
+@keyframes anim-slide-left { from { transform: translateX(-80px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+.anim-slide-left .modal-box { animation: anim-slide-left .4s ease-out; }
+
+/* ===== 7. Slide Right ===== */
+@keyframes anim-slide-right { from { transform: translateX(80px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+.anim-slide-right .modal-box { animation: anim-slide-right .4s ease-out; }
+
+/* ===== 8. Flip Horizontal ===== */
+@keyframes anim-flip-h { from { transform: perspective(600px) rotateY(-70deg); opacity: 0; } to { transform: perspective(600px) rotateY(0); opacity: 1; } }
+.anim-flip-h .modal-box { animation: anim-flip-h .5s ease-out; }
+
+/* ===== 9. Flip Vertical ===== */
+@keyframes anim-flip-v { from { transform: perspective(600px) rotateX(70deg); opacity: 0; } to { transform: perspective(600px) rotateX(0); opacity: 1; } }
+.anim-flip-v .modal-box { animation: anim-flip-v .5s ease-out; }
+
+/* ===== 10. Rotate ===== */
+@keyframes anim-rotate { from { transform: rotate(-180deg) scale(0.5); opacity: 0; } to { transform: rotate(0) scale(1); opacity: 1; } }
+.anim-rotate .modal-box { animation: anim-rotate .5s cubic-bezier(.34,1.56,.64,1); }
+
+/* ===== 11. Swing ===== */
+@keyframes anim-swing {
+  0% { transform: rotateX(-90deg); opacity: 0; }
+  40% { transform: rotateX(30deg); }
+  60% { transform: rotateX(-10deg); }
+  80% { transform: rotateX(5deg); }
+  100% { transform: rotateX(0); opacity: 1; }
+}
+.anim-swing .modal-box { transform-origin: top center; animation: anim-swing .6s ease-out; }
+
+/* ===== 12. Blur ===== */
+@keyframes anim-blur { from { filter: blur(12px); opacity: 0; transform: scale(1.1); } to { filter: blur(0); opacity: 1; transform: scale(1); } }
+.anim-blur .modal-box { animation: anim-blur .4s ease-out; }
+
+/* ===== 13. Elastic ===== */
+@keyframes anim-elastic {
+  0% { transform: scale(0); }
+  55% { transform: scale(1.08); }
+  70% { transform: scale(0.96); }
+  85% { transform: scale(1.02); }
+  100% { transform: scale(1); }
+}
+.anim-elastic .modal-box { animation: anim-elastic .6s ease-out; }
+
+/* ===== 14. Jello ===== */
+@keyframes anim-jello {
+  0% { transform: scale(0.5); opacity: 0; }
+  30% { transform: scale(1) skewX(-8deg) skewY(-3deg); }
+  50% { transform: skewX(5deg) skewY(2deg); }
+  70% { transform: skewX(-3deg) skewY(-1deg); }
+  100% { transform: none; opacity: 1; }
+}
+.anim-jello .modal-box { animation: anim-jello .7s ease-out; }
+
+/* ===== 15. 3D Slit ===== */
+@keyframes anim-slit {
+  0% { transform: perspective(600px) translateZ(-300px) rotateY(90deg); opacity: 0; }
+  50% { transform: perspective(600px) translateZ(-100px) rotateY(30deg); opacity: 0.6; }
+  100% { transform: perspective(600px) translateZ(0) rotateY(0); opacity: 1; }
+}
+.anim-slit .modal-box { animation: anim-slit .6s ease-out; }
+
+/* ===== 16. Newspaper ===== */
+@keyframes anim-newspaper { from { transform: scale(0) rotate(720deg); opacity: 0; } to { transform: scale(1) rotate(0); opacity: 1; } }
+.anim-newspaper .modal-box { animation: anim-newspaper .7s ease-out; }
+</style>
+</head>
+<body>
+
+<h1>CSS アニメーション モーダル集<small>16種類のエフェクト &mdash; ダークテーマ</small></h1>
+
+<div class="grid">
+  <div class="card"><h3>1. Fade</h3><button class="btn" onclick="openModal('anim-fade','Fade','フェードインするシンプルなアニメーション')">再生</button></div>
+  <div class="card"><h3>2. Scale Up</h3><button class="btn" onclick="openModal('anim-scale-up','Scale Up','小さい状態からバウンス気味に拡大')">再生</button></div>
+  <div class="card"><h3>3. Scale Down</h3><button class="btn" onclick="openModal('anim-scale-down','Scale Down','大きい状態から縮小して登場')">再生</button></div>
+  <div class="card"><h3>4. Slide Top</h3><button class="btn" onclick="openModal('anim-slide-top','Slide Top','上からスライドイン')">再生</button></div>
+  <div class="card"><h3>5. Slide Bottom</h3><button class="btn" onclick="openModal('anim-slide-bottom','Slide Bottom','下からスライドイン')">再生</button></div>
+  <div class="card"><h3>6. Slide Left</h3><button class="btn" onclick="openModal('anim-slide-left','Slide Left','左からスライドイン')">再生</button></div>
+  <div class="card"><h3>7. Slide Right</h3><button class="btn" onclick="openModal('anim-slide-right','Slide Right','右からスライドイン')">再生</button></div>
+  <div class="card"><h3>8. Flip H</h3><button class="btn" onclick="openModal('anim-flip-h','Flip Horizontal','水平方向にフリップ回転')">再生</button></div>
+  <div class="card"><h3>9. Flip V</h3><button class="btn" onclick="openModal('anim-flip-v','Flip Vertical','垂直方向にフリップ回転')">再生</button></div>
+  <div class="card"><h3>10. Rotate</h3><button class="btn" onclick="openModal('anim-rotate','Rotate','回転しながら登場')">再生</button></div>
+  <div class="card"><h3>11. Swing</h3><button class="btn" onclick="openModal('anim-swing','Swing','上端を軸にスイング')">再生</button></div>
+  <div class="card"><h3>12. Blur</h3><button class="btn" onclick="openModal('anim-blur','Blur','ぼかしから鮮明へ')">再生</button></div>
+  <div class="card"><h3>13. Elastic</h3><button class="btn" onclick="openModal('anim-elastic','Elastic','弾力のあるバウンド')">再生</button></div>
+  <div class="card"><h3>14. Jello</h3><button class="btn" onclick="openModal('anim-jello','Jello','ゼリーのように揺れる')">再生</button></div>
+  <div class="card"><h3>15. 3D Slit</h3><button class="btn" onclick="openModal('anim-slit','3D Slit','3D空間から飛び出す')">再生</button></div>
+  <div class="card"><h3>16. Newspaper</h3><button class="btn" onclick="openModal('anim-newspaper','Newspaper','新聞のように回転拡大')">再生</button></div>
+</div>
+
+<!-- 共通モーダル -->
+<div id="modal-overlay" class="overlay" onclick="if(event.target===this)closeModal()">
+  <div class="modal-box">
+    <button class="close-btn" onclick="closeModal()">&times;</button>
+    <h2 id="modal-title">タイトル</h2>
+    <p id="modal-desc">説明文</p>
+    <br>
+    <button class="btn" onclick="closeModal()">閉じる</button>
+  </div>
+</div>
+
+<!-- コードスニペット -->
+<div class="snippet">
+  <details>
+    <summary>コードスニペット: Flip Horizontal</summary>
+    <pre>@keyframes anim-flip-h {
+  from {
+    transform: perspective(600px) rotateY(-70deg);
+    opacity: 0;
+  }
+  to {
+    transform: perspective(600px) rotateY(0);
+    opacity: 1;
+  }
+}
+.modal-box { animation: anim-flip-h .5s ease-out; }</pre>
+  </details>
+  <details>
+    <summary>コードスニペット: Elastic</summary>
+    <pre>@keyframes anim-elastic {
+  0%   { transform: scale(0); }
+  55%  { transform: scale(1.08); }
+  70%  { transform: scale(0.96); }
+  85%  { transform: scale(1.02); }
+  100% { transform: scale(1); }
+}
+.modal-box { animation: anim-elastic .6s ease-out; }</pre>
+  </details>
+  <details>
+    <summary>コードスニペット: Swing</summary>
+    <pre>@keyframes anim-swing {
+  0%   { transform: rotateX(-90deg); opacity: 0; }
+  40%  { transform: rotateX(30deg); }
+  60%  { transform: rotateX(-10deg); }
+  80%  { transform: rotateX(5deg); }
+  100% { transform: rotateX(0); opacity: 1; }
+}
+.modal-box {
+  transform-origin: top center;
+  animation: anim-swing .6s ease-out;
+}</pre>
+  </details>
+  <details>
+    <summary>コードスニペット: 3D Slit</summary>
+    <pre>@keyframes anim-slit {
+  0%   { transform: perspective(600px) translateZ(-300px) rotateY(90deg); opacity: 0; }
+  50%  { transform: perspective(600px) translateZ(-100px) rotateY(30deg); opacity: 0.6; }
+  100% { transform: perspective(600px) translateZ(0) rotateY(0); opacity: 1; }
+}
+.modal-box { animation: anim-slit .6s ease-out; }</pre>
+  </details>
+  <details>
+    <summary>コードスニペット: Newspaper</summary>
+    <pre>@keyframes anim-newspaper {
+  from { transform: scale(0) rotate(720deg); opacity: 0; }
+  to   { transform: scale(1) rotate(0);      opacity: 1; }
+}
+.modal-box { animation: anim-newspaper .7s ease-out; }</pre>
+  </details>
+  <details>
+    <summary>コードスニペット: Blur</summary>
+    <pre>@keyframes anim-blur {
+  from { filter: blur(12px); opacity: 0; transform: scale(1.1); }
+  to   { filter: blur(0);    opacity: 1; transform: scale(1); }
+}
+.modal-box { animation: anim-blur .4s ease-out; }</pre>
+  </details>
+  <details>
+    <summary>JavaScript 制御コード</summary>
+    <pre>const overlay = document.getElementById('modal-overlay');
+
+function openModal(animClass, title, desc) {
+  overlay.className = 'overlay ' + animClass;
+  document.getElementById('modal-title').textContent = title;
+  document.getElementById('modal-desc').textContent = desc;
+  // force reflow to restart animation
+  overlay.querySelector('.modal-box').style.animation = 'none';
+  overlay.offsetHeight;
+  overlay.querySelector('.modal-box').style.animation = '';
+  overlay.classList.add('active');
+}
+
+function closeModal() {
+  overlay.classList.remove('active');
+}</pre>
+  </details>
+</div>
+
+<script>
+const overlay = document.getElementById('modal-overlay');
+function openModal(animClass, title, desc) {
+  overlay.className = 'overlay ' + animClass;
+  document.getElementById('modal-title').textContent = title;
+  document.getElementById('modal-desc').textContent = desc;
+  const box = overlay.querySelector('.modal-box');
+  box.style.animation = 'none';
+  box.offsetHeight;
+  box.style.animation = '';
+  overlay.classList.add('active');
+}
+function closeModal() {
+  overlay.classList.remove('active');
+}
+</script>
+</body>
+</html>

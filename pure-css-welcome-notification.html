@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>CSS Only Welcome Bar</title>
+<style>
+  /* 通知バーのスタイル */
+  .welcome-bar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    background-color: #4CAF50;
+    color: white;
+    text-align: center;
+    padding: 15px 0;
+    font-size: 18px;
+    font-family: sans-serif;
+
+    /* 初期状態：表示 */
+    opacity: 1;
+
+    /* アニメーション適用 */
+    animation: fadeOut 5s forwards;
+  }
+
+  /* 5秒後にフェードアウト */
+  @keyframes fadeOut {
+    0%   { opacity: 1; }
+    80%  { opacity: 1; } /* 4秒間表示 */
+    100% { opacity: 0; transform: translateY(-100%); }
+  }
+
+  /* ページ内容の余白 */
+  body {
+    margin: 0;
+    padding-top: 60px; /* バーの高さ分 */
+    font-family: sans-serif;
+  }
+</style>
+</head>
+<body>
+
+<div class="welcome-bar">Welcome!</div>
+
+<div>
+  <p>ここにページのコンテンツが入ります。</p>
+  <p>CSSだけで通知バーを5秒間表示して消すサンプルです。</p>
+</div>
+
+</body>
+</html>

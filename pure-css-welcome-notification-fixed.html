@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>Responsive Fixed Welcome Bar</title>
+<style>
+  /* 通知バーのスタイル */
+  .welcome-bar {
+    position: fixed;
+    top: -70px; /* 初期は画面外上 */
+    left: 0;
+    width: 100%;
+    background-color: #4CAF50;
+    color: white;
+    text-align: center;
+    padding: 15px 0;
+    font-size: 1.2rem;
+    font-family: sans-serif;
+    z-index: 9999;
+
+    /* アニメーション適用 */
+    animation: slideFade 5s forwards;
+  }
+
+  /* スライドイン＋フェードアウトアニメーション */
+  @keyframes slideFade {
+    0% {
+      top: -70px;
+      opacity: 0;
+    }
+    10% {
+      top: 0;
+      opacity: 1;
+    }
+    80% {
+      top: 0;
+      opacity: 1;
+    }
+    100% {
+      top: -70px;
+      opacity: 0;
+    }
+  }
+
+  /* ページ内容の余白を通知バー分確保 */
+  body {
+    margin: 0;
+    padding-top: 70px; /* バーの高さ分 */
+    font-family: sans-serif;
+  }
+
+  /* レスポンシブ対応 */
+  @media (max-width: 600px) {
+    .welcome-bar {
+      font-size: 1rem;
+      padding: 10px 0;
+    }
+    body {
+      padding-top: 50px;
+    }
+  }
+</style>
+</head>
+<body>
+
+<div class="welcome-bar">Welcome!</div>
+
+<div>
+  <p>スクロールしてもバーが上部に固定されます。</p>
+  <p>モバイル画面でも文字サイズや余白が自動調整されます。</p>
+  <p>ここにページのコンテンツが続きます。</p>
+  <p>長いコンテンツでも通知バーは常に上部に表示されます（アニメーション終了後はフェードアウト）。</p>
+  <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Cras hendrerit.</p>
+  <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Cras hendrerit.</p>
+  <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Cras hendrerit.</p>
+</div>
+
+</body>
+</html>

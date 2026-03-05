@@ -1,0 +1,126 @@
+openapi: 3.0.3
+info:
+  title: Users API Sample
+  version: 1.0.0
+  description: Basic user CRUD-style sample with code snippets.
+servers:
+  - url: https://api.example.com
+tags:
+  - name: users
+paths:
+  /users:
+    get:
+      tags: [users]
+      summary: List users
+      description: Returns a paginated list of users.
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserListResponse"
+      x-codeSamples:
+        - lang: curl
+          label: cURL
+          source: |
+            curl -X GET "https://api.example.com/users?page=1" \
+              -H "Accept: application/json"
+        - lang: javascript
+          label: JavaScript (fetch)
+          source: |
+            const response = await fetch("https://api.example.com/users?page=1");
+            const data = await response.json();
+            console.log(data);
+        - lang: python
+          label: Python (requests)
+          source: |
+            import requests
+            data = requests.get("https://api.example.com/users", params={"page": 1}).json()
+            print(data)
+    post:
+      tags: [users]
+      summary: Create user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateUserRequest"
+      responses:
+        "201":
+          description: User created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+      x-codeSamples:
+        - lang: curl
+          label: cURL
+          source: |
+            curl -X POST "https://api.example.com/users" \
+              -H "Content-Type: application/json" \
+              -d '{"name":"Alice","email":"alice@example.com"}'
+        - lang: javascript
+          label: JavaScript (fetch)
+          source: |
+            const response = await fetch("https://api.example.com/users", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ name: "Alice", email: "alice@example.com" })
+            });
+            console.log(await response.json());
+        - lang: python
+          label: Python (requests)
+          source: |
+            import requests
+            payload = {"name": "Alice", "email": "alice@example.com"}
+            data = requests.post("https://api.example.com/users", json=payload).json()
+            print(data)
+
+components:
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          example: usr_123
+        name:
+          type: string
+          example: Alice
+        email:
+          type: string
+          format: email
+          example: alice@example.com
+      required: [id, name, email]
+    CreateUserRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+      required: [name, email]
+    UserListResponse:
+      type: object
+      properties:
+        page:
+          type: integer
+          example: 1
+        total:
+          type: integer
+          example: 24
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/User"
+      required: [page, total, items]

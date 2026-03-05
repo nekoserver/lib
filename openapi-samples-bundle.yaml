@@ -1,0 +1,397 @@
+openapi: 3.0.3
+info:
+  title: OpenAPI Samples Bundle
+  version: 1.0.0
+  description: Combined sample spec including users, orders, and file upload APIs.
+servers:
+  - url: https://api.example.com
+tags:
+  - name: users
+  - name: orders
+  - name: files
+
+paths:
+  /users:
+    get:
+      tags: [users]
+      summary: List users
+      description: Returns a paginated list of users.
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserListResponse"
+      x-codeSamples:
+        - lang: curl
+          label: cURL
+          source: |
+            curl -X GET "https://api.example.com/users?page=1" \
+              -H "Accept: application/json"
+        - lang: javascript
+          label: JavaScript (fetch)
+          source: |
+            const response = await fetch("https://api.example.com/users?page=1");
+            const data = await response.json();
+            console.log(data);
+        - lang: python
+          label: Python (requests)
+          source: |
+            import requests
+            data = requests.get("https://api.example.com/users", params={"page": 1}).json()
+            print(data)
+    post:
+      tags: [users]
+      summary: Create user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateUserRequest"
+      responses:
+        "201":
+          description: User created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+      x-codeSamples:
+        - lang: curl
+          label: cURL
+          source: |
+            curl -X POST "https://api.example.com/users" \
+              -H "Content-Type: application/json" \
+              -d '{"name":"Alice","email":"alice@example.com"}'
+        - lang: javascript
+          label: JavaScript (fetch)
+          source: |
+            const response = await fetch("https://api.example.com/users", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ name: "Alice", email: "alice@example.com" })
+            });
+            console.log(await response.json());
+        - lang: python
+          label: Python (requests)
+          source: |
+            import requests
+            payload = {"name": "Alice", "email": "alice@example.com"}
+            data = requests.post("https://api.example.com/users", json=payload).json()
+            print(data)
+
+  /orders:
+    post:
+      tags: [orders]
+      summary: Create order
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateOrderRequest"
+      responses:
+        "201":
+          description: Order created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+        "401":
+          description: Unauthorized
+      x-codeSamples:
+        - lang: curl
+          label: cURL
+          source: |
+            curl -X POST "https://api.example.com/orders" \
+              -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+              -H "Content-Type: application/json" \
+              -d '{"items":[{"sku":"BOOK-001","quantity":2}],"currency":"USD"}'
+        - lang: javascript
+          label: JavaScript (fetch)
+          source: |
+            const token = process.env.API_TOKEN;
+            const response = await fetch("https://api.example.com/orders", {
+              method: "POST",
+              headers: {
+                "Authorization": `Bearer ${token}`,
+                "Content-Type": "application/json"
+              },
+              body: JSON.stringify({
+                items: [{ sku: "BOOK-001", quantity: 2 }],
+                currency: "USD"
+              })
+            });
+            console.log(await response.json());
+        - lang: python
+          label: Python (requests)
+          source: |
+            import os
+            import requests
+
+            token = os.environ["API_TOKEN"]
+            payload = {"items": [{"sku": "BOOK-001", "quantity": 2}], "currency": "USD"}
+            headers = {"Authorization": f"Bearer {token}"}
+            data = requests.post("https://api.example.com/orders", json=payload, headers=headers).json()
+            print(data)
+  /orders/{orderId}:
+    get:
+      tags: [orders]
+      summary: Get order by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: orderId
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Order details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+        "404":
+          description: Not found
+      x-codeSamples:
+        - lang: curl
+          label: cURL
+          source: |
+            curl -X GET "https://api.example.com/orders/ord_001" \
+              -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+        - lang: javascript
+          label: JavaScript (fetch)
+          source: |
+            const token = process.env.API_TOKEN;
+            const orderId = "ord_001";
+            const response = await fetch(`https://api.example.com/orders/${orderId}`, {
+              headers: { "Authorization": `Bearer ${token}` }
+            });
+            console.log(await response.json());
+        - lang: python
+          label: Python (requests)
+          source: |
+            import os
+            import requests
+
+            token = os.environ["API_TOKEN"]
+            order_id = "ord_001"
+            headers = {"Authorization": f"Bearer {token}"}
+            data = requests.get(f"https://api.example.com/orders/{order_id}", headers=headers).json()
+            print(data)
+
+  /files:
+    post:
+      tags: [files]
+      summary: Upload file
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                category:
+                  type: string
+                  example: profile-image
+              required: [file]
+      responses:
+        "201":
+          description: Upload success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FileResource"
+      x-codeSamples:
+        - lang: curl
+          label: cURL
+          source: |
+            curl -X POST "https://api.example.com/files" \
+              -F "file=@./avatar.png" \
+              -F "category=profile-image"
+        - lang: javascript
+          label: JavaScript (fetch)
+          source: |
+            const formData = new FormData();
+            formData.append("file", fileInput.files[0]);
+            formData.append("category", "profile-image");
+
+            const response = await fetch("https://api.example.com/files", {
+              method: "POST",
+              body: formData
+            });
+            console.log(await response.json());
+        - lang: python
+          label: Python (requests)
+          source: |
+            import requests
+
+            with open("./avatar.png", "rb") as fp:
+              files = {"file": fp}
+              data = {"category": "profile-image"}
+              result = requests.post("https://api.example.com/files", files=files, data=data).json()
+              print(result)
+  /files/{fileId}:
+    get:
+      tags: [files]
+      summary: Get file metadata
+      parameters:
+        - in: path
+          name: fileId
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: File metadata
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FileResource"
+        "404":
+          description: Not found
+      x-codeSamples:
+        - lang: curl
+          label: cURL
+          source: |
+            curl "https://api.example.com/files/file_001"
+        - lang: javascript
+          label: JavaScript (fetch)
+          source: |
+            const fileId = "file_001";
+            const response = await fetch(`https://api.example.com/files/${fileId}`);
+            console.log(await response.json());
+        - lang: python
+          label: Python (requests)
+          source: |
+            import requests
+            file_id = "file_001"
+            data = requests.get(f"https://api.example.com/files/{file_id}").json()
+            print(data)
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          example: usr_123
+        name:
+          type: string
+          example: Alice
+        email:
+          type: string
+          format: email
+          example: alice@example.com
+      required: [id, name, email]
+    CreateUserRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+      required: [name, email]
+    UserListResponse:
+      type: object
+      properties:
+        page:
+          type: integer
+          example: 1
+        total:
+          type: integer
+          example: 24
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/User"
+      required: [page, total, items]
+    CreateOrderRequest:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              sku:
+                type: string
+              quantity:
+                type: integer
+                minimum: 1
+            required: [sku, quantity]
+        currency:
+          type: string
+          example: USD
+      required: [items, currency]
+    Order:
+      type: object
+      properties:
+        id:
+          type: string
+          example: ord_001
+        status:
+          type: string
+          example: pending
+        totalAmount:
+          type: number
+          format: float
+          example: 29.98
+        currency:
+          type: string
+          example: USD
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              sku:
+                type: string
+              quantity:
+                type: integer
+      required: [id, status, totalAmount, currency, items]
+    FileResource:
+      type: object
+      properties:
+        id:
+          type: string
+          example: file_001
+        filename:
+          type: string
+          example: avatar.png
+        mimeType:
+          type: string
+          example: image/png
+        size:
+          type: integer
+          example: 204800
+        category:
+          type: string
+          example: profile-image
+        createdAt:
+          type: string
+          format: date-time
+          example: "2026-03-05T14:00:00Z"
+      required: [id, filename, mimeType, size, createdAt]

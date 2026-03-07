@@ -15,10 +15,7 @@
       padding: 2rem 1rem;
     }
 
-    .container {
-      max-width: 960px;
-      margin: 0 auto;
-    }
+    .container { max-width: 960px; margin: 0 auto; }
 
     h1 {
       text-align: center;
@@ -36,7 +33,6 @@
       margin-bottom: 2rem;
     }
 
-    /* --- Layout --- */
     .panels {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -46,6 +42,7 @@
 
     @media (max-width: 700px) {
       .panels { grid-template-columns: 1fr; }
+      .cascade-row { flex-direction: column; align-items: stretch !important; }
     }
 
     .panel {
@@ -66,7 +63,6 @@
       margin-bottom: 0.8rem;
     }
 
-    /* --- Code Block --- */
     .code-block {
       background: #111322;
       border: 1px solid #2a2d3e;
@@ -96,7 +92,6 @@
     .code-block .op { color: #56b6c2; }
     .code-block .cls { color: #e5c07b; }
 
-    /* --- Controls --- */
     .controls {
       display: flex;
       gap: 0.6rem;
@@ -105,10 +100,7 @@
       margin-bottom: 1.2rem;
     }
 
-    .controls label {
-      font-size: 0.8rem;
-      color: #94a3b8;
-    }
+    .controls label { font-size: 0.8rem; color: #94a3b8; }
 
     .controls select {
       background: #1a1d2e;
@@ -122,9 +114,7 @@
       transition: border-color 0.2s;
     }
 
-    .controls select:focus {
-      border-color: #6366f1;
-    }
+    .controls select:focus { border-color: #6366f1; }
 
     .btn {
       padding: 0.5rem 1.2rem;
@@ -138,22 +128,11 @@
     }
 
     .btn:active { transform: scale(0.97); }
-
-    .btn-primary {
-      background: #6366f1;
-      color: #fff;
-    }
-
+    .btn-primary { background: #6366f1; color: #fff; }
     .btn-primary:hover { background: #5558e6; }
-
-    .btn-clear {
-      background: #374151;
-      color: #d1d5db;
-    }
-
+    .btn-clear { background: #374151; color: #d1d5db; }
     .btn-clear:hover { background: #4b5563; }
 
-    /* --- Method Badge --- */
     .method-badge {
       display: inline-block;
       padding: 0.15rem 0.5rem;
@@ -170,7 +149,6 @@
     .method-delete { background: #7f1d1d; color: #fca5a5; }
     .method-patch { background: #4a1d6a; color: #d8b4fe; }
 
-    /* --- Output Area --- */
     .output-area {
       background: #111322;
       border: 1px solid #2a2d3e;
@@ -188,40 +166,13 @@
     .output-area::-webkit-scrollbar-track { background: transparent; }
     .output-area::-webkit-scrollbar-thumb { background: #3a3d5e; border-radius: 3px; }
 
-    .response-item {
-      padding: 0.5rem 0.8rem;
-      border-radius: 6px;
-      margin-bottom: 0.5rem;
-      animation: fadeIn 0.3s ease;
-      word-break: break-all;
-    }
-
-    .response-item.request-line {
-      background: #1a2332;
-      border-left: 3px solid #6366f1;
-      color: #a5b4fc;
-      font-weight: 600;
-    }
-
-    .response-item.status-line {
-      font-size: 0.75rem;
-      color: #94a3b8;
-      padding: 0.2rem 0.8rem;
-    }
-
+    .response-item { padding: 0.5rem 0.8rem; border-radius: 6px; margin-bottom: 0.5rem; animation: fadeIn 0.3s ease; word-break: break-all; }
+    .response-item.request-line { background: #1a2332; border-left: 3px solid #6366f1; color: #a5b4fc; font-weight: 600; }
+    .response-item.status-line { font-size: 0.75rem; color: #94a3b8; padding: 0.2rem 0.8rem; }
     .response-item.status-line .s2xx { color: #86efac; font-weight: 600; }
     .response-item.status-line .s4xx { color: #fca5a5; font-weight: 600; }
-
-    .response-item.json-line {
-      background: #151927;
-      border-left: 3px solid #22c55e;
-    }
-
-    .response-item.error-line {
-      background: #2d1b1b;
-      border-left: 3px solid #ef4444;
-      color: #fca5a5;
-    }
+    .response-item.json-line { background: #151927; border-left: 3px solid #22c55e; }
+    .response-item.error-line { background: #2d1b1b; border-left: 3px solid #ef4444; color: #fca5a5; }
 
     @keyframes fadeIn {
       from { opacity: 0; transform: translateY(4px); }
@@ -235,32 +186,12 @@
     .json-null { color: #5c6370; }
     .json-brace { color: #abb2bf; }
 
-    /* --- Status Bar --- */
-    .status-bar {
-      display: flex;
-      align-items: center;
-      gap: 0.8rem;
-      margin-top: 0.8rem;
-      font-size: 0.78rem;
-      color: #64748b;
-    }
-
-    .stats {
-      margin-left: auto;
-      display: flex;
-      gap: 1rem;
-    }
-
+    .status-bar { display: flex; align-items: center; gap: 0.8rem; margin-top: 0.8rem; font-size: 0.78rem; color: #64748b; }
+    .stats { margin-left: auto; display: flex; gap: 1rem; }
     .stats span { color: #94a3b8; }
     .stats strong { color: #e2e8f0; }
 
-    /* --- Tabs --- */
-    .tab-bar {
-      display: flex;
-      gap: 0.3rem;
-      margin-bottom: 1rem;
-    }
-
+    .tab-bar { display: flex; gap: 0.3rem; margin-bottom: 1rem; }
     .tab-btn {
       padding: 0.4rem 1rem;
       border: 1px solid #2a2d3e;
@@ -274,25 +205,12 @@
       cursor: pointer;
       transition: background 0.2s, color 0.2s;
     }
-
-    .tab-btn.active {
-      background: #111322;
-      color: #e2e8f0;
-      border-color: #6366f1;
-      border-bottom: 1px solid #111322;
-    }
-
+    .tab-btn.active { background: #111322; color: #e2e8f0; border-color: #6366f1; border-bottom: 1px solid #111322; }
     .tab-content { display: none; }
     .tab-content.active { display: block; }
 
-    /* --- Request Body Input --- */
-    .body-input-area {
-      margin-bottom: 1.2rem;
-      display: none;
-    }
-
+    .body-input-area { margin-bottom: 1.2rem; display: none; }
     .body-input-area.visible { display: block; }
-
     .body-input-area textarea {
       width: 100%;
       background: #1a1d2e;
@@ -308,29 +226,11 @@
       outline: none;
       transition: border-color 0.2s;
     }
+    .body-input-area textarea:focus { border-color: #6366f1; }
+    .body-input-area textarea.readonly-mode { opacity: 0.7; cursor: default; }
 
-    .body-input-area textarea:focus {
-      border-color: #6366f1;
-    }
-
-    .body-input-area textarea.readonly-mode {
-      opacity: 0.7;
-      cursor: default;
-    }
-
-    /* --- Body Header --- */
-    .body-header {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      margin-bottom: 0.4rem;
-      flex-wrap: wrap;
-    }
-
-    .body-header .body-label {
-      font-size: 0.78rem;
-      color: #94a3b8;
-    }
+    .body-header { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.4rem; flex-wrap: wrap; }
+    .body-header .body-label { font-size: 0.78rem; color: #94a3b8; }
 
     .btn-sm {
       padding: 0.2rem 0.6rem;
@@ -344,130 +244,77 @@
       transition: all 0.2s;
       font-weight: 600;
     }
+    .btn-sm:hover { background: #2a2d3e; color: #e2e8f0; }
+    .btn-sm.btn-toggle-active { background: #6366f1; color: #fff; border-color: #6366f1; }
+    .btn-sm.btn-edit-active { background: #059669; color: #fff; border-color: #059669; }
 
-    .btn-sm:hover {
-      background: #2a2d3e;
-      color: #e2e8f0;
-    }
+    .body-content { transition: max-height 0.3s ease, opacity 0.3s ease; overflow: hidden; }
+    .body-content.collapsed { max-height: 0; opacity: 0; margin: 0; }
+    .body-content.expanded { max-height: 500px; opacity: 1; }
 
-    .btn-sm.btn-toggle-active {
-      background: #6366f1;
-      color: #fff;
-      border-color: #6366f1;
-    }
+    .validation-errors { background: #2d1b1b; border: 1px solid #ef4444; border-radius: 6px; padding: 0.6rem 0.8rem; margin-top: 0.4rem; font-size: 0.75rem; color: #fca5a5; display: none; }
+    .validation-errors.visible { display: block; }
+    .validation-errors ul { list-style: none; padding: 0; }
+    .validation-errors li::before { content: "! "; font-weight: 700; color: #ef4444; }
 
-    .btn-sm.btn-edit-active {
-      background: #059669;
-      color: #fff;
-      border-color: #059669;
-    }
+    .endpoint-info { background: #1a1d2e; border: 1px solid #2a2d3e; border-radius: 8px; padding: 0.6rem 1rem; margin-bottom: 1.2rem; font-size: 0.8rem; color: #94a3b8; }
+    .endpoint-info .endpoint-path { color: #e2e8f0; font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace; font-weight: 600; }
+    .endpoint-info .endpoint-desc { margin-top: 0.3rem; font-size: 0.75rem; }
 
-    .body-content {
-      transition: max-height 0.3s ease, opacity 0.3s ease;
-      overflow: hidden;
-    }
+    .code-snippet-section { margin-bottom: 1.2rem; }
+    .code-snippet-toggle { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.8rem; }
+    .code-snippet-toggle .toggle-label { font-size: 0.8rem; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.06em; }
+    .code-panels-wrapper { transition: max-height 0.4s ease, opacity 0.3s ease; overflow: hidden; }
+    .code-panels-wrapper.collapsed { max-height: 0; opacity: 0; }
+    .code-panels-wrapper.expanded { max-height: 2000px; opacity: 1; }
 
-    .body-content.collapsed {
-      max-height: 0;
-      opacity: 0;
-      margin: 0;
-    }
+    .edit-controls { display: flex; gap: 0.4rem; margin-left: auto; }
 
-    .body-content.expanded {
-      max-height: 500px;
-      opacity: 1;
+    /* --- Cascade Menu --- */
+    .cascade-row {
+      display: flex; gap: 0.6rem; flex-wrap: wrap; align-items: center;
+      margin-bottom: 0.8rem; padding: 0.6rem 0.8rem;
+      background: #1a1d2e; border: 1px solid #2a2d3e; border-radius: 8px;
     }
+    .cascade-row label { font-size: 0.78rem; color: #94a3b8; white-space: nowrap; }
+    .cascade-row select {
+      background: #111322; border: 1px solid #2a2d3e; border-radius: 6px;
+      color: #e2e8f0; padding: 0.4rem 0.6rem; font-size: 0.8rem;
+      font-family: inherit; outline: none; transition: border-color 0.2s; min-width: 120px;
+    }
+    .cascade-row select:focus { border-color: #6366f1; }
+    .cascade-separator { color: #374151; font-size: 1.1rem; user-select: none; }
 
-    /* --- Validation Error --- */
-    .validation-errors {
-      background: #2d1b1b;
-      border: 1px solid #ef4444;
-      border-radius: 6px;
-      padding: 0.6rem 0.8rem;
-      margin-top: 0.4rem;
-      font-size: 0.75rem;
-      color: #fca5a5;
-      display: none;
+    /* --- KV Panel --- */
+    .kv-section { margin-top: 1rem; }
+    .kv-toggle-bar { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.6rem; }
+    .kv-toggle-bar .kv-label { font-size: 0.78rem; font-weight: 600; color: #94a3b8; }
+    .kv-panel-wrapper { transition: max-height 0.3s ease, opacity 0.3s ease; overflow: hidden; }
+    .kv-panel-wrapper.collapsed { max-height: 0; opacity: 0; }
+    .kv-panel-wrapper.expanded { max-height: 2000px; opacity: 1; }
+    .kv-panel {
+      background: #111322; border: 1px solid #2a2d3e; border-radius: 10px;
+      padding: 0.8rem; max-height: 400px; overflow-y: auto;
     }
-
-    .validation-errors.visible {
-      display: block;
-    }
-
-    .validation-errors ul {
-      list-style: none;
-      padding: 0;
-    }
-
-    .validation-errors li::before {
-      content: "! ";
-      font-weight: 700;
-      color: #ef4444;
-    }
-
-    /* --- Endpoint Info --- */
-    .endpoint-info {
-      background: #1a1d2e;
-      border: 1px solid #2a2d3e;
-      border-radius: 8px;
-      padding: 0.6rem 1rem;
-      margin-bottom: 1.2rem;
-      font-size: 0.8rem;
-      color: #94a3b8;
-    }
-
-    .endpoint-info .endpoint-path {
-      color: #e2e8f0;
-      font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
-      font-weight: 600;
-    }
-
-    .endpoint-info .endpoint-desc {
-      margin-top: 0.3rem;
-      font-size: 0.75rem;
-    }
-
-    /* --- Code Snippet Section --- */
-    .code-snippet-section {
-      margin-bottom: 1.2rem;
-    }
-
-    .code-snippet-toggle {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      margin-bottom: 0.8rem;
-    }
-
-    .code-snippet-toggle .toggle-label {
-      font-size: 0.8rem;
-      font-weight: 600;
-      color: #94a3b8;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-    }
-
-    .code-panels-wrapper {
-      transition: max-height 0.4s ease, opacity 0.3s ease;
-      overflow: hidden;
-    }
-
-    .code-panels-wrapper.collapsed {
-      max-height: 0;
-      opacity: 0;
-    }
-
-    .code-panels-wrapper.expanded {
-      max-height: 2000px;
-      opacity: 1;
-    }
-
-    /* --- Edit Controls --- */
-    .edit-controls {
-      display: flex;
-      gap: 0.4rem;
-      margin-left: auto;
-    }
+    .kv-panel::-webkit-scrollbar { width: 6px; }
+    .kv-panel::-webkit-scrollbar-track { background: transparent; }
+    .kv-panel::-webkit-scrollbar-thumb { background: #3a3d5e; border-radius: 3px; }
+    .kv-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+    .kv-table thead th { background: #1e2330; color: #94a3b8; text-align: left; padding: 0.45rem 0.7rem; border-bottom: 1px solid #2d3748; font-weight: 500; font-size: 0.75rem; }
+    .kv-table tbody tr { border-bottom: 1px solid #1e2330; }
+    .kv-table tbody tr:hover { background: #1e2330; }
+    .kv-table tbody td { padding: 0.45rem 0.7rem; vertical-align: top; word-break: break-all; }
+    .kv-key-cell { color: #a5b4fc; font-family: monospace; font-size: 0.78rem; }
+    .kv-val-cell { color: #86efac; font-family: monospace; font-size: 0.78rem; }
+    .kv-type-badge { display: inline-block; font-size: 0.65rem; padding: 0.08rem 0.35rem; border-radius: 4px; font-weight: 600; letter-spacing: 0.03em; }
+    .kv-t-string  { background: #164e63; color: #67e8f9; }
+    .kv-t-number  { background: #14532d; color: #86efac; }
+    .kv-t-boolean { background: #3b1f6b; color: #c4b5fd; }
+    .kv-t-null    { background: #374151; color: #9ca3af; }
+    .kv-t-object  { background: #1c2a4a; color: #93c5fd; }
+    .kv-t-array   { background: #2a1a0e; color: #fdba74; }
+    .kv-empty-msg { color: #4b5563; font-size: 0.8rem; text-align: center; padding: 1.5rem 0; }
+    .kv-count { font-size: 0.72rem; color: #64748b; margin-bottom: 0.4rem; }
   </style>
 </head>
 <body>
@@ -475,18 +322,7 @@
     <h1>FastAPI 非ストリーミング サンプル</h1>
     <p class="subtitle">通常のJSON レスポンスを返すREST API デモ（フロントエンドシミュレーション）</p>
 
-    <!-- Controls -->
-    <div class="controls">
-      <label>エンドポイント:</label>
-      <select id="endpoint-select"></select>
-      <button class="btn btn-primary" id="btn-send">送信</button>
-      <button class="btn btn-clear" id="btn-clear">クリア</button>
-    </div>
-
-    <!-- Endpoint Info -->
-    <div class="endpoint-info" id="endpoint-info"></div>
-
-    <!-- Code Snippet Section (collapsible) -->
+    <!-- Code Snippet Section (collapsible) - ABOVE controls -->
     <div class="code-snippet-section">
       <div class="code-snippet-toggle">
         <span class="toggle-label">コードスニペット</span>
@@ -505,6 +341,26 @@
         </div>
       </div>
     </div>
+
+    <!-- Cascade Menu -->
+    <div class="cascade-row">
+      <label>カテゴリ:</label>
+      <select id="category-select"></select>
+      <span class="cascade-separator">/</span>
+      <label>操作:</label>
+      <select id="action-select"></select>
+    </div>
+
+    <!-- Flat Controls (unchanged) -->
+    <div class="controls">
+      <label>エンドポイント:</label>
+      <select id="endpoint-select"></select>
+      <button class="btn btn-primary" id="btn-send">送信</button>
+      <button class="btn btn-clear" id="btn-clear">クリア</button>
+    </div>
+
+    <!-- Endpoint Info -->
+    <div class="endpoint-info" id="endpoint-info"></div>
 
     <!-- Request Body -->
     <div class="body-input-area" id="body-input-area">
@@ -537,6 +393,20 @@
       <div class="output-area" id="output-raw"></div>
     </div>
 
+    <!-- KV Table Section -->
+    <div class="kv-section">
+      <div class="kv-toggle-bar">
+        <span class="kv-label">レスポンス KV 一覧</span>
+        <button class="btn-sm" id="btn-toggle-kv">展開する</button>
+      </div>
+      <div class="kv-panel-wrapper collapsed" id="kv-panel-wrapper">
+        <div class="kv-panel" id="kv-panel">
+          <p class="kv-empty-msg" id="kv-empty">レスポンスを送信するとキー/値の一覧が表示されます</p>
+          <div id="kv-table-area"></div>
+        </div>
+      </div>
+    </div>
+
     <!-- Status Bar -->
     <div class="status-bar">
       <span id="status-text">待機中</span>
@@ -563,11 +433,25 @@
     }
 
     // ============================================================
+    // Categories
+    // ============================================================
+    const categories = [
+      { id: 'users',     label: 'ユーザー (Users)',           desc: 'ID・一覧・作成・更新・削除' },
+      { id: 'auth',      label: '認証 (Auth)',                desc: 'ログイン・ログアウト' },
+      { id: 'protected', label: 'プロテクトページ (Protected)', desc: '自分の固有情報ほか' },
+      { id: 'items',     label: '商品 (Items)',               desc: '検索ほか' },
+      { id: 'orders',    label: '注文 (Orders)',              desc: '注文作成ほか' },
+      { id: 'health',    label: 'ヘルスチェック (Health)',     desc: 'サービス状態' }
+    ];
+
+    // ============================================================
     // Endpoint definitions
     // ============================================================
     const endpoints = [
       {
         id: 'list_users',
+        category: 'users',
+        actionLabel: '一覧取得',
         method: 'GET',
         path: '/users',
         desc: 'ユーザー一覧を取得（クエリパラメータでページネーション）',
@@ -619,6 +503,8 @@ console.<span class="fn">log</span>(data.data);   <span class="cmt">// ユーザ
       },
       {
         id: 'get_user',
+        category: 'users',
+        actionLabel: 'ID指定取得',
         method: 'GET',
         path: '/users/{user_id}',
         desc: 'パスパラメータで指定したユーザーを取得',
@@ -641,7 +527,7 @@ app = <span class="fn">FastAPI</span>()
 
 <span class="kw">if</span> (!response.ok) {
   <span class="kw">const</span> err = <span class="kw">await</span> response.<span class="fn">json</span>();
-  console.<span class="fn">error</span>(err.detail);  <span class="cmt">// "User 999 not found"</span>
+  console.<span class="fn">error</span>(err.detail);
   <span class="kw">return</span>;
 }
 
@@ -649,23 +535,14 @@ app = <span class="fn">FastAPI</span>()
 console.<span class="fn">log</span>(user.name);`,
         simulate() {
           const found = Math.random() > 0.3;
-          if (!found) {
-            return { status: 404, body: { detail: "User 999 not found" } };
-          }
-          return {
-            status: 200,
-            body: {
-              id: 1,
-              name: '田中太郎',
-              email: 'tanaka@example.com',
-              is_active: true,
-              created_at: new Date().toISOString()
-            }
-          };
+          if (!found) return { status: 404, body: { detail: "User 999 not found" } };
+          return { status: 200, body: { id: 1, name: '田中太郎', email: 'tanaka@example.com', is_active: true, created_at: new Date().toISOString() } };
         }
       },
       {
         id: 'create_user',
+        category: 'users',
+        actionLabel: '新規作成',
         method: 'POST',
         path: '/users',
         desc: 'Pydanticモデルでバリデーションしてユーザーを作成',
@@ -686,14 +563,7 @@ app = <span class="fn">FastAPI</span>()
     email: <span class="cls">EmailStr</span>
     is_active: <span class="dec">bool</span> = <span class="num">True</span>
 
-<span class="kw">class</span> <span class="cls">UserResponse</span>(<span class="cls">BaseModel</span>):
-    id: <span class="dec">int</span>
-    name: <span class="dec">str</span>
-    email: <span class="dec">str</span>
-    is_active: <span class="dec">bool</span>
-    created_at: <span class="dec">str</span>
-
-<span class="dec">@app.post</span>(<span class="str">"/users"</span>, response_model=<span class="cls">UserResponse</span>, status_code=<span class="num">201</span>)
+<span class="dec">@app.post</span>(<span class="str">"/users"</span>, status_code=<span class="num">201</span>)
 <span class="kw">def</span> <span class="fn">create_user</span>(user: <span class="cls">UserCreate</span>):
     new_user = <span class="fn">save_to_db</span>(user)
     <span class="kw">return</span> new_user`,
@@ -715,36 +585,18 @@ app = <span class="fn">FastAPI</span>()
 }`,
         simulate(body) {
           if (!body || !body.name || !body.email) {
-            return {
-              status: 422,
-              body: {
-                detail: [
-                  {
-                    loc: ["body", body && body.name ? "email" : "name"],
-                    msg: "field required",
-                    type: "value_error.missing"
-                  }
-                ]
-              }
-            };
+            return { status: 422, body: { detail: [{ loc: ["body", body && body.name ? "email" : "name"], msg: "field required", type: "value_error.missing" }] } };
           }
-          return {
-            status: 201,
-            body: {
-              id: Math.floor(Math.random() * 1000) + 100,
-              name: body.name,
-              email: body.email,
-              is_active: body.is_active !== undefined ? body.is_active : true,
-              created_at: new Date().toISOString()
-            }
-          };
+          return { status: 201, body: { id: Math.floor(Math.random() * 1000) + 100, name: body.name, email: body.email, is_active: body.is_active !== undefined ? body.is_active : true, created_at: new Date().toISOString() } };
         }
       },
       {
         id: 'update_user',
+        category: 'users',
+        actionLabel: '全体更新',
         method: 'PUT',
         path: '/users/{user_id}',
-        desc: 'ユーザー情報を更新（部分更新はPATCHで実装可）',
+        desc: 'ユーザー情報を全体更新',
         hasBody: true,
         defaultBody: JSON.stringify({ name: "田中次郎", email: "tanaka.jiro@example.com", is_active: false }, null, 2),
         validation: {
@@ -766,15 +618,9 @@ app = <span class="fn">FastAPI</span>()
 <span class="kw">def</span> <span class="fn">update_user</span>(user_id: <span class="dec">int</span>, user: <span class="cls">UserUpdate</span>):
     existing = <span class="fn">find_user</span>(user_id)
     <span class="kw">if</span> existing <span class="kw">is</span> <span class="num">None</span>:
-        <span class="kw">raise</span> <span class="fn">HTTPException</span>(
-            status_code=<span class="num">404</span>,
-            detail=<span class="str">f"User {user_id} not found"</span>
-        )
+        <span class="kw">raise</span> <span class="fn">HTTPException</span>(status_code=<span class="num">404</span>, detail=<span class="str">f"User {user_id} not found"</span>)
     updated = <span class="fn">update_in_db</span>(user_id, user)
-    <span class="kw">return</span> {
-        <span class="str">"message"</span>: <span class="str">"User updated"</span>,
-        <span class="str">"user"</span>: updated
-    }`,
+    <span class="kw">return</span> { <span class="str">"message"</span>: <span class="str">"User updated"</span>, <span class="str">"user"</span>: updated }`,
         clientCode: `<span class="kw">const</span> userId = <span class="num">1</span>;
 <span class="kw">const</span> updates = {
   name: <span class="str">"田中次郎"</span>,
@@ -791,29 +637,14 @@ app = <span class="fn">FastAPI</span>()
 <span class="kw">const</span> result = <span class="kw">await</span> response.<span class="fn">json</span>();
 console.<span class="fn">log</span>(result.message);`,
         simulate(body) {
-          if (!body || !body.name) {
-            return {
-              status: 422,
-              body: { detail: [{ loc: ["body", "name"], msg: "field required", type: "value_error.missing" }] }
-            };
-          }
-          return {
-            status: 200,
-            body: {
-              message: "User updated",
-              user: {
-                id: 1,
-                name: body.name,
-                email: body.email || "unknown@example.com",
-                is_active: body.is_active !== undefined ? body.is_active : true,
-                updated_at: new Date().toISOString()
-              }
-            }
-          };
+          if (!body || !body.name) return { status: 422, body: { detail: [{ loc: ["body", "name"], msg: "field required", type: "value_error.missing" }] } };
+          return { status: 200, body: { message: "User updated", user: { id: 1, name: body.name, email: body.email || "unknown@example.com", is_active: body.is_active !== undefined ? body.is_active : true, updated_at: new Date().toISOString() } } };
         }
       },
       {
         id: 'patch_user',
+        category: 'users',
+        actionLabel: '部分更新',
         method: 'PATCH',
         path: '/users/{user_id}',
         desc: '部分的にユーザー情報を更新（送信フィールドのみ更新）',
@@ -839,17 +670,10 @@ app = <span class="fn">FastAPI</span>()
 <span class="kw">def</span> <span class="fn">patch_user</span>(user_id: <span class="dec">int</span>, patch: <span class="cls">UserPatch</span>):
     existing = <span class="fn">find_user</span>(user_id)
     <span class="kw">if</span> existing <span class="kw">is</span> <span class="num">None</span>:
-        <span class="kw">raise</span> <span class="fn">HTTPException</span>(
-            status_code=<span class="num">404</span>,
-            detail=<span class="str">f"User {user_id} not found"</span>
-        )
+        <span class="kw">raise</span> <span class="fn">HTTPException</span>(status_code=<span class="num">404</span>, detail=<span class="str">f"User {user_id} not found"</span>)
     update_data = patch.<span class="fn">dict</span>(exclude_unset=<span class="num">True</span>)
     updated = <span class="fn">update_in_db</span>(user_id, update_data)
-    <span class="kw">return</span> {
-        <span class="str">"message"</span>: <span class="str">"User partially updated"</span>,
-        <span class="str">"updated_fields"</span>: <span class="fn">list</span>(update_data.<span class="fn">keys</span>()),
-        <span class="str">"user"</span>: updated
-    }`,
+    <span class="kw">return</span> { <span class="str">"message"</span>: <span class="str">"User partially updated"</span>, <span class="str">"updated_fields"</span>: <span class="fn">list</span>(update_data.<span class="fn">keys</span>()), <span class="str">"user"</span>: updated }`,
         clientCode: `<span class="kw">const</span> userId = <span class="num">1</span>;
 <span class="cmt">// 変更したいフィールドのみ送信</span>
 <span class="kw">const</span> patch = { name: <span class="str">"田中三郎"</span> };
@@ -861,33 +685,21 @@ app = <span class="fn">FastAPI</span>()
 });
 
 <span class="kw">const</span> result = <span class="kw">await</span> response.<span class="fn">json</span>();
-console.<span class="fn">log</span>(result.updated_fields); <span class="cmt">// ["name"]</span>
+console.<span class="fn">log</span>(result.updated_fields);
 console.<span class="fn">log</span>(result.user);`,
         simulate(body) {
-          if (!body || Object.keys(body).length === 0) {
-            return {
-              status: 422,
-              body: { detail: [{ loc: ["body"], msg: "At least one field is required", type: "value_error" }] }
-            };
-          }
+          if (!body || Object.keys(body).length === 0) return { status: 422, body: { detail: [{ loc: ["body"], msg: "At least one field is required", type: "value_error" }] } };
           const found = Math.random() > 0.2;
-          if (!found) {
-            return { status: 404, body: { detail: "User 999 not found" } };
-          }
+          if (!found) return { status: 404, body: { detail: "User 999 not found" } };
           const base = { id: 1, name: '田中太郎', email: 'tanaka@example.com', is_active: true };
           const merged = { ...base, ...body, updated_at: new Date().toISOString() };
-          return {
-            status: 200,
-            body: {
-              message: "User partially updated",
-              updated_fields: Object.keys(body),
-              user: merged
-            }
-          };
+          return { status: 200, body: { message: "User partially updated", updated_fields: Object.keys(body), user: merged } };
         }
       },
       {
         id: 'delete_user',
+        category: 'users',
+        actionLabel: '削除',
         method: 'DELETE',
         path: '/users/{user_id}',
         desc: 'ユーザーを削除（204 No Content を返す例）',
@@ -901,16 +713,11 @@ app = <span class="fn">FastAPI</span>()
 <span class="kw">def</span> <span class="fn">delete_user</span>(user_id: <span class="dec">int</span>):
     existing = <span class="fn">find_user</span>(user_id)
     <span class="kw">if</span> existing <span class="kw">is</span> <span class="num">None</span>:
-        <span class="kw">raise</span> <span class="fn">HTTPException</span>(
-            status_code=<span class="num">404</span>,
-            detail=<span class="str">f"User {user_id} not found"</span>
-        )
+        <span class="kw">raise</span> <span class="fn">HTTPException</span>(status_code=<span class="num">404</span>, detail=<span class="str">f"User {user_id} not found"</span>)
     <span class="fn">delete_from_db</span>(user_id)
     <span class="kw">return</span> <span class="fn">Response</span>(status_code=<span class="num">204</span>)`,
         clientCode: `<span class="kw">const</span> userId = <span class="num">1</span>;
-<span class="kw">const</span> response = <span class="kw">await</span> <span class="fn">fetch</span>(<span class="str">\`/users/\${userId}\`</span>, {
-  method: <span class="str">"DELETE"</span>
-});
+<span class="kw">const</span> response = <span class="kw">await</span> <span class="fn">fetch</span>(<span class="str">\`/users/\${userId}\`</span>, { method: <span class="str">"DELETE"</span> });
 
 <span class="kw">if</span> (response.status === <span class="num">204</span>) {
   console.<span class="fn">log</span>(<span class="str">"削除成功"</span>);
@@ -920,89 +727,14 @@ app = <span class="fn">FastAPI</span>()
 }`,
         simulate() {
           const found = Math.random() > 0.3;
-          if (!found) {
-            return { status: 404, body: { detail: "User 999 not found" } };
-          }
+          if (!found) return { status: 404, body: { detail: "User 999 not found" } };
           return { status: 204, body: null };
         }
       },
       {
-        id: 'search_items',
-        method: 'GET',
-        path: '/items/search',
-        desc: 'クエリパラメータでフィルタリング・ソート・検索',
-        hasBody: false,
-        serverCode: `<span class="kw">from</span> fastapi <span class="kw">import</span> FastAPI, Query
-<span class="kw">from</span> enum <span class="kw">import</span> Enum
-
-app = <span class="fn">FastAPI</span>()
-
-<span class="kw">class</span> <span class="cls">SortOrder</span>(<span class="dec">str</span>, <span class="cls">Enum</span>):
-    asc = <span class="str">"asc"</span>
-    desc = <span class="str">"desc"</span>
-
-<span class="dec">@app.get</span>(<span class="str">"/items/search"</span>)
-<span class="kw">def</span> <span class="fn">search_items</span>(
-    q: <span class="dec">str</span> | <span class="num">None</span> = <span class="num">None</span>,
-    category: <span class="dec">str</span> | <span class="num">None</span> = <span class="num">None</span>,
-    min_price: <span class="dec">float</span> = <span class="fn">Query</span>(<span class="num">0</span>, ge=<span class="num">0</span>),
-    max_price: <span class="dec">float</span> = <span class="fn">Query</span>(<span class="num">99999</span>, ge=<span class="num">0</span>),
-    sort_by: <span class="dec">str</span> = <span class="str">"name"</span>,
-    order: <span class="cls">SortOrder</span> = <span class="cls">SortOrder</span>.asc,
-    page: <span class="dec">int</span> = <span class="fn">Query</span>(<span class="num">1</span>, ge=<span class="num">1</span>),
-    size: <span class="dec">int</span> = <span class="fn">Query</span>(<span class="num">20</span>, ge=<span class="num">1</span>, le=<span class="num">100</span>)
-):
-    results = <span class="fn">query_items</span>(q, category, min_price, max_price)
-    results = <span class="fn">sort_results</span>(results, sort_by, order)
-    total = <span class="fn">len</span>(results)
-    items = results[(page-<span class="num">1</span>)*size : page*size]
-    <span class="kw">return</span> {
-        <span class="str">"query"</span>: q,
-        <span class="str">"total"</span>: total,
-        <span class="str">"page"</span>: page,
-        <span class="str">"size"</span>: size,
-        <span class="str">"items"</span>: items
-    }`,
-        clientCode: `<span class="kw">const</span> params = <span class="kw">new</span> <span class="fn">URLSearchParams</span>({
-  q: <span class="str">"ノート"</span>,
-  category: <span class="str">"文房具"</span>,
-  min_price: <span class="str">"100"</span>,
-  max_price: <span class="str">"5000"</span>,
-  sort_by: <span class="str">"price"</span>,
-  order: <span class="str">"asc"</span>,
-  page: <span class="str">"1"</span>,
-  size: <span class="str">"20"</span>
-});
-
-<span class="kw">const</span> response = <span class="kw">await</span> <span class="fn">fetch</span>(
-  <span class="str">\`/items/search?\${params}\`</span>
-);
-<span class="kw">const</span> result = <span class="kw">await</span> response.<span class="fn">json</span>();
-
-console.<span class="fn">log</span>(<span class="str">\`\${result.total}件中 \${result.items.length}件表示\`</span>);
-result.items.<span class="fn">forEach</span>(item =&gt; {
-  console.<span class="fn">log</span>(<span class="str">\`\${item.name}: \\&yen;\${item.price}\`</span>);
-});`,
-        simulate() {
-          const items = [
-            { id: 1, name: "キャンパスノート A4", category: "文房具", price: 280 },
-            { id: 2, name: "方眼ノート B5", category: "文房具", price: 350 },
-            { id: 3, name: "リングノート A5", category: "文房具", price: 520 },
-          ];
-          return {
-            status: 200,
-            body: {
-              query: "ノート",
-              total: 3,
-              page: 1,
-              size: 20,
-              items: items
-            }
-          };
-        }
-      },
-      {
         id: 'auth_login',
+        category: 'auth',
+        actionLabel: 'ログイン',
         method: 'POST',
         path: '/auth/login',
         desc: 'メールアドレスとパスワードでログインしJWTトークンを取得',
@@ -1021,25 +753,13 @@ app = <span class="fn">FastAPI</span>()
     email: <span class="cls">EmailStr</span>
     password: <span class="dec">str</span>
 
-<span class="kw">class</span> <span class="cls">TokenResponse</span>(<span class="cls">BaseModel</span>):
-    access_token: <span class="dec">str</span>
-    token_type: <span class="dec">str</span>
-    expires_in: <span class="dec">int</span>
-
-<span class="dec">@app.post</span>(<span class="str">"/auth/login"</span>, response_model=<span class="cls">TokenResponse</span>)
+<span class="dec">@app.post</span>(<span class="str">"/auth/login"</span>)
 <span class="kw">def</span> <span class="fn">login</span>(req: <span class="cls">LoginRequest</span>):
     user = <span class="fn">authenticate_user</span>(req.email, req.password)
     <span class="kw">if</span> user <span class="kw">is</span> <span class="num">None</span>:
-        <span class="kw">raise</span> <span class="fn">HTTPException</span>(
-            status_code=<span class="num">401</span>,
-            detail=<span class="str">"Invalid email or password"</span>
-        )
+        <span class="kw">raise</span> <span class="fn">HTTPException</span>(status_code=<span class="num">401</span>, detail=<span class="str">"Invalid email or password"</span>)
     token = <span class="fn">create_access_token</span>(user)
-    <span class="kw">return</span> {
-        <span class="str">"access_token"</span>: token,
-        <span class="str">"token_type"</span>: <span class="str">"bearer"</span>,
-        <span class="str">"expires_in"</span>: <span class="num">3600</span>
-    }`,
+    <span class="kw">return</span> { <span class="str">"access_token"</span>: token, <span class="str">"token_type"</span>: <span class="str">"bearer"</span>, <span class="str">"expires_in"</span>: <span class="num">3600</span> }`,
         clientCode: `<span class="kw">const</span> credentials = {
   email: <span class="str">"tanaka@example.com"</span>,
   password: <span class="str">"secret123"</span>
@@ -1060,28 +780,16 @@ app = <span class="fn">FastAPI</span>()
   console.<span class="fn">error</span>(err.detail);
 }`,
         simulate(body) {
-          if (!body || !body.email || !body.password) {
-            return {
-              status: 422,
-              body: { detail: [{ loc: ["body"], msg: "email and password are required", type: "value_error.missing" }] }
-            };
-          }
+          if (!body || !body.email || !body.password) return { status: 422, body: { detail: [{ loc: ["body"], msg: "email and password are required", type: "value_error.missing" }] } };
           const valid = Math.random() > 0.3;
-          if (!valid) {
-            return { status: 401, body: { detail: "Invalid email or password" } };
-          }
-          return {
-            status: 200,
-            body: {
-              access_token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9." + btoa(JSON.stringify({ sub: body.email, exp: Date.now() + 3600000 })),
-              token_type: "bearer",
-              expires_in: 3600
-            }
-          };
+          if (!valid) return { status: 401, body: { detail: "Invalid email or password" } };
+          return { status: 200, body: { access_token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9." + btoa(JSON.stringify({ sub: body.email, exp: Date.now() + 3600000 })), token_type: "bearer", expires_in: 3600 } };
         }
       },
       {
         id: 'dependency_injection',
+        category: 'protected',
+        actionLabel: '自分の情報取得',
         method: 'GET',
         path: '/protected/me',
         desc: 'Depends() による認証・依存性注入の例',
@@ -1096,77 +804,100 @@ security = <span class="fn">HTTPBearer</span>()
     creds: <span class="cls">HTTPAuthorizationCredentials</span> = <span class="fn">Depends</span>(security)
 ):
     token = creds.credentials
-    user = <span class="fn">verify_token</span>(token)  <span class="cmt"># JWT検証など</span>
+    user = <span class="fn">verify_token</span>(token)
     <span class="kw">if</span> user <span class="kw">is</span> <span class="num">None</span>:
-        <span class="kw">raise</span> <span class="fn">HTTPException</span>(
-            status_code=<span class="num">401</span>,
-            detail=<span class="str">"Invalid or expired token"</span>
-        )
+        <span class="kw">raise</span> <span class="fn">HTTPException</span>(status_code=<span class="num">401</span>, detail=<span class="str">"Invalid or expired token"</span>)
     <span class="kw">return</span> user
 
 <span class="dec">@app.get</span>(<span class="str">"/protected/me"</span>)
-<span class="kw">def</span> <span class="fn">get_my_profile</span>(
-    user: <span class="dec">dict</span> = <span class="fn">Depends</span>(get_current_user)
-):
-    <span class="kw">return</span> {
-        <span class="str">"user"</span>: user,
-        <span class="str">"permissions"</span>: [<span class="str">"read"</span>, <span class="str">"write"</span>]
-    }`,
+<span class="kw">def</span> <span class="fn">get_my_profile</span>(user: <span class="dec">dict</span> = <span class="fn">Depends</span>(get_current_user)):
+    <span class="kw">return</span> { <span class="str">"user"</span>: user, <span class="str">"permissions"</span>: [<span class="str">"read"</span>, <span class="str">"write"</span>] }`,
         clientCode: `<span class="kw">const</span> token = <span class="str">"eyJhbGciOiJIUzI1NiIs..."</span>;
 
 <span class="kw">const</span> response = <span class="kw">await</span> <span class="fn">fetch</span>(<span class="str">"/protected/me"</span>, {
-  headers: {
-    <span class="str">"Authorization"</span>: <span class="str">\`Bearer \${token}\`</span>
-  }
+  headers: { <span class="str">"Authorization"</span>: <span class="str">\`Bearer \${token}\`</span> }
 });
 
 <span class="kw">if</span> (response.status === <span class="num">401</span>) {
-  console.<span class="fn">error</span>(<span class="str">"認証エラー: トークンが無効です"</span>);
+  console.<span class="fn">error</span>(<span class="str">"認証エラー"</span>);
   <span class="kw">return</span>;
 }
 
 <span class="kw">const</span> profile = <span class="kw">await</span> response.<span class="fn">json</span>();
-console.<span class="fn">log</span>(profile.user.name);
-console.<span class="fn">log</span>(profile.permissions);`,
+console.<span class="fn">log</span>(profile.user.name);`,
         simulate() {
           const authed = Math.random() > 0.3;
-          if (!authed) {
-            return { status: 401, body: { detail: "Invalid or expired token" } };
-          }
-          return {
-            status: 200,
-            body: {
-              user: {
-                id: 42,
-                name: "田中太郎",
-                email: "tanaka@example.com",
-                role: "admin"
-              },
-              permissions: ["read", "write", "delete"]
-            }
-          };
+          if (!authed) return { status: 401, body: { detail: "Invalid or expired token" } };
+          return { status: 200, body: { user: { id: 42, name: "田中太郎", email: "tanaka@example.com", role: "admin" }, permissions: ["read", "write", "delete"] } };
+        }
+      },
+      {
+        id: 'search_items',
+        category: 'items',
+        actionLabel: '検索',
+        method: 'GET',
+        path: '/items/search',
+        desc: 'クエリパラメータでフィルタリング・ソート・検索',
+        hasBody: false,
+        serverCode: `<span class="kw">from</span> fastapi <span class="kw">import</span> FastAPI, Query
+<span class="kw">from</span> enum <span class="kw">import</span> Enum
+
+app = <span class="fn">FastAPI</span>()
+
+<span class="kw">class</span> <span class="cls">SortOrder</span>(<span class="dec">str</span>, <span class="cls">Enum</span>):
+    asc = <span class="str">"asc"</span>
+    desc = <span class="str">"desc"</span>
+
+<span class="dec">@app.get</span>(<span class="str">"/items/search"</span>)
+<span class="kw">def</span> <span class="fn">search_items</span>(
+    q: <span class="dec">str</span> | <span class="num">None</span> = <span class="num">None</span>,
+    category: <span class="dec">str</span> | <span class="num">None</span> = <span class="num">None</span>,
+    min_price: <span class="dec">float</span> = <span class="fn">Query</span>(<span class="num">0</span>, ge=<span class="num">0</span>),
+    max_price: <span class="dec">float</span> = <span class="fn">Query</span>(<span class="num">99999</span>, ge=<span class="num">0</span>),
+    page: <span class="dec">int</span> = <span class="fn">Query</span>(<span class="num">1</span>, ge=<span class="num">1</span>),
+    size: <span class="dec">int</span> = <span class="fn">Query</span>(<span class="num">20</span>, ge=<span class="num">1</span>, le=<span class="num">100</span>)
+):
+    results = <span class="fn">query_items</span>(q, category, min_price, max_price)
+    total = <span class="fn">len</span>(results)
+    items = results[(page-<span class="num">1</span>)*size : page*size]
+    <span class="kw">return</span> { <span class="str">"query"</span>: q, <span class="str">"total"</span>: total, <span class="str">"page"</span>: page, <span class="str">"size"</span>: size, <span class="str">"items"</span>: items }`,
+        clientCode: `<span class="kw">const</span> params = <span class="kw">new</span> <span class="fn">URLSearchParams</span>({
+  q: <span class="str">"ノート"</span>,
+  category: <span class="str">"文房具"</span>,
+  min_price: <span class="str">"100"</span>,
+  max_price: <span class="str">"5000"</span>,
+  page: <span class="str">"1"</span>,
+  size: <span class="str">"20"</span>
+});
+
+<span class="kw">const</span> response = <span class="kw">await</span> <span class="fn">fetch</span>(<span class="str">\`/items/search?\${params}\`</span>);
+<span class="kw">const</span> result = <span class="kw">await</span> response.<span class="fn">json</span>();
+
+console.<span class="fn">log</span>(<span class="str">\`\${result.total}件中 \${result.items.length}件表示\`</span>);`,
+        simulate() {
+          const items = [
+            { id: 1, name: "キャンパスノート A4", category: "文房具", price: 280 },
+            { id: 2, name: "方眼ノート B5", category: "文房具", price: 350 },
+            { id: 3, name: "リングノート A5", category: "文房具", price: 520 }
+          ];
+          return { status: 200, body: { query: "ノート", total: 3, page: 1, size: 20, items: items } };
         }
       },
       {
         id: 'response_model',
+        category: 'orders',
+        actionLabel: '注文作成',
         method: 'POST',
         path: '/orders',
         desc: 'response_model でレスポンス形式を明示する例',
         hasBody: true,
-        defaultBody: JSON.stringify({
-          items: [
-            { product_id: 1, quantity: 2 },
-            { product_id: 3, quantity: 1 }
-          ],
-          shipping_address: "東京都渋谷区1-2-3"
-        }, null, 2),
+        defaultBody: JSON.stringify({ items: [{ product_id: 1, quantity: 2 }, { product_id: 3, quantity: 1 }], shipping_address: "東京都渋谷区1-2-3" }, null, 2),
         validation: {
           items: { required: true, type: 'array', minLength: 1, label: 'items' },
           shipping_address: { required: true, type: 'string', minLength: 1, label: 'shipping_address' }
         },
         serverCode: `<span class="kw">from</span> fastapi <span class="kw">import</span> FastAPI
 <span class="kw">from</span> pydantic <span class="kw">import</span> BaseModel
-<span class="kw">from</span> datetime <span class="kw">import</span> datetime
 
 app = <span class="fn">FastAPI</span>()
 
@@ -1178,17 +909,8 @@ app = <span class="fn">FastAPI</span>()
     items: <span class="dec">list</span>[<span class="cls">OrderItem</span>]
     shipping_address: <span class="dec">str</span>
 
-<span class="kw">class</span> <span class="cls">OrderResponse</span>(<span class="cls">BaseModel</span>):
-    order_id: <span class="dec">str</span>
-    status: <span class="dec">str</span>
-    items: <span class="dec">list</span>[<span class="cls">OrderItem</span>]
-    total_price: <span class="dec">int</span>
-    shipping_address: <span class="dec">str</span>
-    created_at: <span class="dec">datetime</span>
-
-<span class="dec">@app.post</span>(<span class="str">"/orders"</span>, response_model=<span class="cls">OrderResponse</span>, status_code=<span class="num">201</span>)
+<span class="dec">@app.post</span>(<span class="str">"/orders"</span>, status_code=<span class="num">201</span>)
 <span class="kw">def</span> <span class="fn">create_order</span>(order: <span class="cls">OrderCreate</span>):
-    <span class="cmt"># 注文処理ロジック</span>
     result = <span class="fn">process_order</span>(order)
     <span class="kw">return</span> result`,
         clientCode: `<span class="kw">const</span> order = {
@@ -1208,35 +930,19 @@ app = <span class="fn">FastAPI</span>()
 <span class="kw">if</span> (response.status === <span class="num">201</span>) {
   <span class="kw">const</span> result = <span class="kw">await</span> response.<span class="fn">json</span>();
   console.<span class="fn">log</span>(<span class="str">\`注文ID: \${result.order_id}\`</span>);
-  console.<span class="fn">log</span>(<span class="str">\`合計: \\&yen;\${result.total_price}\`</span>);
 }`,
         simulate(body) {
-          if (!body || !body.items || !body.items.length) {
-            return {
-              status: 422,
-              body: { detail: [{ loc: ["body", "items"], msg: "field required", type: "value_error.missing" }] }
-            };
-          }
+          if (!body || !body.items || !body.items.length) return { status: 422, body: { detail: [{ loc: ["body", "items"], msg: "field required", type: "value_error.missing" }] } };
           const prices = { 1: 1500, 2: 2800, 3: 980, 4: 4200, 5: 650 };
           let total = 0;
-          body.items.forEach(item => {
-            total += (prices[item.product_id] || 1000) * item.quantity;
-          });
-          return {
-            status: 201,
-            body: {
-              order_id: `ORD-${Date.now().toString(36).toUpperCase()}`,
-              status: "pending",
-              items: body.items,
-              total_price: total,
-              shipping_address: body.shipping_address || "未指定",
-              created_at: new Date().toISOString()
-            }
-          };
+          body.items.forEach(item => { total += (prices[item.product_id] || 1000) * item.quantity; });
+          return { status: 201, body: { order_id: `ORD-${Date.now().toString(36).toUpperCase()}`, status: "pending", items: body.items, total_price: total, shipping_address: body.shipping_address || "未指定", created_at: new Date().toISOString() } };
         }
       },
       {
         id: 'health_check',
+        category: 'health',
+        actionLabel: '稼働状態確認',
         method: 'GET',
         path: '/health',
         desc: 'ヘルスチェック用エンドポイント（サービス稼働状態を確認）',
@@ -1252,10 +958,7 @@ app = <span class="fn">FastAPI</span>()
         <span class="str">"status"</span>: <span class="str">"healthy"</span>,
         <span class="str">"timestamp"</span>: datetime.<span class="fn">utcnow</span>().<span class="fn">isoformat</span>(),
         <span class="str">"version"</span>: <span class="str">"1.0.0"</span>,
-        <span class="str">"services"</span>: {
-            <span class="str">"database"</span>: <span class="str">"connected"</span>,
-            <span class="str">"cache"</span>: <span class="str">"connected"</span>
-        }
+        <span class="str">"services"</span>: { <span class="str">"database"</span>: <span class="str">"connected"</span>, <span class="str">"cache"</span>: <span class="str">"connected"</span> }
     }`,
         clientCode: `<span class="kw">const</span> response = <span class="kw">await</span> <span class="fn">fetch</span>(<span class="str">"/health"</span>);
 <span class="kw">const</span> health = <span class="kw">await</span> response.<span class="fn">json</span>();
@@ -1267,26 +970,17 @@ app = <span class="fn">FastAPI</span>()
   console.<span class="fn">error</span>(<span class="str">"サービス異常検出"</span>);
 }`,
         simulate() {
-          return {
-            status: 200,
-            body: {
-              status: "healthy",
-              timestamp: new Date().toISOString(),
-              version: "1.0.0",
-              services: {
-                database: "connected",
-                cache: "connected"
-              }
-            }
-          };
+          return { status: 200, body: { status: "healthy", timestamp: new Date().toISOString(), version: "1.0.0", services: { database: "connected", cache: "connected" } } };
         }
       }
     ];
 
     // ============================================================
-    // DOM
+    // DOM references
     // ============================================================
     const endpointSelect = document.getElementById('endpoint-select');
+    const categorySelect = document.getElementById('category-select');
+    const actionSelect = document.getElementById('action-select');
     const btnSend = document.getElementById('btn-send');
     const btnClear = document.getElementById('btn-clear');
     const outputFormatted = document.getElementById('output-formatted');
@@ -1307,12 +1001,17 @@ app = <span class="fn">FastAPI</span>()
     const codePanelsWrapper = document.getElementById('code-panels-wrapper');
     const validationErrors = document.getElementById('validation-errors');
     const validationErrorsList = document.getElementById('validation-errors-list');
+    const btnToggleKv = document.getElementById('btn-toggle-kv');
+    const kvPanelWrapper = document.getElementById('kv-panel-wrapper');
+    const kvTableArea = document.getElementById('kv-table-area');
+    const kvEmpty = document.getElementById('kv-empty');
 
     let requestCount = 0;
     let isEditing = false;
+    let lastResponseBody = null;
 
     // ============================================================
-    // Populate endpoint select
+    // Populate flat endpoint select
     // ============================================================
     endpoints.forEach(ep => {
       const opt = document.createElement('option');
@@ -1322,46 +1021,91 @@ app = <span class="fn">FastAPI</span>()
     });
 
     // ============================================================
-    // Highlight JSON
+    // Populate cascade: category select
     // ============================================================
-    function highlightJSON(obj, indent = 0) {
+    categories.forEach(cat => {
+      const opt = document.createElement('option');
+      opt.value = cat.id;
+      opt.textContent = cat.label;
+      categorySelect.appendChild(opt);
+    });
+
+    function populateActionSelect(catId) {
+      actionSelect.innerHTML = '';
+      const filtered = endpoints.filter(ep => ep.category === catId);
+      filtered.forEach(ep => {
+        const opt = document.createElement('option');
+        opt.value = ep.id;
+        opt.textContent = `${ep.method} ${ep.actionLabel}`;
+        actionSelect.appendChild(opt);
+      });
+    }
+
+    // Cascade: category change -> populate actions -> select first -> sync flat -> update
+    categorySelect.addEventListener('change', () => {
+      populateActionSelect(categorySelect.value);
+      if (actionSelect.options.length > 0) {
+        actionSelect.selectedIndex = 0;
+        const epId = actionSelect.value;
+        endpointSelect.value = epId;
+        updateDisplay();
+      }
+    });
+
+    // Cascade: action change -> sync flat -> update
+    actionSelect.addEventListener('change', () => {
+      endpointSelect.value = actionSelect.value;
+      updateDisplay();
+    });
+
+    // Flat select change -> sync cascade -> update
+    endpointSelect.addEventListener('change', () => {
+      const ep = endpoints.find(e => e.id === endpointSelect.value);
+      if (ep) {
+        categorySelect.value = ep.category;
+        populateActionSelect(ep.category);
+        actionSelect.value = ep.id;
+      }
+      updateDisplay();
+    });
+
+    // ============================================================
+    // JSON highlight
+    // ============================================================
+    function highlightJSON(obj, indent) {
+      indent = indent || 0;
       const pad = '  '.repeat(indent);
       const padInner = '  '.repeat(indent + 1);
 
-      if (obj === null) return `<span class="json-null">null</span>`;
-      if (typeof obj === 'boolean') return `<span class="json-bool">${obj}</span>`;
-      if (typeof obj === 'number') return `<span class="json-num">${obj}</span>`;
+      if (obj === null) return '<span class="json-null">null</span>';
+      if (typeof obj === 'boolean') return '<span class="json-bool">' + obj + '</span>';
+      if (typeof obj === 'number') return '<span class="json-num">' + obj + '</span>';
       if (typeof obj === 'string') {
-        const escaped = obj.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-        return `<span class="json-str">"${escaped}"</span>`;
+        var escaped = obj.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        return '<span class="json-str">"' + escaped + '"</span>';
       }
       if (Array.isArray(obj)) {
-        if (obj.length === 0) return `<span class="json-brace">[]</span>`;
-        const items = obj.map(v => padInner + highlightJSON(v, indent + 1));
-        return `<span class="json-brace">[</span>\n${items.join(',\n')}\n${pad}<span class="json-brace">]</span>`;
+        if (obj.length === 0) return '<span class="json-brace">[]</span>';
+        var items = obj.map(function(v) { return padInner + highlightJSON(v, indent + 1); });
+        return '<span class="json-brace">[</span>\n' + items.join(',\n') + '\n' + pad + '<span class="json-brace">]</span>';
       }
-      const keys = Object.keys(obj);
-      if (keys.length === 0) return `<span class="json-brace">{}</span>`;
-      const entries = keys.map(k => {
-        const keyStr = `<span class="json-key">"${k}"</span>`;
-        return `${padInner}${keyStr}: ${highlightJSON(obj[k], indent + 1)}`;
+      var keys = Object.keys(obj);
+      if (keys.length === 0) return '<span class="json-brace">{}</span>';
+      var entries = keys.map(function(k) {
+        return padInner + '<span class="json-key">"' + k + '"</span>: ' + highlightJSON(obj[k], indent + 1);
       });
-      return `<span class="json-brace">{</span>\n${entries.join(',\n')}\n${pad}<span class="json-brace">}</span>`;
+      return '<span class="json-brace">{</span>\n' + entries.join(',\n') + '\n' + pad + '<span class="json-brace">}</span>';
     }
 
-    // ============================================================
-    // Method badge helper
-    // ============================================================
     function methodBadge(method) {
-      const cls = `method-${method.toLowerCase()}`;
-      return `<span class="method-badge ${cls}">${method}</span>`;
+      return '<span class="method-badge method-' + method.toLowerCase() + '">' + method + '</span>';
     }
 
     // ============================================================
-    // Toggle body visibility (with cookie)
+    // Toggle: body visibility (cookie)
     // ============================================================
     function getBodyExpanded() {
-      const val = getCookie('bodyExpanded');
+      var val = getCookie('bodyExpanded');
       return val === null ? true : val === 'true';
     }
 
@@ -1378,16 +1122,15 @@ app = <span class="fn">FastAPI</span>()
       }
     }
 
-    btnToggleBody.addEventListener('click', () => {
-      const isExpanded = bodyContent.classList.contains('expanded');
-      setBodyExpanded(!isExpanded);
+    btnToggleBody.addEventListener('click', function() {
+      setBodyExpanded(bodyContent.classList.contains('collapsed'));
     });
 
     // ============================================================
-    // Toggle code snippet visibility (with cookie)
+    // Toggle: code snippet (cookie)
     // ============================================================
     function getCodeVisible() {
-      const val = getCookie('codeSnippetVisible');
+      var val = getCookie('codeSnippetVisible');
       return val === null ? false : val === 'true';
     }
 
@@ -1406,10 +1149,90 @@ app = <span class="fn">FastAPI</span>()
       }
     }
 
-    btnToggleCode.addEventListener('click', () => {
-      const isVisible = codePanelsWrapper.classList.contains('expanded');
-      setCodeVisible(!isVisible);
+    btnToggleCode.addEventListener('click', function() {
+      setCodeVisible(codePanelsWrapper.classList.contains('collapsed'));
     });
+
+    // ============================================================
+    // Toggle: KV panel (cookie)
+    // ============================================================
+    function getKvVisible() {
+      var val = getCookie('kvPanelVisible');
+      return val === null ? false : val === 'true';
+    }
+
+    function setKvVisible(visible) {
+      setCookie('kvPanelVisible', visible ? 'true' : 'false');
+      if (visible) {
+        kvPanelWrapper.classList.remove('collapsed');
+        kvPanelWrapper.classList.add('expanded');
+        btnToggleKv.textContent = '閉じる';
+        btnToggleKv.classList.add('btn-toggle-active');
+      } else {
+        kvPanelWrapper.classList.remove('expanded');
+        kvPanelWrapper.classList.add('collapsed');
+        btnToggleKv.textContent = '展開する';
+        btnToggleKv.classList.remove('btn-toggle-active');
+      }
+    }
+
+    btnToggleKv.addEventListener('click', function() {
+      setKvVisible(kvPanelWrapper.classList.contains('collapsed'));
+    });
+
+    // ============================================================
+    // KV flatten + render (like json-parser.html)
+    // ============================================================
+    function kvGetType(v) {
+      if (v === null) return 'null';
+      if (Array.isArray(v)) return 'array';
+      return typeof v;
+    }
+
+    function kvTypeBadge(t) {
+      return '<span class="kv-type-badge kv-t-' + t + '">' + t + '</span>';
+    }
+
+    function kvEscHtml(s) {
+      return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    function kvFlatten(obj) {
+      var rows = [];
+      function walk(node, path) {
+        var t = kvGetType(node);
+        if (t === 'object') {
+          Object.keys(node).forEach(function(k) { walk(node[k], path ? path + '.' + k : k); });
+        } else if (t === 'array') {
+          node.forEach(function(item, i) { walk(item, path + '[' + i + ']'); });
+        } else {
+          rows.push({ key: path, value: node, type: t });
+        }
+        if (t === 'object' || t === 'array') {
+          rows.push({ key: path || '(root)', value: JSON.stringify(node), type: t });
+        }
+      }
+      walk(obj, '');
+      return rows;
+    }
+
+    function renderKvTable(data) {
+      if (!data) {
+        kvEmpty.style.display = 'block';
+        kvTableArea.innerHTML = '';
+        return;
+      }
+      kvEmpty.style.display = 'none';
+      var rows = kvFlatten(data);
+      var html = '<p class="kv-count">' + rows.length + ' 件のキー/値ペア</p>';
+      html += '<table class="kv-table"><thead><tr><th>キー (パス)</th><th>型</th><th>値</th></tr></thead><tbody>';
+      rows.forEach(function(r) {
+        var valDisplay = kvEscHtml(r.type === 'object' || r.type === 'array' ? r.value : String(r.value));
+        html += '<tr><td class="kv-key-cell">' + kvEscHtml(r.key) + '</td><td>' + kvTypeBadge(r.type) + '</td><td class="kv-val-cell">' + valDisplay + '</td></tr>';
+      });
+      html += '</tbody></table>';
+      kvTableArea.innerHTML = html;
+    }
 
     // ============================================================
     // Edit body mode
@@ -1431,22 +1254,21 @@ app = <span class="fn">FastAPI</span>()
       }
     }
 
-    btnEditBody.addEventListener('click', () => {
+    btnEditBody.addEventListener('click', function() {
       if (isEditing) {
-        // Validate JSON before confirming
         try {
           JSON.parse(requestBody.value);
           setEditMode(false);
         } catch (e) {
-          showValidationErrors([`JSON構文エラー: ${e.message}`]);
+          showValidationErrors(['JSON構文エラー: ' + e.message]);
         }
       } else {
         setEditMode(true);
       }
     });
 
-    btnResetBody.addEventListener('click', () => {
-      const ep = endpoints.find(e => e.id === endpointSelect.value);
+    btnResetBody.addEventListener('click', function() {
+      var ep = endpoints.find(function(e) { return e.id === endpointSelect.value; });
       if (ep && ep.defaultBody) {
         requestBody.value = ep.defaultBody;
         hideValidationErrors();
@@ -1458,8 +1280,8 @@ app = <span class="fn">FastAPI</span>()
     // ============================================================
     function showValidationErrors(errors) {
       validationErrorsList.innerHTML = '';
-      errors.forEach(err => {
-        const li = document.createElement('li');
+      errors.forEach(function(err) {
+        var li = document.createElement('li');
         li.textContent = err;
         validationErrorsList.appendChild(li);
       });
@@ -1476,66 +1298,47 @@ app = <span class="fn">FastAPI</span>()
     }
 
     function validateRequestBody(ep, body) {
-      const errors = [];
+      var errors = [];
       if (!ep.validation) return errors;
-
-      for (const [field, rules] of Object.entries(ep.validation)) {
-        const value = body[field];
-
+      for (var field in ep.validation) {
+        var rules = ep.validation[field];
+        var value = body[field];
         if (rules.required && (value === undefined || value === null || value === '')) {
-          errors.push(`${rules.label} は必須項目です`);
+          errors.push(rules.label + ' は必須項目です');
           continue;
         }
-
         if (value === undefined || value === null) continue;
-
         if (rules.type === 'string') {
-          if (typeof value !== 'string') {
-            errors.push(`${rules.label} は文字列である必要があります`);
-          } else {
-            if (rules.minLength && value.length < rules.minLength) {
-              errors.push(`${rules.label} は${rules.minLength}文字以上で入力してください`);
-            }
-            if (rules.maxLength && value.length > rules.maxLength) {
-              errors.push(`${rules.label} は${rules.maxLength}文字以下で入力してください`);
-            }
+          if (typeof value !== 'string') { errors.push(rules.label + ' は文字列である必要があります'); }
+          else {
+            if (rules.minLength && value.length < rules.minLength) errors.push(rules.label + ' は' + rules.minLength + '文字以上で入力してください');
+            if (rules.maxLength && value.length > rules.maxLength) errors.push(rules.label + ' は' + rules.maxLength + '文字以下で入力してください');
           }
         }
-
-        if (rules.type === 'email') {
-          if (typeof value !== 'string' || !isValidEmail(value)) {
-            errors.push(`${rules.label} は有効なメールアドレス形式で入力してください`);
-          }
+        if (rules.type === 'email' && (typeof value !== 'string' || !isValidEmail(value))) {
+          errors.push(rules.label + ' は有効なメールアドレス形式で入力してください');
         }
-
-        if (rules.type === 'boolean') {
-          if (typeof value !== 'boolean') {
-            errors.push(`${rules.label} は true または false で入力してください`);
-          }
+        if (rules.type === 'boolean' && typeof value !== 'boolean') {
+          errors.push(rules.label + ' は true または false で入力してください');
         }
-
         if (rules.type === 'array') {
-          if (!Array.isArray(value)) {
-            errors.push(`${rules.label} は配列である必要があります`);
-          } else if (rules.minLength && value.length < rules.minLength) {
-            errors.push(`${rules.label} は${rules.minLength}件以上必要です`);
-          }
+          if (!Array.isArray(value)) errors.push(rules.label + ' は配列である必要があります');
+          else if (rules.minLength && value.length < rules.minLength) errors.push(rules.label + ' は' + rules.minLength + '件以上必要です');
         }
       }
-
       return errors;
     }
 
     // ============================================================
-    // Update display when endpoint changes
+    // Update display
     // ============================================================
     function updateDisplay() {
-      const ep = endpoints.find(e => e.id === endpointSelect.value);
+      var ep = endpoints.find(function(e) { return e.id === endpointSelect.value; });
       if (!ep) return;
 
       serverCode.innerHTML = ep.serverCode;
       clientCode.innerHTML = ep.clientCode;
-      endpointInfo.innerHTML = `${methodBadge(ep.method)} <span class="endpoint-path">${ep.path}</span><div class="endpoint-desc">${ep.desc}</div>`;
+      endpointInfo.innerHTML = methodBadge(ep.method) + ' <span class="endpoint-path">' + ep.path + '</span><div class="endpoint-desc">' + ep.desc + '</div>';
 
       if (ep.hasBody) {
         bodyInputArea.classList.add('visible');
@@ -1545,129 +1348,118 @@ app = <span class="fn">FastAPI</span>()
       } else {
         bodyInputArea.classList.remove('visible');
       }
-
       hideValidationErrors();
     }
-
-    endpointSelect.addEventListener('change', updateDisplay);
 
     // ============================================================
     // Tab switching
     // ============================================================
-    document.querySelectorAll('.tab-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        document.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('active'); });
+        document.querySelectorAll('.tab-content').forEach(function(c) { c.classList.remove('active'); });
         btn.classList.add('active');
-        document.getElementById(`tab-${btn.dataset.tab}`).classList.add('active');
+        document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
       });
     });
 
     // ============================================================
-    // Send simulated request
+    // Send request
     // ============================================================
     function appendToOutput(html, className) {
-      for (const [output, isRaw] of [[outputFormatted, false], [outputRaw, true]]) {
-        const div = document.createElement('div');
-        div.className = `response-item ${className}`;
-        div.innerHTML = isRaw && className === 'json-line' ? html.replace(/<[^>]+>/g, '') : html;
+      [outputFormatted, outputRaw].forEach(function(output, idx) {
+        var div = document.createElement('div');
+        div.className = 'response-item ' + className;
+        div.innerHTML = (idx === 1 && className === 'json-line') ? html.replace(/<[^>]+>/g, '') : html;
         output.appendChild(div);
         output.scrollTop = output.scrollHeight;
-      }
+      });
     }
 
     function sendRequest() {
-      const ep = endpoints.find(e => e.id === endpointSelect.value);
+      var ep = endpoints.find(function(e) { return e.id === endpointSelect.value; });
       if (!ep) return;
+      var startMs = performance.now();
+      var body = null;
 
-      const startMs = performance.now();
-
-      // Parse body if applicable
-      let body = null;
       if (ep.hasBody) {
-        try {
-          body = JSON.parse(requestBody.value);
-        } catch (e) {
-          showValidationErrors([`JSON パースエラー: ${e.message}`]);
-          appendToOutput(`JSON パースエラー: ${e.message}`, 'error-line');
+        try { body = JSON.parse(requestBody.value); }
+        catch (e) {
+          showValidationErrors(['JSON パースエラー: ' + e.message]);
+          appendToOutput('JSON パースエラー: ' + e.message, 'error-line');
           return;
         }
-
-        // Run validation
-        const errors = validateRequestBody(ep, body);
+        var errors = validateRequestBody(ep, body);
         if (errors.length > 0) {
           showValidationErrors(errors);
-          appendToOutput(`バリデーションエラー: ${errors.join(', ')}`, 'error-line');
+          appendToOutput('バリデーションエラー: ' + errors.join(', '), 'error-line');
           return;
         }
-
         hideValidationErrors();
       }
 
-      // If still in edit mode, confirm first
-      if (isEditing) {
-        setEditMode(false);
-      }
+      if (isEditing) setEditMode(false);
 
-      // Show request line
-      appendToOutput(`${methodBadge(ep.method)} ${ep.path}`, 'request-line');
-
-      // Show request body if applicable
+      appendToOutput(methodBadge(ep.method) + ' ' + ep.path, 'request-line');
       if (body) {
-        appendToOutput(`<span style="color:#64748b">Request Body:</span>\n${highlightJSON(body)}`, 'json-line');
+        appendToOutput('<span style="color:#64748b">Request Body:</span>\n' + highlightJSON(body), 'json-line');
       }
 
-      // Simulate delay (50-200ms)
-      const delay = Math.floor(Math.random() * 150) + 50;
+      var delay = Math.floor(Math.random() * 150) + 50;
+      setTimeout(function() {
+        var result = ep.simulate(body);
+        var elapsed = Math.floor(performance.now() - startMs);
+        var statusCls = result.status < 400 ? 's2xx' : 's4xx';
+        appendToOutput('<span class="' + statusCls + '">HTTP ' + result.status + '</span>  ' + elapsed + 'ms', 'status-line');
 
-      setTimeout(() => {
-        const result = ep.simulate(body);
-        const elapsed = Math.floor(performance.now() - startMs);
-
-        // Status line
-        const statusCls = result.status < 400 ? 's2xx' : 's4xx';
-        appendToOutput(`<span class="${statusCls}">HTTP ${result.status}</span>  ${elapsed}ms`, 'status-line');
-
-        // Response body
         if (result.body !== null) {
           appendToOutput(highlightJSON(result.body), 'json-line');
+          lastResponseBody = result.body;
+          renderKvTable(lastResponseBody);
         } else {
           appendToOutput('<span style="color:#64748b">(No Content)</span>', 'status-line');
+          lastResponseBody = null;
+          renderKvTable(null);
         }
 
-        // Separator
-        for (const output of [outputFormatted, outputRaw]) {
-          const hr = document.createElement('div');
+        [outputFormatted, outputRaw].forEach(function(output) {
+          var hr = document.createElement('div');
           hr.style.cssText = 'border-bottom:1px solid #2a2d3e;margin:0.6rem 0;';
           output.appendChild(hr);
           output.scrollTop = output.scrollHeight;
-        }
+        });
 
-        // Update stats
         requestCount++;
         statCount.textContent = requestCount;
-        statTime.textContent = `${elapsed}ms`;
-        statusText.textContent = `${ep.method} ${ep.path} → ${result.status}`;
+        statTime.textContent = elapsed + 'ms';
+        statusText.textContent = ep.method + ' ' + ep.path + ' → ' + result.status;
       }, delay);
     }
 
     btnSend.addEventListener('click', sendRequest);
 
-    btnClear.addEventListener('click', () => {
+    btnClear.addEventListener('click', function() {
       outputFormatted.innerHTML = '';
       outputRaw.innerHTML = '';
       requestCount = 0;
       statCount.textContent = '0';
       statTime.textContent = '-';
       statusText.textContent = '待機中';
+      lastResponseBody = null;
+      renderKvTable(null);
     });
 
     // ============================================================
-    // Initialize from cookies
+    // Initialize
     // ============================================================
+    // Set initial cascade state
+    populateActionSelect(categories[0].id);
+    // Initial display
     updateDisplay();
+    // Restore cookie states
     setBodyExpanded(getBodyExpanded());
     setCodeVisible(getCodeVisible());
+    setKvVisible(getKvVisible());
   </script>
 </body>
 </html>

@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+<meta charset="utf-8">
+
+<title>Project Architecture Simulator</title>
+
+<script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+
+<style>
+
+body{
+font-family:Arial;
+margin:40px;
+background:#f5f5f5;
+}
+
+.panel{
+background:white;
+border:1px solid #ccc;
+padding:20px;
+margin-bottom:25px;
+}
+
+button{
+padding:8px 12px;
+margin-top:10px;
+}
+
+canvas{
+border:1px solid #999;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<h1>Project Architecture Simulator</h1>
+
+
+<div class="panel">
+
+<h2>Progress Analysis</h2>
+
+Elapsed Days
+<input id="elapsed" type="number" value="10">
+
+<button onclick="runAnalysis()">Analyze</button>
+
+<div id="analysis"></div>
+
+</div>
+
+
+<div class="panel">
+
+<h2>Mermaid Architecture</h2>
+
+<button onclick="renderMermaid()">Generate</button>
+
+<div id="diagram"></div>
+
+</div>
+
+
+<div class="panel">
+
+<h2>Gantt Chart</h2>
+
+<button onclick="drawGantt()">Draw</button>
+
+<br><br>
+
+<canvas id="gantt" width="900" height="300"></canvas>
+
+</div>
+
+
+<div class="panel">
+
+<h2>Contract Incentive</h2>
+
+Deadline
+<input id="deadline" type="number" value="30">
+
+Delay Cost / Day
+<input id="delayCost" type="number" value="1000">
+
+Bonus / Day
+<input id="bonusDay" type="number" value="700">
+
+<button onclick="contractAnalysis()">Evaluate</button>
+
+<div id="contract"></div>
+
+</div>
+
+
+<div class="panel">
+
+<h2>Automatic Schedule Optimization</h2>
+
+<button onclick="runOptimizer()">Optimize</button>
+
+<div id="optimizer"></div>
+
+</div>
+
+
+<div class="panel">
+
+<h2>Export / Import</h2>
+
+<button onclick="exportJSON()">Export JSON</button>
+
+<input type="file" onchange="importJSON(event)">
+
+</div>
+
+
+<script>
+
+mermaid.initialize({startOnLoad:false})
+
+
+
+const tasks={
+
+OAuth:{duration:6,progress:100,depends:[]},
+
+TokenStorage:{duration:3,progress:50,depends:["OAuth"]},
+
+JWT:{duration:4,progress:20,depends:["TokenStorage"]},
+
+Logs:{duration:2,progress:0,depends:["JWT"]},
+
+OpenAPI:{duration:4,progress:0,depends:["JWT"]}
+
+}
+
+
+
+const resources={
+
+costPerDeveloperPerDay:300
+
+}
+
+
+
+function topoSort(){
+
+const visited=new Set()
+const order=[]
+
+function visit(n){
+
+if(visited.has(n)) return
+
+visited.add(n)
+
+tasks[n].depends.forEach(visit)
+
+order.push(n)
+
+}
+
+for(let t in tasks){visit(t)}
+
+return order
+
+}
+
+
+
+function earliestTimes(){
+
+const order=topoSort()
+
+const start={}
+const end={}
+
+order.forEach(t=>{
+
+const deps=tasks[t].depends
+
+if(deps.length===0){
+
+start[t]=0
+
+}else{
+
+start[t]=Math.max(...deps.map(d=>end[d]))
+
+}
+
+end[t]=start[t]+tasks[t].duration
+
+})
+
+return {start,end}
+
+}
+
+
+
+function latestTimes(){
+
+const order=topoSort().reverse()
+
+const {end}=earliestTimes()
+
+const projectEnd=Math.max(...Object.values(end))
+
+const latestStart={}
+const latestEnd={}
+
+order.forEach(t=>{
+
+const children=Object.keys(tasks)
+.filter(x=>tasks[x].depends.includes(t))
+
+if(children.length===0){
+
+latestEnd[t]=projectEnd
+
+}else{
+
+latestEnd[t]=Math.min(...children.map(c=>latestStart[c]))
+
+}
+
+latestStart[t]=latestEnd[t]-tasks[t].duration
+
+})
+
+return {latestStart,latestEnd}
+
+}
+
+
+
+function criticalPath(){
+
+const e=earliestTimes()
+const l=latestTimes()
+
+const cp=[]
+
+for(let t in tasks){
+
+if(e.start[t]===l.latestStart[t]){
+
+cp.push(t)
+
+}
+
+}
+
+return cp
+
+}
+
+
+
+function projectDuration(){
+
+const {end}=earliestTimes()
+
+return Math.max(...Object.values(end))
+
+}
+
+
+
+function criticalProgress(){
+
+const cp=criticalPath()
+
+let total=0
+let done=0
+
+cp.forEach(t=>{
+
+total+=tasks[t].duration
+
+done+=tasks[t].duration*(tasks[t].progress/100)
+
+})
+
+return (done/total)*100
+
+}
+
+
+
+function expectedProgress(elapsed){
+
+return (elapsed/projectDuration())*100
+
+}
+
+
+
+function runAnalysis(){
+
+const elapsed=Number(document.getElementById("elapsed").value)
+
+const cp=criticalPath()
+
+const actual=criticalProgress()
+
+const expected=expectedProgress(elapsed)
+
+let html=""
+
+html+="Project Duration: "+projectDuration()+"<br><br>"
+
+html+="Critical Path:<br>"+cp.join(" → ")+"<br><br>"
+
+html+="Actual Progress: "+actual.toFixed(1)+"%<br>"
+
+html+="Expected Progress: "+expected.toFixed(1)+"%<br>"
+
+html+="Delay: "+(expected-actual).toFixed(1)+"%"
+
+document.getElementById("analysis").innerHTML=html
+
+}
+
+
+
+function mermaidCode(){
+
+let code="flowchart TD\\n"
+
+for(let t in tasks){
+
+tasks[t].depends.forEach(dep=>{
+
+code+=dep+" --> "+t+"\\n"
+
+})
+
+}
+
+return code
+
+}
+
+
+
+function renderMermaid(){
+
+const code=mermaidCode()
+
+document.getElementById("diagram").innerHTML=
+
+'<div class="mermaid">'+code+'</div>'
+
+mermaid.init()
+
+}
+
+
+
+function drawGantt(){
+
+const canvas=document.getElementById("gantt")
+const ctx=canvas.getContext("2d")
+
+ctx.clearRect(0,0,900,300)
+
+const {start,end}=earliestTimes()
+
+let i=0
+
+for(let t in start){
+
+let s=start[t]
+let e=end[t]
+
+ctx.fillRect(s*30,i*30,(e-s)*30,20)
+
+ctx.fillText(t,5,i*30+15)
+
+i++
+
+}
+
+}
+
+
+
+function projectFinish(){
+
+const {end}=earliestTimes()
+
+return Math.max(...Object.values(end))
+
+}
+
+
+
+function contractAnalysis(){
+
+const finish=projectFinish()
+
+const deadline=Number(document.getElementById("deadline").value)
+
+const delayCost=Number(document.getElementById("delayCost").value)
+
+const bonus=Number(document.getElementById("bonusDay").value)
+
+let html=""
+
+if(finish<=deadline){
+
+let early=deadline-finish
+
+html+="Early Completion<br>"
+html+="Days Early: "+early+"<br>"
+html+="Bonus: $"+(early*bonus)
+
+}else{
+
+let late=finish-deadline
+
+html+="Delayed<br>"
+html+="Days Late: "+late+"<br>"
+html+="Cost: $"+(late*delayCost)
+
+}
+
+document.getElementById("contract").innerHTML=html
+
+}
+
+
+
+function scheduleWithResources(devs){
+
+const remaining=Object.keys(tasks)
+const completed=new Set()
+
+const schedule=[]
+let time=0
+
+while(remaining.length){
+
+const available=remaining.filter(t=>
+tasks[t].depends.every(d=>completed.has(d))
+)
+
+const running=available.slice(0,devs)
+
+running.forEach(t=>{
+
+schedule.push({
+task:t,
+start:time,
+end:time+tasks[t].duration
+})
+
+})
+
+running.forEach(t=>{
+
+completed.add(t)
+remaining.splice(remaining.indexOf(t),1)
+
+})
+
+time+=Math.max(...running.map(t=>tasks[t].duration))
+
+}
+
+return schedule
+
+}
+
+
+
+function finishTime(schedule){
+
+return Math.max(...schedule.map(s=>s.end))
+
+}
+
+
+
+function contractValue(days){
+
+const deadline=Number(document.getElementById("deadline").value)
+const delayCost=Number(document.getElementById("delayCost").value)
+const bonus=Number(document.getElementById("bonusDay").value)
+
+if(days<=deadline){
+
+return (deadline-days)*bonus
+
+}else{
+
+return -(days-deadline)*delayCost
+
+}
+
+}
+
+
+
+function devCost(days,devs){
+
+return days*devs*resources.costPerDeveloperPerDay
+
+}
+
+
+
+function score(days,devs){
+
+return contractValue(days)-devCost(days,devs)
+
+}
+
+
+
+function optimizeSchedule(){
+
+let best=null
+
+for(let devs=1;devs<=6;devs++){
+
+let schedule=scheduleWithResources(devs)
+
+let days=finishTime(schedule)
+
+let sc=score(days,devs)
+
+if(!best||sc>best.score){
+
+best={devs,days,score:sc,schedule}
+
+}
+
+}
+
+return best
+
+}
+
+
+
+function runOptimizer(){
+
+const best=optimizeSchedule()
+
+let html=""
+
+html+="Best Developers: "+best.devs+"<br>"
+html+="Finish Days: "+best.days+"<br>"
+html+="Score: "+best.score+"<br><br>"
+
+html+="Schedule:<br>"
+
+best.schedule.forEach(s=>{
+
+html+=s.task+" "+s.start+"-"+s.end+"<br>"
+
+})
+
+document.getElementById("optimizer").innerHTML=html
+
+}
+
+
+
+function exportJSON(){
+
+const blob=new Blob(
+[JSON.stringify(tasks,null,2)],
+{type:"application/json"}
+)
+
+const a=document.createElement("a")
+
+a.href=URL.createObjectURL(blob)
+
+a.download="project_tasks.json"
+
+a.click()
+
+}
+
+
+
+function importJSON(e){
+
+const file=e.target.files[0]
+
+const reader=new FileReader()
+
+reader.onload=function(){
+
+const data=JSON.parse(reader.result)
+
+Object.assign(tasks,data)
+
+}
+
+reader.readAsText(file)
+
+}
+
+</script>
+
+</body>
+</html>

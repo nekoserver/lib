@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>MDX Docs Example</title>
+
+<style>
+body{
+  font-family:system-ui,-apple-system,Segoe UI,Roboto;
+  background:#0d1117;
+  color:#c9d1d9;
+  margin:40px;
+  line-height:1.6;
+}
+
+h1,h2{
+  color:#f0f6fc;
+}
+
+.codeblock{
+  position:relative;
+  margin:24px 0;
+}
+
+.copy{
+  position:absolute;
+  top:8px;
+  right:8px;
+  background:#21262d;
+  border:1px solid #30363d;
+  color:#c9d1d9;
+  font-size:12px;
+  padding:4px 10px;
+  border-radius:4px;
+  cursor:pointer;
+}
+
+.copy:hover{
+  background:#30363d;
+}
+
+pre{
+  margin:0;
+  padding:16px 16px 16px 60px;
+  background:#161b22;
+  border:1px solid #30363d;
+  border-radius:8px;
+  overflow:auto;
+}
+
+code{
+  font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+  font-size:14px;
+  counter-reset:line;
+}
+
+.line{
+  display:block;
+  position:relative;
+}
+
+.line::before{
+  counter-increment:line;
+  content:counter(line);
+  position:absolute;
+  left:-40px;
+  width:30px;
+  text-align:right;
+  color:#6e7681;
+}
+
+.comment{color:#8b949e}
+.keyword{color:#ff7b72}
+.func{color:#d2a8ff}
+.string{color:#a5d6ff}
+</style>
+
+<script>
+function copyCode(btn){
+  const code = btn.parentElement.querySelector("code").innerText;
+  navigator.clipboard.writeText(code);
+  btn.textContent="Copied";
+  setTimeout(()=>btn.textContent="Copy",1500);
+}
+</script>
+
+</head>
+<body>
+
+<h1>MDX Documentation Example</h1>
+
+<h2>Install</h2>
+
+<div class="codeblock">
+<button class="copy" onclick="copyCode(this)">Copy</button>
+
+<pre><code>
+<span class="line">npm create astro@latest docs</span>
+<span class="line">cd docs</span>
+<span class="line">npx astro add starlight</span>
+<span class="line">npx astro add mdx</span>
+</code></pre>
+
+</div>
+
+<h2>Astro Config</h2>
+
+<div class="codeblock">
+<button class="copy" onclick="copyCode(this)">Copy</button>
+
+<pre><code>
+<span class="line"><span class="keyword">import</span> { defineConfig } <span class="keyword">from</span> <span class="string">"astro/config"</span></span>
+<span class="line"><span class="keyword">import</span> starlight <span class="keyword">from</span> <span class="string">"@astrojs/starlight"</span></span>
+<span class="line"></span>
+<span class="line"><span class="keyword">export default</span> defineConfig({</span>
+<span class="line"> integrations: [starlight()]</span>
+<span class="line">})</span>
+</code></pre>
+
+</div>
+
+<h2>MDX Code Fence Example</h2>
+
+<div class="codeblock">
+<button class="copy" onclick="copyCode(this)">Copy</button>
+
+<pre><code>
+<span class="line">&#96;&#96;&#96;ts title="server.ts"</span>
+<span class="line"><span class="keyword">export function</span> <span class="func">start</span>() {</span>
+<span class="line">  console.log(<span class="string">"boot"</span>)</span>
+<span class="line">}</span>
+<span class="line">&#96;&#96;&#96;</span>
+</code></pre>
+
+</div>
+
+</body>
+</html>

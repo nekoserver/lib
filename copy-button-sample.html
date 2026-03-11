@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Docs Example</title>
+
+<style>
+body{
+  font-family:system-ui;
+  background:#0d1117;
+  color:#c9d1d9;
+  margin:40px;
+}
+
+pre{
+  background:#161b22;
+  border:1px solid #30363d;
+  padding:16px;
+  border-radius:8px;
+  overflow:auto;
+  position:relative;
+}
+
+button{
+  position:absolute;
+  top:8px;
+  right:8px;
+  font-size:12px;
+}
+
+code{
+  font-family:ui-monospace,monospace;
+}
+</style>
+
+<script>
+function copyCode(btn){
+  const code = btn.parentElement.querySelector("code").textContent;
+  navigator.clipboard.writeText(code);
+}
+</script>
+
+</head>
+
+<body>
+
+<h1>MDX Docs Example</h1>
+
+<h2>Install</h2>
+
+<pre>
+<button onclick="copyCode(this)">Copy</button>
+<code>npm create astro@latest
+cd docs
+npx astro add starlight
+npx astro add mdx</code>
+</pre>
+
+<h2>Astro Config</h2>
+
+<pre>
+<button onclick="copyCode(this)">Copy</button>
+<code>import { defineConfig } from "astro/config";
+import starlight from "@astrojs/starlight";
+
+export default defineConfig({
+ integrations: [starlight()]
+});</code>
+</pre>
+
+<h2>MDX Example</h2>
+
+<pre>
+<button onclick="copyCode(this)">Copy</button>
+<code>&#96;&#96;&#96;ts title="server.ts"
+export function start() {
+  console.log("boot")
+}
+&#96;&#96;&#96;</code>
+</pre>
+
+</body>
+</html>

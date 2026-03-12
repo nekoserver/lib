@@ -2,104 +2,103 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Global Cyber Attack Visualizer</title>
+    <title>Global Cyber Attack Globe</title>
     <style>
-        body { margin: 0; background-color: #000; overflow: hidden; font-family: sans-serif; }
-        #info { position: absolute; top: 10px; left: 10px; color: white; pointer-events: none; text-shadow: 1px 1px 2px black; }
+        body { margin: 0; background: #000; overflow: hidden; font-family: 'Segoe UI', sans-serif; }
+        #overlay {
+            position: absolute; top: 20px; left: 20px; color: #00f2ff;
+            pointer-events: none; z-index: 10;
+        }
+        .label { background: rgba(0,0,0,0.7); padding: 5px 10px; border: 1px solid #00f2ff; border-radius: 4px; }
     </style>
 </head>
 <body>
-    <div id="info">
-        <h2>アプリケーション層への攻撃アクティビティ</h2>
-        <p>ドラッグで回転 / スクロールでズーム</p>
+    <div id="overlay">
+        <h1 style="margin:0; font-size: 20px;">APPLICATION LAYER ATTACK ACTIVITY</h1>
+        <p style="font-size: 12px; color: #aaa;">Drag to rotate / Scroll to zoom</p>
     </div>
-    <script src="https://unpkg.com/three"></script>
-    <script src="https://unpkg.com/three-globe"></script>
+    <div id="globeViz"></div>
+
+    <script src="//unpkg.com/three"></script>
+    <script src="//unpkg.com/three-globe"></script>
 
     <script>
-        // 画像のデータに基づいたサンプルデータ (緯度, 経度)
-        const coords = {
-            BR: { lat: -14.235, lng: -51.925 },
-            CN: { lat: 35.861, lng: 104.195 },
-            US: { lat: 37.090, lng: -95.712 },
-            FR: { lat: 46.227, lng: 2.213 },
-            DE: { lat: 51.165, lng: 10.451 },
-            GB: { lat: 55.378, lng: -3.436 },
-            ID: { lat: -0.789, lng: 113.921 },
-            KR: { lat: 35.907, lng: 127.766 }
-        };
-
-        // 攻撃フローデータ (太さは画像内のシェアに基づき設定)
-        const attackData = [
-            { from: 'BR', to: 'CN', color: '#a0d2eb', size: 1.5 },
-            { from: 'US', to: 'US', color: '#e5cfaf', size: 1.2 },
-            { from: 'FR', to: 'US', color: '#81b622', size: 0.3 },
-            { from: 'DE', to: 'US', color: '#5fad41', size: 0.2 },
-            { from: 'GB', to: 'US', color: '#af4b91', size: 0.2 },
-            { from: 'ID', to: 'CN', color: '#ff4d4d', size: 0.1 }
+        // 画像に基づいた攻撃データ (Sankeyの太さを反映)
+        const arcsData = [
+            { startLat: -14.2, startLng: -51.9, endLat: 35.8, endLng: 104.1, color: '#a0d2eb', stroke: 2.0, name: 'BR -> CN' }, // 最大
+            { startLat: 37.0, startLng: -95.7, endLat: 39.0, endLng: -98.0, color: '#e5cfaf', stroke: 1.5, name: 'US -> US' }, // 二番目
+            { startLat: 48.8, startLng: 2.3, endLat: 37.0, endLng: -95.7, color: '#81b622', stroke: 0.5, name: 'FR -> US' },
+            { startLat: 51.1, startLng: 10.4, endLat: 37.0, endLng: -95.7, color: '#5fad41', stroke: 0.4, name: 'DE -> US' },
+            { startLat: 55.3, startLng: -3.4, endLat: 37.0, endLng: -95.7, color: '#af4b91', stroke: 0.4, name: 'GB -> US' },
+            { startLat: 35.9, startLng: 127.7, endLat: 35.8, endLng: 104.1, color: '#d1b200', stroke: 0.3, name: 'KR -> CN' }
         ];
 
-        const arcsData = attackData.map(d => ({
-            startLat: coords[d.from].lat,
-            startLng: coords[d.from].lng,
-            endLat: coords[d.to].lat,
-            endLng: coords[d.to].lng,
-            color: d.color,
-            stroke: d.size
-        }));
-
-        // 地球儀の初期化
         const World = new ThreeGlobe()
             .globeImageUrl('//unpkg.com/three-globe/example/img/earth-night.jpg')
             .bumpImageUrl('//unpkg.com/three-globe/example/img/earth-topology.png')
             .arcsData(arcsData)
             .arcColor('color')
-            .arcDashLength(0.4)
-            .arcDashGap(4)
+            .arcDashLength(0.5)
+            .arcDashGap(2)
             .arcDashInitialGap(() => Math.random() * 5)
-            .arcDashAnimateTime(1000)
-            .arcStroke('stroke') // ここで太さを動的に変更
-            .arcCurveResolution(64);
+            .arcDashAnimateTime(1500)
+            .arcStroke('stroke') // ここで太さを指定
+            .arcCurveResolution(100);
 
-        // Three.js レンダラー設定
+        // Renderer setup
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
-        document.body.appendChild(renderer.domElement);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        document.getElementById('globeViz').appendChild(renderer.domElement);
 
+        // Scene setup
         const scene = new THREE.Scene();
         scene.add(World);
-        scene.add(new THREE.AmbientLight(0xbbbbbb));
-        scene.add(new THREE.DirectionalLight(0xffffff, 0.6));
+        scene.add(new THREE.AmbientLight(0xbbbbbb, 0.3));
+        const dLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        dLight.position.set(1, 1, 1);
+        scene.add(dLight);
 
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        // Camera setup
+        const camera = new THREE.PerspectiveCamera();
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
         camera.position.z = 400;
 
-        // マウス操作用の簡易変数
+        // 手動回転用の変数
         let isDragging = false;
-        let mouseX = 0, mouseY = 0;
+        let previousMousePosition = { x: 0, y: 0 };
 
-        document.addEventListener('mousedown', () => isDragging = true);
-        document.addEventListener('mouseup', () => isDragging = false);
-        document.addEventListener('mousemove', (e) => {
-            if(isDragging) {
-                World.rotation.y += e.movementX * 0.005;
-                World.rotation.x += e.movementY * 0.005;
-            }
-        });
-
-        document.addEventListener('wheel', (e) => {
-            camera.position.z += e.deltaY * 0.5;
-        });
-
-        // アニメーションループ
-        (function animate() {
-            if (!isDragging) {
-                World.rotation.y += 0.001; // 自動回転
-            }
+        const render = () => {
+            if (!isDragging) World.rotation.y += 0.002; // 自動回転
             renderer.render(scene, camera);
-            requestAnimationFrame(animate);
-        })();
+            requestAnimationFrame(render);
+        };
+        render();
+
+        // ぐりぐり動かすためのマウスイベント
+        document.addEventListener('mousedown', e => isDragging = true);
+        document.addEventListener('mouseup', e => isDragging = false);
+        document.addEventListener('mousemove', e => {
+            const deltaMove = { x: e.offsetX - previousMousePosition.x, y: e.offsetY - previousMousePosition.y };
+            if (isDragging) {
+                const deltaRotationQuaternion = new THREE.Quaternion()
+                    .setFromEuler(new THREE.Euler(
+                        (deltaMove.y * Math.PI / 180) * 0.5,
+                        (deltaMove.x * Math.PI / 180) * 0.5,
+                        0, 'XYZ'
+                    ));
+                World.quaternion.multiplyQuaternions(deltaRotationQuaternion, World.quaternion);
+            }
+            previousMousePosition = { x: e.offsetX, y: e.offsetY };
+        });
+
+        // ズーム機能
+        document.addEventListener('wheel', e => {
+            camera.position.z += e.deltaY * 0.2;
+            camera.position.z = Math.min(Math.max(camera.position.z, 150), 600);
+            e.preventDefault();
+        }, { passive: false });
 
         window.addEventListener('resize', () => {
             camera.aspect = window.innerWidth / window.innerHeight;

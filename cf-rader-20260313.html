@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Global Cyber Attack Visualizer</title>
+    <style>
+        body { margin: 0; background-color: #000; overflow: hidden; font-family: sans-serif; }
+        #info { position: absolute; top: 10px; left: 10px; color: white; pointer-events: none; text-shadow: 1px 1px 2px black; }
+    </style>
+</head>
+<body>
+    <div id="info">
+        <h2>アプリケーション層への攻撃アクティビティ</h2>
+        <p>ドラッグで回転 / スクロールでズーム</p>
+    </div>
+    <script src="https://unpkg.com/three"></script>
+    <script src="https://unpkg.com/three-globe"></script>
+
+    <script>
+        // 画像のデータに基づいたサンプルデータ (緯度, 経度)
+        const coords = {
+            BR: { lat: -14.235, lng: -51.925 },
+            CN: { lat: 35.861, lng: 104.195 },
+            US: { lat: 37.090, lng: -95.712 },
+            FR: { lat: 46.227, lng: 2.213 },
+            DE: { lat: 51.165, lng: 10.451 },
+            GB: { lat: 55.378, lng: -3.436 },
+            ID: { lat: -0.789, lng: 113.921 },
+            KR: { lat: 35.907, lng: 127.766 }
+        };
+
+        // 攻撃フローデータ (太さは画像内のシェアに基づき設定)
+        const attackData = [
+            { from: 'BR', to: 'CN', color: '#a0d2eb', size: 1.5 },
+            { from: 'US', to: 'US', color: '#e5cfaf', size: 1.2 },
+            { from: 'FR', to: 'US', color: '#81b622', size: 0.3 },
+            { from: 'DE', to: 'US', color: '#5fad41', size: 0.2 },
+            { from: 'GB', to: 'US', color: '#af4b91', size: 0.2 },
+            { from: 'ID', to: 'CN', color: '#ff4d4d', size: 0.1 }
+        ];
+
+        const arcsData = attackData.map(d => ({
+            startLat: coords[d.from].lat,
+            startLng: coords[d.from].lng,
+            endLat: coords[d.to].lat,
+            endLng: coords[d.to].lng,
+            color: d.color,
+            stroke: d.size
+        }));
+
+        // 地球儀の初期化
+        const World = new ThreeGlobe()
+            .globeImageUrl('//unpkg.com/three-globe/example/img/earth-night.jpg')
+            .bumpImageUrl('//unpkg.com/three-globe/example/img/earth-topology.png')
+            .arcsData(arcsData)
+            .arcColor('color')
+            .arcDashLength(0.4)
+            .arcDashGap(4)
+            .arcDashInitialGap(() => Math.random() * 5)
+            .arcDashAnimateTime(1000)
+            .arcStroke('stroke') // ここで太さを動的に変更
+            .arcCurveResolution(64);
+
+        // Three.js レンダラー設定
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        const scene = new THREE.Scene();
+        scene.add(World);
+        scene.add(new THREE.AmbientLight(0xbbbbbb));
+        scene.add(new THREE.DirectionalLight(0xffffff, 0.6));
+
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.z = 400;
+
+        // マウス操作用の簡易変数
+        let isDragging = false;
+        let mouseX = 0, mouseY = 0;
+
+        document.addEventListener('mousedown', () => isDragging = true);
+        document.addEventListener('mouseup', () => isDragging = false);
+        document.addEventListener('mousemove', (e) => {
+            if(isDragging) {
+                World.rotation.y += e.movementX * 0.005;
+                World.rotation.x += e.movementY * 0.005;
+            }
+        });
+
+        document.addEventListener('wheel', (e) => {
+            camera.position.z += e.deltaY * 0.5;
+        });
+
+        // アニメーションループ
+        (function animate() {
+            if (!isDragging) {
+                World.rotation.y += 0.001; // 自動回転
+            }
+            renderer.render(scene, camera);
+            requestAnimationFrame(animate);
+        })();
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>

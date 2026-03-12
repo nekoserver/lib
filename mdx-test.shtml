@@ -135,7 +135,7 @@ ruby -e "require 'date'; today=Date.today; first=Date.new(today.year,today.month
         const toggle = document.getElementById('theme-toggle');
         const execOutput = document.getElementById('exec-output');
         const THEME_KEY = 'mdx-night-mode';
-        const CGI_ENDPOINT = '/lib/ruby-calendar.cgi';
+        const CGI_ENDPOINT = 'ruby-calendar.cgi';
         const render = () => {
             pv.innerHTML = marked.parse(ed.value, { sanitize: false });
             pv.querySelectorAll('pre').forEach(pre => {

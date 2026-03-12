@@ -2,49 +2,60 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>MDX Previewer</title>
+    <title>MDX One-File Editor</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.2.0/github-markdown.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css">
     <style>
-        body{max-width:900px;margin:0 auto;padding:20px;background:#f6f8fa;font-family:sans-serif}
-        #editor{width:100%;height:200px;padding:15px;border:1px solid #d0d7de;border-radius:6px;font-family:monospace;margin-bottom:20px;box-sizing:border-box}
-        .markdown-body{background:#fff;padding:30px;border:1px solid #d0d7de;border-radius:6px;min-height:400px}
-        .code-wrap{position:relative}
-        .copy-btn{position:absolute;top:10px;right:10px;padding:4px 8px;font-size:12px;color:#fff;background:rgba(110,118,129,0.4);border:1px solid rgba(255,255,255,0.2);border-radius:6px;cursor:pointer;z-index:10}
-        .copy-btn:hover{background:rgba(110,118,129,0.8)}
+        body { max-width: 800px; margin: 0 auto; padding: 20px; background: #f6f8fa; font-family: sans-serif; }
+        #editor { width: 100%; height: 180px; padding: 10px; border: 1px solid #d0d7de; border-radius: 6px; font-family: monospace; box-sizing: border-box; }
+        .markdown-body { background: #fff; padding: 30px; border: 1px solid #d0d7de; border-radius: 6px; margin-top: 20px; min-height: 300px; }
+        .code-container { position: relative; }
+        .copy-btn { position: absolute; top: 8px; right: 8px; padding: 4px 8px; font-size: 11px; color: #fff; background: rgba(110,118,129,0.5); border: 1px solid rgba(255,255,255,0.2); border-radius: 4px; cursor: pointer; }
+        .copy-btn:hover { background: rgba(110,118,129,0.9); }
     </style>
 </head>
 <body>
-    <textarea id="editor" spellcheck="false"># MDX Preview
-<div style="padding:1rem;background:#e1f5fe;border-radius:8px;border:1px solid #03a9f4">
-  HTMLタグ（JSX風）が直接実行可能です。
+    <textarea id="editor" spellcheck="false"># MDX Test
+<div style="background:#e1f5fe; padding:15px; border-radius:8px; border:1px solid #03a9f4; margin:10px 0;">
+  HTMLタグが正しくレンダリングされます。
 </div>
 
-```javascript
-console.log("Hello World");
+```python
+def hello():
+    print("This is Python code")
 ```</textarea>
     <div id="preview" class="markdown-body"></div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.3.0/marked.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-javascript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
     <script>
-        const ed=document.getElementById('editor'),pv=document.getElementById('preview');
-        const update=()=>{
-            pv.innerHTML=marked.parse(ed.value);
-            pv.querySelectorAll('pre').forEach(pre=>{
-                const w=document.createElement('div');w.className='code-wrap';
-                pre.parentNode.insertBefore(w,pre);w.appendChild(pre);
-                const b=document.createElement('button');b.className='copy-btn';b.innerText='Copy';
-                b.onclick=()=>{
-                    navigator.clipboard.writeText(pre.innerText).then(()=>{
-                        b.innerText='OK!';setTimeout(()=>b.innerText='Copy',1000);
-                    });
+        const ed=document.getElementById('editor'), pv=document.getElementById('preview');
+        const update = () => {
+            pv.innerHTML = marked.parse(ed.value, { sanitize: false });
+            pv.querySelectorAll('pre').forEach(pre => {
+                const wrapper = document.createElement('div');
+                wrapper.className = 'code-container';
+                pre.parentNode.insertBefore(wrapper, pre);
+                wrapper.appendChild(pre);
+                const btn = document.createElement('button');
+                btn.className = 'copy-btn'; btn.innerText = 'Copy';
+                btn.onclick = () => {
+                    const txt = pre.innerText;
+                    if(navigator.clipboard && window.isSecureContext) {
+                        navigator.clipboard.writeText(txt);
+                    } else {
+                        const ta = document.createElement("textarea");
+                        ta.value = txt; document.body.appendChild(ta);
+                        ta.select(); document.execCommand('copy');
+                        document.body.removeChild(ta);
+                    }
+                    btn.innerText = 'OK!'; setTimeout(() => btn.innerText = 'Copy', 1000);
                 };
-                w.appendChild(b);
+                wrapper.appendChild(btn);
             });
             Prism.highlightAllIn(pv);
         };
-        ed.oninput=update;update();
+        ed.oninput = update; update();
     </script>
 </body>
 </html>

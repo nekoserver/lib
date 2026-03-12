@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>MDX One-File Editor</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.2.0/github-markdown.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css">
+    <style>
+        :root {
+            --page-bg: #f6f8fa;
+            --card-bg: #fff;
+            --text-color: #24292f;
+            --border-color: #d0d7de;
+            --code-btn-bg: rgba(110,118,129,0.5);
+            --code-btn-border: rgba(255,255,255,0.2);
+            --control-bg: rgba(23, 43, 77, 0.08);
+        }
+        body {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: var(--page-bg);
+            font-family: sans-serif;
+            color: var(--text-color);
+            transition: background 0.25s ease, color 0.25s ease;
+        }
+        #editor {
+            width: 100%;
+            height: 180px;
+            padding: 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            font-family: monospace;
+            box-sizing: border-box;
+            background: var(--card-bg);
+            color: var(--text-color);
+        }
+        .markdown-body {
+            background: var(--card-bg);
+            padding: 30px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            margin-top: 20px;
+            min-height: 300px;
+            transition: background 0.25s ease, border-color 0.25s ease;
+        }
+        .code-container { position: relative; }
+        .copy-btn {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            padding: 4px 8px;
+            font-size: 11px;
+            color: #fff;
+            background: var(--code-btn-bg);
+            border: 1px solid var(--code-btn-border);
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background 0.2s ease;
+        }
+        .exec-btn {
+            position: absolute;
+            top: 8px;
+            right: 86px;
+            padding: 4px 8px;
+            font-size: 11px;
+            color: #fff;
+            background: rgba(49, 130, 206, 0.85);
+            border: 1px solid rgba(255,255,255,0.25);
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background 0.2s ease;
+        }
+        .copy-btn:hover { background: rgba(110,118,129,0.9); }
+        .exec-btn:hover { background: rgba(49, 130, 206, 1); }
+        .exec-output {
+            margin-top: 12px;
+            min-height: 120px;
+            white-space: pre-wrap;
+            font-family: monospace;
+        }
+        .theme-control {
+            display: flex;
+            justify-content: flex-end;
+            margin-bottom: 16px;
+        }
+        #theme-toggle {
+            padding: 6px 14px;
+            border-radius: 999px;
+            border: 1px solid var(--border-color);
+            background: var(--control-bg);
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.2s ease, border-color 0.2s ease;
+        }
+        .dark-mode {
+            --page-bg: #0d1117;
+            --card-bg: #161b22;
+            --text-color: #c9d1d9;
+            --border-color: #30363d;
+            --code-btn-bg: rgba(255,255,255,0.1);
+            --code-btn-border: rgba(255,255,255,0.2);
+            --control-bg: rgba(255,255,255,0.08);
+        }
+    </style>
+</head>
+<body>
+    <div class="theme-control">
+        <button id="theme-toggle" type="button">Night mode</button>
+    </div>
+    <textarea id="editor" spellcheck="false"># MDX Test
+<div style="background:#e1f5fe; padding:15px; border-radius:8px; border:1px solid #03a9f4; margin:10px 0;">
+  HTMLタグが正しくレンダリングされます。
+</div>
+
+```ruby
+ruby -e "require 'date'; today=Date.today; first=Date.new(today.year,today.month,1); last=Date.new(today.year,today.month,-1); puts \"#{today.year}年#{today.month}月\"; puts %w(日 月 火 水 木 金 土).join(' '); pad=first.wday; print '   ' * pad; (first..last).each do |d|; printf '%2d ', d.day; pad+=1; puts if pad % 7 == 0; end; puts"
+```
+
+```text
+     2026年3月
+日 月 火 水 木 金 土
+ 1  2  3  4  5  6  7
+ 8  9 10 11 12 13 14
+15 16 17 18 19 20 21
+22 23 24 25 26 27 28
+29 30 31
+```
+</textarea>
+    <div id="preview" class="markdown-body"></div>
+    <div id="exec-output" class="markdown-body exec-output" aria-live="polite" role="status"></div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.3.0/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-ruby.min.js"></script>
+    <script>
+        const ed = document.getElementById('editor');
+        const pv = document.getElementById('preview');
+        const toggle = document.getElementById('theme-toggle');
+        const execOutput = document.getElementById('exec-output');
+        const THEME_KEY = 'mdx-night-mode';
+        const CGI_ENDPOINT = '/cgi-bin/ruby-calendar.cgi';
+        const render = () => {
+            pv.innerHTML = marked.parse(ed.value, { sanitize: false });
+            pv.querySelectorAll('pre').forEach(pre => {
+                const wrapper = document.createElement('div');
+                wrapper.className = 'code-container';
+                pre.parentNode.insertBefore(wrapper, pre);
+                wrapper.appendChild(pre);
+                const execBtn = document.createElement('button');
+                execBtn.className = 'exec-btn';
+                execBtn.innerText = 'Exec';
+                execBtn.onclick = () => runExec(execBtn);
+                const btn = document.createElement('button');
+                btn.className = 'copy-btn';
+                btn.innerText = 'Copy';
+                btn.onclick = () => {
+                    const txt = pre.innerText;
+                    if (navigator.clipboard && window.isSecureContext) {
+                        navigator.clipboard.writeText(txt);
+                    } else {
+                        const ta = document.createElement('textarea');
+                        ta.value = txt;
+                        document.body.appendChild(ta);
+                        ta.select();
+                        document.execCommand('copy');
+                        document.body.removeChild(ta);
+                    }
+                    btn.innerText = 'OK!';
+                    setTimeout(() => btn.innerText = 'Copy', 1000);
+                };
+                wrapper.appendChild(execBtn);
+                wrapper.appendChild(btn);
+            });
+            Prism.highlightAllIn(pv);
+        };
+        const runExec = async btn => {
+            btn.disabled = true;
+            execOutput.textContent = 'CGI を呼び出しています…';
+            try {
+                const now = new Date();
+                const resp = await fetch(`${CGI_ENDPOINT}?year=${now.getFullYear()}&month=${now.getMonth()+1}`, { cache: 'no-store' });
+                if (!resp.ok) {
+                    throw new Error(resp.statusText || 'CGI 呼び出しに失敗しました');
+                }
+                const text = await resp.text();
+                execOutput.textContent = text;
+            } catch (err) {
+                execOutput.textContent = `実行に失敗しました: ${err.message}`;
+            } finally {
+                btn.disabled = false;
+            }
+        };
+        const applyTheme = mode => {
+            const isDark = mode === 'dark';
+            document.body.classList.toggle('dark-mode', isDark);
+            toggle.innerText = isDark ? 'Day mode' : 'Night mode';
+        };
+        const setThemeCookie = mode => {
+            const expires = new Date();
+            expires.setFullYear(expires.getFullYear() + 1);
+            document.cookie = `${THEME_KEY}=${mode}; path=/; expires=${expires.toUTCString()}`;
+        };
+        const readThemeCookie = () => {
+            const match = document.cookie.match(new RegExp(`(?:^|; )${THEME_KEY}=([^;]*)`));
+            return match ? match[1] : null;
+        };
+        toggle.onclick = () => {
+            const next = document.body.classList.contains('dark-mode') ? 'light' : 'dark';
+            applyTheme(next);
+            setThemeCookie(next);
+        };
+        const savedTheme = readThemeCookie() || 'light';
+        applyTheme(savedTheme);
+        ed.oninput = render;
+        render();
+    </script>
+</body>
+</html>

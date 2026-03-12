@@ -2,104 +2,77 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>Global Cyber Attack Globe</title>
+    <title>Fixed Cyber Attack Globe</title>
     <style>
-        body { margin: 0; background: #000; overflow: hidden; font-family: 'Segoe UI', sans-serif; }
-        #overlay {
-            position: absolute; top: 20px; left: 20px; color: #00f2ff;
-            pointer-events: none; z-index: 10;
-        }
-        .label { background: rgba(0,0,0,0.7); padding: 5px 10px; border: 1px solid #00f2ff; border-radius: 4px; }
+        body { margin: 0; background: #000; overflow: hidden; font-family: sans-serif; }
+        #info { position: absolute; top: 20px; left: 20px; color: #00f2ff; z-index: 10; pointer-events: none; }
     </style>
 </head>
 <body>
-    <div id="overlay">
-        <h1 style="margin:0; font-size: 20px;">APPLICATION LAYER ATTACK ACTIVITY</h1>
-        <p style="font-size: 12px; color: #aaa;">Drag to rotate / Scroll to zoom</p>
+    <div id="info">
+        <h2 style="margin:0;">攻撃アクティビティ・ビジュアライザー</h2>
+        <p>マウスで回転 / スクロールでズーム</p>
     </div>
     <div id="globeViz"></div>
 
-    <script src="//unpkg.com/three"></script>
-    <script src="//unpkg.com/three-globe"></script>
+    <script src="https://unpkg.com/three"></script>
+    <script src="https://unpkg.com/three-globe"></script>
+    <script src="https://unpkg.com/three/examples/js/controls/OrbitControls.js"></script>
 
     <script>
-        // 画像に基づいた攻撃データ (Sankeyの太さを反映)
+        // データの定義
         const arcsData = [
-            { startLat: -14.2, startLng: -51.9, endLat: 35.8, endLng: 104.1, color: '#a0d2eb', stroke: 2.0, name: 'BR -> CN' }, // 最大
-            { startLat: 37.0, startLng: -95.7, endLat: 39.0, endLng: -98.0, color: '#e5cfaf', stroke: 1.5, name: 'US -> US' }, // 二番目
-            { startLat: 48.8, startLng: 2.3, endLat: 37.0, endLng: -95.7, color: '#81b622', stroke: 0.5, name: 'FR -> US' },
-            { startLat: 51.1, startLng: 10.4, endLat: 37.0, endLng: -95.7, color: '#5fad41', stroke: 0.4, name: 'DE -> US' },
-            { startLat: 55.3, startLng: -3.4, endLat: 37.0, endLng: -95.7, color: '#af4b91', stroke: 0.4, name: 'GB -> US' },
-            { startLat: 35.9, startLng: 127.7, endLat: 35.8, endLng: 104.1, color: '#d1b200', stroke: 0.3, name: 'KR -> CN' }
+            { startLat: -14.2, startLng: -51.9, endLat: 35.8, endLng: 104.1, color: '#a0d2eb', stroke: 1.5 }, // BR -> CN
+            { startLat: 37.1, startLng: -95.7, endLat: 39.5, endLng: -98.5, color: '#e5cfaf', stroke: 1.2 }, // US -> US
+            { startLat: 48.8, startLng: 2.3, endLat: 37.1, endLng: -95.7, color: '#81b622', stroke: 0.5 },  // FR -> US
+            { startLat: 51.1, startLng: 10.4, endLat: 37.1, endLng: -95.7, color: '#5fad41', stroke: 0.4 }, // DE -> US
+            { startLat: 55.3, startLng: -3.4, endLat: 37.1, endLng: -95.7, color: '#af4b91', stroke: 0.4 },  // GB -> US
+            { startLat: 35.9, startLng: 127.7, endLat: 35.8, endLng: 104.1, color: '#d1b200', stroke: 0.3 } // KR -> CN
         ];
 
+        // 地球儀の作成
         const World = new ThreeGlobe()
-            .globeImageUrl('//unpkg.com/three-globe/example/img/earth-night.jpg')
-            .bumpImageUrl('//unpkg.com/three-globe/example/img/earth-topology.png')
+            .globeImageUrl('https://unpkg.com/three-globe/example/img/earth-night.jpg')
             .arcsData(arcsData)
             .arcColor('color')
-            .arcDashLength(0.5)
+            .arcDashLength(0.4)
             .arcDashGap(2)
-            .arcDashInitialGap(() => Math.random() * 5)
             .arcDashAnimateTime(1500)
-            .arcStroke('stroke') // ここで太さを指定
-            .arcCurveResolution(100);
+            .arcStroke('stroke');
 
-        // Renderer setup
+        // レンダラー設定
         const renderer = new THREE.WebGLRenderer({ antialias: true });
-        renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.setSize(window.innerWidth, window.innerHeight);
         document.getElementById('globeViz').appendChild(renderer.domElement);
 
-        // Scene setup
+        // シーン設定
         const scene = new THREE.Scene();
         scene.add(World);
-        scene.add(new THREE.AmbientLight(0xbbbbbb, 0.3));
-        const dLight = new THREE.DirectionalLight(0xffffff, 0.8);
-        dLight.position.set(1, 1, 1);
-        scene.add(dLight);
+        scene.add(new THREE.AmbientLight(0xcccccc, 0.7));
+        scene.add(new THREE.DirectionalLight(0xffffff, 0.4));
 
-        // Camera setup
-        const camera = new THREE.PerspectiveCamera();
-        camera.aspect = window.innerWidth / window.innerHeight;
-        camera.updateProjectionMatrix();
+        // カメラ設定
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 2000);
         camera.position.z = 400;
 
-        // 手動回転用の変数
-        let isDragging = false;
-        let previousMousePosition = { x: 0, y: 0 };
+        // 【重要】ぐりぐり動かすためのControls
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.rotateSpeed = 0.8;
+        controls.autoRotate = true; // 最初は勝手に回る
+        controls.autoRotateSpeed = 0.5;
 
-        const render = () => {
-            if (!isDragging) World.rotation.y += 0.002; // 自動回転
+        // アニメーション
+        function animate() {
+            controls.update(); // マウス操作の反映
             renderer.render(scene, camera);
-            requestAnimationFrame(render);
-        };
-        render();
+            requestAnimationFrame(animate);
+        }
+        animate();
 
-        // ぐりぐり動かすためのマウスイベント
-        document.addEventListener('mousedown', e => isDragging = true);
-        document.addEventListener('mouseup', e => isDragging = false);
-        document.addEventListener('mousemove', e => {
-            const deltaMove = { x: e.offsetX - previousMousePosition.x, y: e.offsetY - previousMousePosition.y };
-            if (isDragging) {
-                const deltaRotationQuaternion = new THREE.Quaternion()
-                    .setFromEuler(new THREE.Euler(
-                        (deltaMove.y * Math.PI / 180) * 0.5,
-                        (deltaMove.x * Math.PI / 180) * 0.5,
-                        0, 'XYZ'
-                    ));
-                World.quaternion.multiplyQuaternions(deltaRotationQuaternion, World.quaternion);
-            }
-            previousMousePosition = { x: e.offsetX, y: e.offsetY };
-        });
-
-        // ズーム機能
-        document.addEventListener('wheel', e => {
-            camera.position.z += e.deltaY * 0.2;
-            camera.position.z = Math.min(Math.max(camera.position.z, 150), 600);
-            e.preventDefault();
-        }, { passive: false });
-
+        // リサイズ対応
         window.addEventListener('resize', () => {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();

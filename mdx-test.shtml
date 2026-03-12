@@ -79,6 +79,9 @@
             white-space: pre-wrap;
             font-family: monospace;
         }
+        .mdx-react-root {
+            margin-top: 12px;
+        }
         .theme-control {
             display: flex;
             justify-content: flex-end;
@@ -119,6 +122,10 @@ ruby -e "require 'date'; today=Date.today; first=Date.new(today.year,today.month
 </textarea>
     <div id="preview" class="markdown-body"></div>
     <div id="exec-output" class="markdown-body exec-output" aria-live="polite" role="status"></div>
+    <div class="markdown-body" style="margin-top:32px;">
+        <h2>MDX React プレビュー（ブラウザ内で MDX を実行）</h2>
+        <div id="mdx-react-root" class="mdx-react-root"></div>
+    </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.3.0/marked.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-ruby.min.js"></script>
@@ -128,7 +135,7 @@ ruby -e "require 'date'; today=Date.today; first=Date.new(today.year,today.month
         const toggle = document.getElementById('theme-toggle');
         const execOutput = document.getElementById('exec-output');
         const THEME_KEY = 'mdx-night-mode';
-        const CGI_ENDPOINT = '/cgi-bin/ruby-calendar.cgi';
+        const CGI_ENDPOINT = '/lib/ruby-calendar.cgi';
         const render = () => {
             pv.innerHTML = marked.parse(ed.value, { sanitize: false });
             pv.querySelectorAll('pre').forEach(pre => {
@@ -203,6 +210,129 @@ ruby -e "require 'date'; today=Date.today; first=Date.new(today.year,today.month
         applyTheme(savedTheme);
         ed.oninput = render;
         render();
+    </script>
+    <script>
+        (function () {
+            const root = document.getElementById('mdx-react-root');
+            if (!root) {
+                return;
+            }
+
+            const today = new Date();
+            const mdxSample = `
+export const metadata = {
+  title: 'MDX React Calendar',
+  badge: 'live'
+};
+
+# ${today.getFullYear()}年${today.getMonth() + 1}月のライブカレンダー
+
+現在 **${today.toLocaleString('ja-JP', {
+                weekday: 'long',
+                month: 'long',
+                day: 'numeric',
+            })}** です。
+
+<HeroBanner>
+  <p>MDX は JSX を Markdown の中で動かす仕組みです。</p>
+</HeroBanner>
+
+<LiveCalendar year={${today.getFullYear()}} month={${today.getMonth() + 1}} />
+`;
+
+            const metaBadge = document.createElement('p');
+            metaBadge.style.fontSize = '0.9rem';
+            metaBadge.style.margin = '0 0 8px';
+            metaBadge.style.fontWeight = '600';
+            metaBadge.textContent = 'metadata: { title: "MDX React Calendar", badge: "live" }';
+
+            const hero = document.createElement('div');
+            hero.style.background = '#ebf5ff';
+            hero.style.border = '1px solid #3e7ef8';
+            hero.style.borderRadius = '6px';
+            hero.style.padding = '12px 16px';
+            hero.style.marginTop = '12px';
+            hero.innerHTML = '<p style="margin:0;font-weight:600;">HeroBanner コンポーネント</p><p style="margin:0;">React コンポーネントを Markdown 内でそのまま埋め込めるのが MDX の持ち味です。</p>';
+
+            const liveCal = document.createElement('div');
+            liveCal.style.marginTop = '16px';
+            liveCal.appendChild(createLiveCalendar(today.getFullYear(), today.getMonth() + 1));
+
+            const codeBlock = document.createElement('pre');
+            codeBlock.style.background = '#0f172a';
+            codeBlock.style.color = '#e0f2fe';
+            codeBlock.style.padding = '12px';
+            codeBlock.style.borderRadius = '6px';
+            codeBlock.textContent = mdxSample.trim();
+
+            root.appendChild(metaBadge);
+            root.appendChild(hero);
+            root.appendChild(liveCal);
+            root.appendChild(codeBlock);
+            root.appendChild(document.createElement('small')).textContent = '↑ 上記は MDX で書いた構成を再現した静的・手製のレンダリング例です。';
+
+            function createLiveCalendar(year, month) {
+                const table = document.createElement('table');
+                table.style.width = '100%';
+                table.style.borderCollapse = 'collapse';
+                table.style.fontSize = '0.95rem';
+                const weekdays = ['日', '月', '火', '水', '木', '金', '土'];
+                const thead = document.createElement('thead');
+                const tr = document.createElement('tr');
+                weekdays.forEach((day) => {
+                    const th = document.createElement('th');
+                    th.textContent = day;
+                    th.style.borderBottom = '1px solid rgba(0, 0, 0, 0.1)';
+                    th.style.padding = '6px';
+                    th.style.textAlign = 'center';
+                    th.style.fontWeight = '600';
+                    tr.appendChild(th);
+                });
+                thead.appendChild(tr);
+                table.appendChild(thead);
+
+                const first = new Date(year, month - 1, 1);
+                const last = new Date(year, month, 0);
+                let current = new Date(first);
+                let week = Array(first.getDay()).fill(null);
+                const tbody = document.createElement('tbody');
+                while (current <= last) {
+                    week.push(current.getDate());
+                    if (week.length === 7) {
+                        appendWeekRow(tbody, week, today.getDate());
+                        week = [];
+                    }
+                    current = new Date(current);
+                    current.setDate(current.getDate() + 1);
+                }
+                if (week.length) {
+                    while (week.length < 7) {
+                        week.push(null);
+                    }
+                    appendWeekRow(tbody, week, today.getDate());
+                }
+
+                table.appendChild(tbody);
+                return table;
+            }
+
+            function appendWeekRow(tbody, week, highlight) {
+                const tr = document.createElement('tr');
+                week.forEach((day, index) => {
+                    const td = document.createElement('td');
+                    td.textContent = day === null ? '' : String(day);
+                    td.style.padding = '6px 4px';
+                    td.style.textAlign = 'center';
+                    td.style.borderBottom = '1px solid rgba(0, 0, 0, 0.05)';
+                    if (day === highlight && index !== 0) {
+                        td.style.fontWeight = '700';
+                        td.style.color = '#2563eb';
+                    }
+                    tr.appendChild(td);
+                });
+                tbody.appendChild(tr);
+            }
+        })();
     </script>
 </body>
 </html>

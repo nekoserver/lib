@@ -116,16 +116,6 @@
 ```ruby
 ruby -e "require 'date'; today=Date.today; first=Date.new(today.year,today.month,1); last=Date.new(today.year,today.month,-1); puts \"#{today.year}年#{today.month}月\"; puts %w(日 月 火 水 木 金 土).join(' '); pad=first.wday; print '   ' * pad; (first..last).each do |d|; printf '%2d ', d.day; pad+=1; puts if pad % 7 == 0; end; puts"
 ```
-
-```text
-     2026年3月
-日 月 火 水 木 金 土
- 1  2  3  4  5  6  7
- 8  9 10 11 12 13 14
-15 16 17 18 19 20 21
-22 23 24 25 26 27 28
-29 30 31
-```
 </textarea>
     <div id="preview" class="markdown-body"></div>
     <div id="exec-output" class="markdown-body exec-output" aria-live="polite" role="status"></div>

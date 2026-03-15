@@ -2,77 +2,160 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>Fixed Cyber Attack Globe</title>
+    <title>Global Cyber Attack Globe - Final Fixed Arc</title>
     <style>
-        body { margin: 0; background: #000; overflow: hidden; font-family: sans-serif; }
-        #info { position: absolute; top: 20px; left: 20px; color: #00f2ff; z-index: 10; pointer-events: none; }
+        body { margin: 0; background: #000; overflow: hidden; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        
+        /* タイトル */
+        #header { position: absolute; top: 20px; left: 20px; color: #00f2ff; z-index: 10; pointer-events: none; }
+        #header h2 { margin: 0; font-size: 20px; letter-spacing: 1.5px; text-transform: uppercase; }
+        
+        /* 左下の統計チャートパネル */
+        #stats-panel {
+            position: absolute; bottom: 20px; left: 20px;
+            background: rgba(0, 15, 30, 0.85);
+            border: 1px solid rgba(0, 242, 255, 0.5);
+            color: #fff; padding: 12px; border-radius: 6px;
+            z-index: 10; width: 220px; font-size: 11px;
+            box-shadow: 0 0 20px rgba(0, 242, 255, 0.2);
+        }
+        #stats-panel h3 { margin: 0 0 8px 0; font-size: 13px; border-bottom: 1px solid #00f2ff; padding-bottom: 4px; color: #00f2ff; text-transform: uppercase; }
+        
+        .stat-row { display: flex; justify-content: space-between; margin: 4px 0; align-items: center; }
+        .bar-bg { background: #1a1a1a; height: 6px; width: 80px; border-radius: 3px; overflow: hidden; }
+        .bar-fill { height: 100%; border-radius: 3px; }
+        .label-br { color: #a0d2eb; font-weight: bold; }
     </style>
 </head>
 <body>
-    <div id="info">
-        <h2 style="margin:0;">攻撃アクティビティ・ビジュアライザー</h2>
-        <p>マウスで回転 / スクロールでズーム</p>
+    <div id="header">
+        <h2>Global Attack Activity</h2>
     </div>
-    <div id="globeViz"></div>
 
-    <script src="https://unpkg.com/three"></script>
-    <script src="https://unpkg.com/three-globe"></script>
-    <script src="https://unpkg.com/three/examples/js/controls/OrbitControls.js"></script>
+    <div id="stats-panel">
+        <h3>Attack Stats</h3>
+        <div class="stat-row">
+            <span class="label-br">BR → CN (Max)</span>
+            <div class="bar-bg"><div class="bar-fill" style="width: 100%; background: #a0d2eb;"></div></div>
+        </div>
+        <div class="stat-row">
+            <span>US → US</span>
+            <div class="bar-bg"><div class="bar-fill" style="width: 65%; background: #e5cfaf;"></div></div>
+        </div>
+        <div class="stat-row">
+            <span>FR → US</span>
+            <div class="bar-bg"><div class="bar-fill" style="width: 25%; background: #81b622;"></div></div>
+        </div>
+    </div>
 
-    <script>
-        // データの定義
-        const arcsData = [
-            { startLat: -14.2, startLng: -51.9, endLat: 35.8, endLng: 104.1, color: '#a0d2eb', stroke: 1.5 }, // BR -> CN
-            { startLat: 37.1, startLng: -95.7, endLat: 39.5, endLng: -98.5, color: '#e5cfaf', stroke: 1.2 }, // US -> US
-            { startLat: 48.8, startLng: 2.3, endLat: 37.1, endLng: -95.7, color: '#81b622', stroke: 0.5 },  // FR -> US
-            { startLat: 51.1, startLng: 10.4, endLat: 37.1, endLng: -95.7, color: '#5fad41', stroke: 0.4 }, // DE -> US
-            { startLat: 55.3, startLng: -3.4, endLat: 37.1, endLng: -95.7, color: '#af4b91', stroke: 0.4 },  // GB -> US
-            { startLat: 35.9, startLng: 127.7, endLat: 35.8, endLng: 104.1, color: '#d1b200', stroke: 0.3 } // KR -> CN
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+            "three/examples/jsm/controls/OrbitControls": "https://unpkg.com/three@0.160.0/examples/jsm/controls/OrbitControls.js"
+        }
+    }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
+
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 2000);
+        camera.position.set(200, 150, 250); // カメラ位置を調整
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        document.body.appendChild(renderer.domElement);
+
+        const worldGroup = new THREE.Group();
+        scene.add(worldGroup);
+
+        // 地球本体 (解像度を上げて滑らかに)
+        const textureLoader = new THREE.TextureLoader();
+        const material = new THREE.MeshStandardMaterial({
+            map: textureLoader.load('https://unpkg.com/three-globe@2.30.0/example/img/earth-blue-marble.jpg'),
+            bumpMap: textureLoader.load('https://unpkg.com/three-globe@2.30.0/example/img/earth-topology.png'),
+            bumpScale: 0.2,
+            roughness: 0.8
+        });
+        const globe = new THREE.Mesh(new THREE.SphereGeometry(100, 128, 128), material); // 球体の分割数を倍増
+        worldGroup.add(globe);
+
+        // 光源
+        scene.add(new THREE.AmbientLight(0xffffff, 0.9));
+        const dLight = new THREE.DirectionalLight(0xffffff, 1.2);
+        dLight.position.set(500, 300, 500);
+        scene.add(dLight);
+
+        // 座標変換関数
+        function decode(lat, lon, radius = 100) {
+            const phi = (90 - lat) * (Math.PI / 180);
+            const theta = (lon + 180) * (Math.PI / 180);
+            return new THREE.Vector3(
+                -radius * Math.sin(phi) * Math.cos(theta),
+                radius * Math.cos(phi),
+                radius * Math.sin(phi) * Math.sin(theta)
+            );
+        }
+
+        // データ描画 (BR->CNを最大にし、太さ3倍を維持)
+        const attackData = [
+            { from: [-14.2, -51.9], to: [35.8, 104.1], color: 0xa0d2eb, weight: 18, flow: 80 }, 
+            { from: [37.1, -95.7], to: [38.5, -97.5], color: 0xe5cfaf, weight: 9, flow: 30 },
+            { from: [48.8, 2.3], to: [37.1, -95.7], color: 0x81b622, weight: 3, flow: 15 }
         ];
 
-        // 地球儀の作成
-        const World = new ThreeGlobe()
-            .globeImageUrl('https://unpkg.com/three-globe/example/img/earth-night.jpg')
-            .arcsData(arcsData)
-            .arcColor('color')
-            .arcDashLength(0.4)
-            .arcDashGap(2)
-            .arcDashAnimateTime(1500)
-            .arcStroke('stroke');
+        const anims = [];
+        attackData.forEach(data => {
+            const start = decode(data.from[0], data.from[1]);
+            const end = decode(data.to[0], data.to[1]);
+            const dist = start.distanceTo(end);
+            
+            // 頂点の高さを距離に応じて調整
+            const mid = new THREE.Vector3().addVectors(start, end).normalize().multiplyScalar(100 + dist * 0.5);
+            const curve = new THREE.QuadraticBezierCurve3(start, mid, end);
 
-        // レンダラー設定
-        const renderer = new THREE.WebGLRenderer({ antialias: true });
-        renderer.setPixelRatio(window.devicePixelRatio);
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        document.getElementById('globeViz').appendChild(renderer.domElement);
+            // 【修正の肝】 TubeGeometryの分割数を倍増 (64 -> 128) し、sideをDoubleSideにして途切れを防止
+            const arcGeom = new THREE.TubeGeometry(curve, 256, data.weight * 0.15, 8, false); // アーチの分割数を極大化
+            const arcMat = new THREE.MeshBasicMaterial({ 
+                color: data.color, 
+                transparent: true, 
+                opacity: 0.5,
+                side: THREE.DoubleSide // 裏側からも描画して途切れを防止
+            });
+            worldGroup.add(new THREE.Mesh(arcGeom, arcMat));
 
-        // シーン設定
-        const scene = new THREE.Scene();
-        scene.add(World);
-        scene.add(new THREE.AmbientLight(0xcccccc, 0.7));
-        scene.add(new THREE.DirectionalLight(0xffffff, 0.4));
+            // 粒子の流れ
+            for(let i=0; i<data.flow; i++) {
+                const pGeom = new THREE.SphereGeometry(data.weight * 0.12, 8, 8);
+                const pMat = new THREE.MeshBasicMaterial({ color: data.color });
+                const particle = new THREE.Mesh(pGeom, pMat);
+                worldGroup.add(particle);
+                anims.push({ curve, particle, t: Math.random(), speed: 0.001 + Math.random() * 0.002 });
+            }
+        });
 
-        // カメラ設定
-        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 2000);
-        camera.position.z = 400;
-
-        // 【重要】ぐりぐり動かすためのControls
-        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        // Controls
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.target.set(0, 0, 0); // 回転の中心を地球のド真ん中に固定
         controls.enableDamping = true;
         controls.dampingFactor = 0.05;
-        controls.rotateSpeed = 0.8;
-        controls.autoRotate = true; // 最初は勝手に回る
-        controls.autoRotateSpeed = 0.5;
 
-        // アニメーション
         function animate() {
-            controls.update(); // マウス操作の反映
-            renderer.render(scene, camera);
             requestAnimationFrame(animate);
+            anims.forEach(a => {
+                a.t += a.speed;
+                if (a.t > 1) a.t = 0;
+                a.particle.position.copy(a.curve.getPoint(a.t));
+            });
+            controls.update(); // これで中心軸を維持したまま回転
+            renderer.render(scene, camera);
         }
         animate();
 
-        // リサイズ対応
         window.addEventListener('resize', () => {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();

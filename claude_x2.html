@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Claude Code 2x 深夜時間 世界地図</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/topojson/3.0.2/topojson.min.js"></script>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+:root {
+  --peak-dark: #3d0a0a;
+  --peak-mid: #7a1515;
+  --peak-bright: #ff4444;
+  --twox-dark: #062014;
+  --twox-mid: #0f4a28;
+  --twox-bright: #00e87a;
+  --bg: #060b14;
+  --surface: #0b1120;
+  --border: rgba(255,255,255,0.07);
+  --text: #dde4f0;
+  --muted: rgba(221,228,240,0.45);
+}
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Space Mono', monospace;
+  min-height: 100vh;
+}
+.noise {
+  position: fixed; inset: 0; pointer-events: none; z-index: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+}
+.container { max-width: 1100px; margin: 0 auto; padding: 24px 20px; position: relative; z-index: 1; }
+
+/* HEADER */
+.header { text-align: center; margin-bottom: 20px; }
+.title {
+  font-family: 'Syne', sans-serif;
+  font-weight: 800;
+  font-size: clamp(1.4rem, 4vw, 2.2rem);
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  background: linear-gradient(135deg, #ff6b6b 0%, #ff9f43 40%, #00e87a 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 6px;
+}
+.subtitle { font-size: 0.7rem; color: var(--muted); letter-spacing: 0.08em; }
+
+/* STATUS BAR */
+.status-bar {
+  display: flex; align-items: center; justify-content: center;
+  gap: 16px; margin-bottom: 16px; flex-wrap: wrap;
+}
+.utc-clock { font-size: 0.8rem; color: var(--muted); font-family: 'Space Mono', monospace; }
+.status-pill {
+  font-family: 'Syne', sans-serif;
+  font-weight: 700;
+  font-size: 0.9rem;
+  padding: 6px 18px;
+  border-radius: 100px;
+  letter-spacing: 0.05em;
+  transition: all 0.6s ease;
+}
+.status-pill.peak {
+  background: rgba(255,68,68,0.15);
+  border: 1px solid rgba(255,68,68,0.4);
+  color: #ff6b6b;
+  box-shadow: 0 0 20px rgba(255,68,68,0.1);
+}
+.status-pill.twox {
+  background: rgba(0,232,122,0.12);
+  border: 1px solid rgba(0,232,122,0.35);
+  color: #00e87a;
+  box-shadow: 0 0 20px rgba(0,232,122,0.08);
+}
+.countdown-text { font-size: 0.7rem; color: var(--muted); }
+.countdown-text strong { color: var(--text); }
+
+/* MAP */
+#map-wrap {
+  background: var(--surface);
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  overflow: hidden;
+  margin-bottom: 16px;
+  position: relative;
+}
+#map-wrap::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: radial-gradient(ellipse at 50% 50%, rgba(255,255,255,0.01) 0%, transparent 70%);
+  pointer-events: none; z-index: 1;
+}
+#world-svg { display: block; width: 100%; height: auto; }
+.country { stroke: #0b1428; stroke-width: 0.4px; transition: fill 0.7s ease; }
+.country.peak { fill: var(--peak-mid); }
+.country.twox { fill: var(--twox-mid); }
+.country.weekend { fill: #0f3d55; }
+.graticule { fill: none; stroke: rgba(255,255,255,0.04); stroke-width: 0.3px; }
+.sphere { fill: #070c18; }
+.city-dot { fill: #e0e8ff; opacity: 0.9; pointer-events: none; }
+.city-label { font-family: 'Space Mono', monospace; font-size: 7px; fill: rgba(220,228,255,0.6); pointer-events: none; }
+
+/* Peak band indicator */
+.peak-note {
+  position: absolute;
+  bottom: 10px; right: 12px;
+  font-size: 0.6rem;
+  color: var(--muted);
+  z-index: 2;
+}
+
+/* CONTROLS */
+.controls {
+  background: var(--surface);
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  padding: 16px 20px;
+  margin-bottom: 16px;
+  display: flex; flex-wrap: wrap; gap: 16px; align-items: center;
+}
+.control-group { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 220px; }
+.control-label { font-size: 0.65rem; color: var(--muted); white-space: nowrap; }
+input[type=range] {
+  flex: 1; height: 3px; background: rgba(255,255,255,0.1);
+  border-radius: 2px; outline: none; -webkit-appearance: none; cursor: pointer;
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px; height: 14px; border-radius: 50%;
+  background: var(--text); cursor: pointer;
+  box-shadow: 0 0 8px rgba(255,255,255,0.3);
+}
+.slider-val { font-size: 0.75rem; min-width: 68px; text-align: right; color: var(--text); }
+.btn {
+  padding: 5px 14px; border-radius: 6px; border: 1px solid var(--border);
+  background: transparent; color: var(--text); font-family: 'Space Mono', monospace;
+  font-size: 0.7rem; cursor: pointer; transition: all 0.2s; white-space: nowrap;
+}
+.btn:hover { border-color: rgba(255,255,255,0.25); background: rgba(255,255,255,0.05); }
+.btn.active { background: rgba(243,156,18,0.2); border-color: #f39c12; color: #f39c12; }
+.btn.live-active { background: rgba(0,232,122,0.15); border-color: #00e87a; color: #00e87a; }
+
+/* CITY GRID */
+.city-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.city-card {
+  background: var(--surface);
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  padding: 12px 10px;
+  transition: all 0.6s ease;
+}
+.city-card.peak { border-color: rgba(255,68,68,0.2); }
+.city-card.twox { border-color: rgba(0,232,122,0.18); }
+.city-card-name { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 0.75rem; margin-bottom: 1px; }
+.city-card-tz { font-size: 0.58rem; color: var(--muted); margin-bottom: 8px; }
+.city-card-time { font-size: 1.15rem; font-weight: 700; margin-bottom: 6px; letter-spacing: -0.01em; }
+.city-pill {
+  display: inline-block; font-size: 0.6rem; padding: 2px 8px;
+  border-radius: 100px; font-weight: 700;
+}
+.city-pill.peak { background: rgba(255,68,68,0.15); color: #ff6b6b; }
+.city-pill.twox { background: rgba(0,232,122,0.12); color: #00e87a; }
+
+/* LEGEND */
+.legend {
+  display: flex; gap: 20px; justify-content: center;
+  font-size: 0.65rem; color: var(--muted); flex-wrap: wrap;
+}
+.legend-item { display: flex; align-items: center; gap: 6px; }
+.legend-swatch { width: 10px; height: 10px; border-radius: 2px; }
+.legend-swatch.peak { background: var(--peak-mid); }
+.legend-swatch.twox { background: var(--twox-mid); }
+
+/* Pulse animation */
+@keyframes pulse-green { 0%,100%{box-shadow:0 0 0 0 rgba(0,232,122,0.15)} 50%{box-shadow:0 0 0 8px rgba(0,232,122,0)} }
+@keyframes pulse-red { 0%,100%{box-shadow:0 0 0 0 rgba(255,68,68,0.15)} 50%{box-shadow:0 0 0 8px rgba(255,68,68,0)} }
+.status-pill.twox { animation: pulse-green 3s infinite; }
+.status-pill.peak { animation: pulse-red 3s infinite; }
+</style>
+</head>
+<body>
+<div class="noise"></div>
+<div class="container">
+
+  <div class="header">
+    <div class="title">Claude Code 2x 深夜時間 世界地図</div>
+    <div class="subtitle">SPRING BREAK · MARCH 13–27, 2026 · PEAK = UTC 12:00–18:00 平日 · 2x = それ以外 ＋ 週末全日</div>
+  </div>
+
+  <div class="status-bar">
+    <div class="utc-clock" id="utc-clock">UTC ――:――:――</div>
+    <div class="status-pill" id="status-pill">読み込み中…</div>
+    <div class="countdown-text" id="countdown-text"></div>
+  </div>
+
+  <div id="map-wrap">
+    <svg id="world-svg" viewBox="0 0 960 500"></svg>
+    <div class="peak-note" id="peak-note">Peak帯 = UTC 12:00–18:00 平日</div>
+  </div>
+
+  <div class="controls">
+    <div class="control-group">
+      <span class="control-label">UTC時刻シミュレーション</span>
+      <input type="range" id="hour-slider" min="0" max="23" step="1" value="12">
+      <span class="slider-val" id="slider-val">12:00 UTC</span>
+    </div>
+    <button class="btn live-active" id="live-btn" onclick="setLive()">⬤ LIVE</button>
+    <button class="btn" id="weekend-btn" onclick="toggleWeekend()">平日モード</button>
+  </div>
+
+  <div class="city-grid" id="city-grid"></div>
+
+  <div class="legend">
+    <div class="legend-item"><div class="legend-swatch peak"></div>Peak -- 通常制限 (UTC 12:00–18:00 平日)</div>
+    <div class="legend-item"><div class="legend-swatch twox"></div>2x -- 使用量2倍 (それ以外 + 週末全日)</div>
+  </div>
+
+</div>
+
+<script>
+const CITIES = [
+  { name: "New York",     tz: "America/New_York",  label: "EDT UTC-4",   lon: -74.0,  lat: 40.7  },
+  { name: "Los Angeles",  tz: "America/Los_Angeles",label: "PDT UTC-7",   lon: -118.2, lat: 34.1  },
+  { name: "London",       tz: "Europe/London",      label: "BST UTC+1",   lon: -0.1,   lat: 51.5  },
+  { name: "Berlin/Paris", tz: "Europe/Berlin",      label: "CEST UTC+2",  lon: 13.4,   lat: 52.5  },
+  { name: "Delhi",        tz: "Asia/Kolkata",       label: "IST UTC+5:30",lon: 77.2,   lat: 28.6  },
+  { name: "Singapore",    tz: "Asia/Singapore",     label: "SGT UTC+8",   lon: 103.8,  lat: 1.3   },
+  { name: "Tokyo/Seoul",  tz: "Asia/Tokyo",         label: "JST UTC+9",   lon: 139.7,  lat: 35.7  },
+  { name: "Sydney",       tz: "Australia/Sydney",   label: "AEDT UTC+11", lon: 151.2,  lat: -33.9 },
+];
+
+let isLive = true;
+let simHour = 12;
+let forceWeekend = false;
+
+const sliderEl    = document.getElementById('hour-slider');
+const sliderVal   = document.getElementById('slider-val');
+const liveBtn     = document.getElementById('live-btn');
+const weekendBtn  = document.getElementById('weekend-btn');
+
+sliderEl.addEventListener('input', function() {
+  isLive = false;
+  simHour = parseInt(this.value);
+  sliderVal.textContent = String(simHour).padStart(2,'0') + ':00 UTC';
+  liveBtn.className = 'btn';
+  update();
+});
+
+function setLive() {
+  isLive = true;
+  liveBtn.className = 'btn live-active';
+  update();
+}
+
+function toggleWeekend() {
+  forceWeekend = !forceWeekend;
+  weekendBtn.textContent = forceWeekend ? '週末モード' : '平日モード';
+  weekendBtn.className = forceWeekend ? 'btn active' : 'btn';
+  update();
+}
+
+function getState() {
+  const now = new Date();
+  let utcH, utcM, utcS, weekend;
+  if (isLive) {
+    utcH = now.getUTCHours();
+    utcM = now.getUTCMinutes();
+    utcS = now.getUTCSeconds();
+    const d = now.getUTCDay();
+    weekend = (d === 0 || d === 6);
+  } else {
+    utcH = simHour; utcM = 0; utcS = 0;
+    weekend = forceWeekend;
+  }
+  const peak = !weekend && utcH >= 12 && utcH < 18;
+  return { utcH, utcM, utcS, weekend, peak };
+}
+
+function localTime(tz, utcH, utcM) {
+  const d = new Date();
+  d.setUTCHours(utcH, utcM, 0, 0);
+  return d.toLocaleTimeString('ja-JP', { timeZone: tz, hour: '2-digit', minute: '2-digit', hour12: false });
+}
+
+function update() {
+  const { utcH, utcM, utcS, weekend, peak } = getState();
+
+  // Clock
+  document.getElementById('utc-clock').textContent =
+    `UTC ${String(utcH).padStart(2,'0')}:${String(utcM).padStart(2,'0')}:${String(utcS).padStart(2,'0')}`;
+
+  // Status pill
+  const pill = document.getElementById('status-pill');
+  if (weekend) {
+    pill.textContent = '🎉 週末 -- 2x ALL DAY';
+    pill.className = 'status-pill twox';
+  } else if (peak) {
+    pill.textContent = '🔴 PEAK -- 通常制限';
+    pill.className = 'status-pill peak';
+  } else {
+    pill.textContent = '🟢 2x -- 使用量2倍';
+    pill.className = 'status-pill twox';
+  }
+
+  // Countdown
+  const countEl = document.getElementById('countdown-text');
+  if (isLive && !weekend) {
+    if (peak) {
+      const rem = (18 - utcH) * 60 - utcM;
+      const h = Math.floor(rem/60), m = rem % 60;
+      countEl.innerHTML = `2x まで <strong>${h}h ${m}m</strong>`;
+    } else if (utcH < 12) {
+      const rem = (12 - utcH) * 60 - utcM;
+      const h = Math.floor(rem/60), m = rem % 60;
+      countEl.innerHTML = `Peak まで <strong>${h}h ${m}m</strong>`;
+    } else {
+      const rem = (36 - utcH) * 60 - utcM; // next day 12:00
+      const h = Math.floor(rem/60), m = rem % 60;
+      countEl.innerHTML = `次のPeak まで <strong>${h}h ${m}m</strong>`;
+    }
+  } else {
+    countEl.innerHTML = '';
+  }
+
+  // Map countries
+  d3.selectAll('.country')
+    .classed('peak', peak && !weekend)
+    .classed('twox', !peak || weekend);
+
+  // Live slider sync
+  if (isLive) {
+    sliderEl.value = utcH;
+    sliderVal.textContent = 'LIVE ' + String(utcH).padStart(2,'0') + ':' + String(utcM).padStart(2,'0');
+  }
+
+  // City cards
+  const grid = document.getElementById('city-grid');
+  grid.innerHTML = '';
+  CITIES.forEach(c => {
+    const t = localTime(c.tz, utcH, utcM);
+    const card = document.createElement('div');
+    card.className = `city-card ${peak && !weekend ? 'peak' : 'twox'}`;
+    card.innerHTML = `
+      <div class="city-card-name">${c.name}</div>
+      <div class="city-card-tz">${c.label}</div>
+      <div class="city-card-time">${t}</div>
+      <span class="city-pill ${peak && !weekend ? 'peak' : 'twox'}">${peak && !weekend ? '🔴 Peak' : '🟢 2x'}</span>
+    `;
+    grid.appendChild(card);
+  });
+}
+
+// Init map
+const svg = d3.select('#world-svg');
+const W = 960, H = 500;
+const proj = d3.geoNaturalEarth1().scale(153).translate([W/2, H/2]);
+const path = d3.geoPath().projection(proj);
+const grat = d3.geoGraticule();
+
+svg.append('path').datum({type:'Sphere'}).attr('class','sphere').attr('d',path);
+svg.append('path').datum(grat()).attr('class','graticule').attr('d',path);
+
+fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json')
+  .then(r => r.json())
+  .then(world => {
+    const countries = topojson.feature(world, world.objects.countries);
+    svg.selectAll('.country')
+      .data(countries.features)
+      .join('path')
+      .attr('class','country twox')
+      .attr('d', path);
+
+    // City dots & labels
+    const cityLayer = svg.append('g');
+    CITIES.forEach(c => {
+      const [x, y] = proj([c.lon, c.lat]);
+      if (!x || !y) return;
+      cityLayer.append('circle')
+        .attr('class','city-dot')
+        .attr('cx', x).attr('cy', y).attr('r', 2.5);
+      cityLayer.append('text')
+        .attr('class','city-label')
+        .attr('x', x+4).attr('y', y+3)
+        .text(c.name);
+    });
+
+    update();
+  })
+  .catch(() => {
+    // fallback: just update without map
+    update();
+  });
+
+// Tick
+setInterval(() => { if (isLive) update(); }, 1000);
+update();
+</script>
+</body>
+</html>

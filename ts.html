@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>Sandboxed TypeScript Interpreter</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/typescript/5.3.4/typescript.min.js"></script>
+  <style>
+    body { font-family: sans-serif; margin: 20px; }
+    textarea { width: 100%; height: 150px; }
+    pre { background: #f0f0f0; padding: 10px; white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+  <h2>TypeScript Interpreter</h2>
+  <textarea id="tsCode">// ここに TypeScript を書いてください
+console.log("Hello TypeScript!");
+let x: number = 10;
+console.log(x * 2);</textarea>
+  <button id="runBtn">Run</button>
+  <h3>Output:</h3>
+  <pre id="output"></pre>
+
+  <iframe id="sandboxFrame" style="display:none;" sandbox="allow-scripts"></iframe>
+
+  <script>
+    const runBtn = document.getElementById("runBtn");
+    const output = document.getElementById("output");
+    const sandboxFrame = document.getElementById("sandboxFrame");
+
+    runBtn.addEventListener("click", () => {
+      const tsCode = document.getElementById("tsCode").value;
+
+      try {
+        // TypeScript -> JavaScript に変換
+        const jsCode = ts.transpileModule(tsCode, {
+          compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ESNext }
+        }).outputText;
+
+        // iframe に HTML を書き込む
+        const iframeDoc = sandboxFrame.contentDocument || sandboxFrame.contentWindow.document;
+        iframeDoc.open();
+        iframeDoc.write(`
+          <script>
+            const log = [];
+            console.log = (...args) => { log.push(args.join(" ")); };
+            try { ${jsCode} } catch(e) { log.push("Error: " + e); }
+            parent.postMessage(log.join("\\n"), "*");
+          <\/script>
+        `);
+        iframeDoc.close();
+
+      } catch (e) {
+        output.textContent = "Compilation Error: " + e;
+      }
+    });
+
+    // iframe からのメッセージを受信
+    window.addEventListener("message", (event) => {
+      output.textContent = event.data;
+    });
+  </script>
+</body>
+</html>

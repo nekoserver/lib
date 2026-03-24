@@ -1,0 +1,825 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ER Diagram -- cloudflare-workers-github-oauth-1</title>
+<style>
+  :root {
+    --bg: #f0f2f5;
+    --canvas-bg: #fff;
+    --border: #d0d7de;
+    --text: #1f2328;
+    --text-muted: #656d76;
+    --accent: #0969da;
+    --accent-light: #ddf4ff;
+    --table-bg: #fff;
+    --table-header-bg: #f6f8fa;
+    --pk-color: #cf222e;
+    --fk-color: #0969da;
+    --line-color: #8b949e;
+    --shadow: rgba(0,0,0,0.08);
+    --toolbar-bg: #fff;
+    --dropdown-bg: #fff;
+    --dropdown-hover: #f6f8fa;
+    --group-auth: #ddf4ff;
+    --group-commit: #dafbe1;
+    --group-ai: #fff8c5;
+    --group-email: #ffebe9;
+    --group-config: #f5f0ff;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0d1117;
+      --canvas-bg: #161b22;
+      --border: #30363d;
+      --text: #e6edf3;
+      --text-muted: #8b949e;
+      --accent: #58a6ff;
+      --accent-light: #1c3a5c;
+      --table-bg: #1c2333;
+      --table-header-bg: #21262d;
+      --pk-color: #f85149;
+      --fk-color: #58a6ff;
+      --line-color: #484f58;
+      --shadow: rgba(0,0,0,0.3);
+      --toolbar-bg: #21262d;
+      --dropdown-bg: #21262d;
+      --dropdown-hover: #30363d;
+      --group-auth: rgba(56,139,253,0.08);
+      --group-commit: rgba(63,185,80,0.08);
+      --group-ai: rgba(210,153,34,0.08);
+      --group-email: rgba(248,81,73,0.08);
+      --group-config: rgba(163,113,247,0.08);
+    }
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    overflow: hidden;
+    height: 100vh;
+  }
+  #toolbar {
+    position: fixed; top: 0; left: 0; right: 0;
+    height: 48px;
+    background: var(--toolbar-bg);
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center;
+    padding: 0 16px;
+    gap: 12px;
+    z-index: 100;
+    box-shadow: 0 1px 3px var(--shadow);
+  }
+  #toolbar h1 {
+    font-size: 14px; font-weight: 600;
+    white-space: nowrap;
+  }
+  #toolbar .spacer { flex: 1; }
+  #toolbar button, #toolbar .dropdown-wrapper button {
+    font-size: 12px;
+    padding: 6px 12px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--toolbar-bg);
+    color: var(--text);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.15s;
+  }
+  #toolbar button:hover { background: var(--accent-light); }
+  #toolbar .btn-primary {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+  }
+  #toolbar .btn-primary:hover { opacity: 0.9; }
+
+  .dropdown-wrapper {
+    position: relative;
+    display: inline-block;
+  }
+  .dropdown-menu {
+    display: none;
+    position: absolute;
+    top: 100%;
+    right: 0;
+    margin-top: 4px;
+    background: var(--dropdown-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    box-shadow: 0 4px 12px var(--shadow);
+    min-width: 180px;
+    z-index: 200;
+    overflow: hidden;
+  }
+  .dropdown-menu.show { display: block; }
+  .dropdown-menu button {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    text-align: left;
+    padding: 8px 14px;
+    border: none;
+    border-radius: 0;
+    font-size: 13px;
+  }
+  .dropdown-menu button:hover { background: var(--dropdown-hover); }
+  .menu-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .dropdown-menu .separator {
+    height: 1px;
+    background: var(--border);
+    margin: 4px 0;
+  }
+
+  #canvas-wrapper {
+    position: fixed;
+    top: 48px; left: 0; right: 0; bottom: 0;
+    overflow: auto;
+    background: var(--canvas-bg);
+    cursor: grab;
+  }
+  #canvas-wrapper.grabbing { cursor: grabbing; }
+  #canvas {
+    position: relative;
+    width: 3200px;
+    height: 2400px;
+    min-width: 100%;
+    min-height: 100%;
+  }
+  #svg-layer {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    pointer-events: none;
+    z-index: 1;
+  }
+  #svg-layer line {
+    stroke: var(--line-color);
+    stroke-width: 1.5;
+  }
+  #svg-layer .fk-label {
+    font-size: 10px;
+    fill: var(--text-muted);
+  }
+
+  .er-table {
+    position: absolute;
+    background: var(--table-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    box-shadow: 0 2px 6px var(--shadow);
+    min-width: 200px;
+    z-index: 10;
+    cursor: move;
+    user-select: none;
+    touch-action: none;
+    transition: box-shadow 0.15s;
+  }
+  .er-table:hover {
+    box-shadow: 0 4px 12px var(--shadow);
+  }
+  .er-table.dragging {
+    box-shadow: 0 8px 24px var(--shadow);
+    z-index: 50;
+    opacity: 0.92;
+  }
+  .er-table-header {
+    padding: 8px 12px;
+    font-weight: 700;
+    font-size: 13px;
+    background: var(--table-header-bg);
+    border-bottom: 1px solid var(--border);
+    border-radius: 8px 8px 0 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .er-table-header .group-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .er-table-body {
+    padding: 6px 0;
+    font-size: 12px;
+  }
+  .er-col {
+    padding: 2px 12px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    line-height: 1.5;
+  }
+  .er-col .col-badge {
+    font-size: 9px;
+    font-weight: 700;
+    padding: 0 4px;
+    border-radius: 3px;
+    flex-shrink: 0;
+  }
+  .er-col .pk { background: #ffebe9; color: var(--pk-color); }
+  .er-col .fk { background: #ddf4ff; color: var(--fk-color); }
+  .er-col .col-name { font-weight: 500; }
+  .er-col .col-type { color: var(--text-muted); margin-left: auto; }
+
+  .legend {
+    position: fixed;
+    bottom: 16px;
+    left: 16px;
+    background: var(--toolbar-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 11px;
+    z-index: 100;
+    box-shadow: 0 2px 6px var(--shadow);
+  }
+  .legend-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 4px;
+  }
+  .legend-row:last-child { margin-bottom: 0; }
+  .legend-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .zoom-info {
+    position: fixed;
+    bottom: 16px;
+    right: 16px;
+    background: var(--toolbar-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 6px 12px;
+    font-size: 11px;
+    z-index: 100;
+    box-shadow: 0 2px 6px var(--shadow);
+    color: var(--text-muted);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .er-col .pk { background: rgba(248,81,73,0.15); }
+    .er-col .fk { background: rgba(88,166,255,0.15); }
+  }
+</style>
+</head>
+<body>
+<div id="toolbar">
+  <h1>ER Diagram</h1>
+  <span style="font-size:12px;color:var(--text-muted)">cloudflare-workers-github-oauth-1</span>
+  <span class="spacer"></span>
+  <div class="dropdown-wrapper">
+    <button onclick="toggleGroupMenu(event)">Filter Group ▾</button>
+    <div id="group-menu" class="dropdown-menu">
+      <button onclick="filterGroup('all')">すべて</button>
+      <div class="separator"></div>
+      <button onclick="filterGroup('auth')"><span class="menu-dot" style="background:#388bfd"></span>Auth / Session</button>
+      <button onclick="filterGroup('commit')"><span class="menu-dot" style="background:#3fb950"></span>Commit / Cache</button>
+      <button onclick="filterGroup('ai')"><span class="menu-dot" style="background:#d29922"></span>AI Summary</button>
+      <button onclick="filterGroup('email')"><span class="menu-dot" style="background:#f85149"></span>Email / Resend</button>
+      <button onclick="filterGroup('config')"><span class="menu-dot" style="background:#a371f7"></span>Config / Settings</button>
+    </div>
+  </div>
+  <button onclick="resetPositions()">Reset Layout</button>
+  <button onclick="fitToView()">Fit to View</button>
+  <div class="dropdown-wrapper">
+    <button class="btn-primary" onclick="toggleSaveMenu(event)">Save Positions</button>
+    <div id="save-menu" class="dropdown-menu">
+      <button onclick="downloadPositions('json')">Download as JSON</button>
+      <button onclick="downloadPositions('csv')">Download as CSV</button>
+      <div class="separator"></div>
+      <button onclick="loadPositionsFromFile()">Load from File...</button>
+    </div>
+  </div>
+  <input type="file" id="file-input" accept=".json,.csv" style="display:none" onchange="handleFileLoad(event)">
+</div>
+
+<div id="canvas-wrapper">
+  <div id="canvas">
+    <svg id="svg-layer"></svg>
+  </div>
+</div>
+
+<div class="legend">
+  <div class="legend-row"><div class="legend-dot" style="background:#388bfd"></div> Auth / Session</div>
+  <div class="legend-row"><div class="legend-dot" style="background:#3fb950"></div> Commit / Cache</div>
+  <div class="legend-row"><div class="legend-dot" style="background:#d29922"></div> AI Summary</div>
+  <div class="legend-row"><div class="legend-dot" style="background:#f85149"></div> Email / Resend</div>
+  <div class="legend-row"><div class="legend-dot" style="background:#a371f7"></div> Config / Settings</div>
+</div>
+
+<div class="zoom-info">Drag tables to rearrange</div>
+
+<script>
+const GROUPS = {
+  auth:   { color: '#388bfd', tables: ['user_sessions','teams','workspaces','team_members'] },
+  commit: { color: '#3fb950', tables: ['commit_calendar_cache','commit_list_cache','cache_stats','commit_search_history','commit_search_repo_stats','cloudflare_setup_pending'] },
+  ai:     { color: '#d29922', tables: ['ai_summary_log','ai_summary_reviews'] },
+  email:  { color: '#f85149', tables: ['resend_webhook_sources','resend_webhook_log','email_send_log','email_suppression_list','email_mfa_challenges','email_audit_anomalies'] },
+  config: { color: '#a371f7', tables: ['installation_permissions','repo_color_settings','repo_groups','repo_group_members'] }
+};
+
+function groupOf(tableName) {
+  for (const [g, d] of Object.entries(GROUPS)) {
+    if (d.tables.includes(tableName)) return d.color;
+  }
+  return '#8b949e';
+}
+
+const SCHEMA = [
+  { name:'user_sessions', cols:[
+    {n:'id',pk:true,t:'INT'},{n:'user_id',t:'TEXT'},{n:'timezone',t:'TEXT'},{n:'session_duration',t:'TEXT'},
+    {n:'last_login_at',t:'TEXT'},{n:'current_login_at',t:'TEXT'},{n:'updated_at',t:'TEXT'},
+    {n:'display_name',t:'TEXT'},{n:'github_access_token',t:'TEXT'},{n:'current_workspace_id',t:'TEXT'}
+  ]},
+  { name:'teams', cols:[
+    {n:'id',pk:true,t:'TEXT'},{n:'name',t:'TEXT'},{n:'created_at',t:'TEXT'}
+  ]},
+  { name:'workspaces', cols:[
+    {n:'id',pk:true,t:'TEXT'},{n:'team_id',fk:'teams',t:'TEXT'},{n:'name',t:'TEXT'},{n:'created_at',t:'TEXT'}
+  ]},
+  { name:'team_members', cols:[
+    {n:'team_id',pk:true,fk:'teams',t:'TEXT'},{n:'user_id',pk:true,t:'TEXT'},{n:'role',t:'TEXT'},{n:'joined_at',t:'TEXT'}
+  ]},
+  { name:'installation_permissions', cols:[
+    {n:'id',pk:true,t:'INT'},{n:'installation_id',t:'INT'},{n:'repo_name',t:'TEXT'},
+    {n:'repository_selection',t:'TEXT'},{n:'permissions',t:'TEXT'},{n:'updated_at',t:'TEXT'}
+  ]},
+  { name:'commit_calendar_cache', cols:[
+    {n:'id',pk:true,t:'INT'},{n:'owner',t:'TEXT'},{n:'repo',t:'TEXT'},
+    {n:'year',t:'INT'},{n:'month',t:'INT'},{n:'counts',t:'TEXT'},{n:'cached_at',t:'TEXT'},
+    {n:'user_id',t:'TEXT'},{n:'workspace_id',t:'TEXT'}
+  ]},
+  { name:'commit_list_cache', cols:[
+    {n:'workspace_id',t:'TEXT'},{n:'owner',t:'TEXT'},{n:'repo',t:'TEXT'},
+    {n:'date',t:'TEXT'},{n:'commits_json',t:'TEXT'},{n:'commit_count',t:'INT'},{n:'cached_at',t:'TEXT'}
+  ]},
+  { name:'cache_stats', cols:[
+    {n:'user_id',t:'TEXT'},{n:'owner',t:'TEXT'},{n:'repo',t:'TEXT'},
+    {n:'github_fetch_count',t:'INT'},{n:'cache_save_count',t:'INT'},
+    {n:'cache_lookup_count',t:'INT'},{n:'cache_hit_count',t:'INT'},{n:'last_updated_at',t:'TEXT'}
+  ]},
+  { name:'cloudflare_setup_pending', cols:[
+    {n:'id',pk:true,t:'INT'},{n:'user_id',t:'TEXT'},{n:'repo_owner',t:'TEXT'},
+    {n:'repo_name',t:'TEXT'},{n:'repo_full_name',t:'TEXT'},{n:'is_private',t:'INT'},
+    {n:'created_at',t:'TEXT'},{n:'dismissed_at',t:'TEXT'}
+  ]},
+  { name:'commit_search_history', cols:[
+    {n:'id',pk:true,t:'INT'},{n:'user_id',t:'TEXT'},{n:'search_query',t:'TEXT'},
+    {n:'total_hits',t:'INT'},{n:'repo_names',t:'TEXT'},{n:'searched_at',t:'TEXT'}
+  ]},
+  { name:'commit_search_repo_stats', cols:[
+    {n:'id',pk:true,t:'INT'},{n:'search_history_id',fk:'commit_search_history',t:'INT'},
+    {n:'repo_name',t:'TEXT'},{n:'hit_count',t:'INT'},{n:'search_query',t:'TEXT'},{n:'user_name',t:'TEXT'}
+  ]},
+  { name:'ai_summary_log', cols:[
+    {n:'id',pk:true,t:'INT'},{n:'request_id',t:'TEXT'},{n:'daily_seq',t:'INT'},
+    {n:'event_date',t:'TEXT'},{n:'event_type',t:'TEXT'},{n:'repo_full_name',t:'TEXT'},
+    {n:'pr_number',t:'INT'},{n:'pr_action',t:'TEXT'},{n:'pr_url',t:'TEXT'},
+    {n:'model',t:'TEXT'},{n:'summary',t:'TEXT'},{n:'diff_length',t:'INT'},
+    {n:'slack_notified',t:'INT'},{n:'created_at',t:'TEXT'},
+    {n:'resolved',t:'INT'},{n:'resolved_at',t:'TEXT'},{n:'resolution_note',t:'TEXT'},
+    {n:'view_count',t:'INT'},{n:'parent_id',t:'TEXT'},{n:'tags',t:'TEXT'}
+  ]},
+  { name:'ai_summary_reviews', cols:[
+    {n:'id',pk:true,t:'INT'},{n:'summary_request_id',fk:'ai_summary_log',t:'TEXT'},
+    {n:'rating',t:'TEXT'},{n:'reviewer_type',t:'TEXT'},{n:'reviewer_name',t:'TEXT'},
+    {n:'review_model',t:'TEXT'},{n:'comment',t:'TEXT'},{n:'created_at',t:'TEXT'}
+  ]},
+  { name:'repo_color_settings', cols:[
+    {n:'id',pk:true,t:'INT'},{n:'workspace_id',t:'TEXT'},{n:'repo_name',t:'TEXT'},
+    {n:'color_code',t:'TEXT'},{n:'display_order',t:'INT'},{n:'tags',t:'TEXT'},
+    {n:'is_visible',t:'INT'},{n:'created_at',t:'TEXT'},{n:'updated_at',t:'TEXT'}
+  ]},
+  { name:'repo_groups', cols:[
+    {n:'id',pk:true,t:'TEXT'},{n:'workspace_id',t:'TEXT'},{n:'name',t:'TEXT'},
+    {n:'description',t:'TEXT'},{n:'color_code',t:'TEXT'},{n:'icon',t:'TEXT'},
+    {n:'slack_channel_id',t:'TEXT'},{n:'display_order',t:'INT'},
+    {n:'created_at',t:'TEXT'},{n:'updated_at',t:'TEXT'}
+  ]},
+  { name:'repo_group_members', cols:[
+    {n:'group_id',pk:true,fk:'repo_groups',t:'TEXT'},{n:'repo_name',pk:true,t:'TEXT'},
+    {n:'workspace_id',t:'TEXT'},{n:'added_at',t:'TEXT'}
+  ]},
+  { name:'resend_webhook_sources', cols:[
+    {n:'id',pk:true,t:'TEXT'},{n:'label',t:'TEXT'},{n:'resend_account_id',t:'TEXT'},
+    {n:'svix_endpoint_id',t:'TEXT'},{n:'created_at',t:'TEXT'},{n:'webhook_secret',t:'TEXT'}
+  ]},
+  { name:'email_send_log', cols:[
+    {n:'id',pk:true,t:'INT'},{n:'source_id',fk:'resend_webhook_sources',t:'TEXT'},
+    {n:'resend_email_id',t:'TEXT'},{n:'email_to',t:'TEXT'},{n:'email_type',t:'TEXT'},
+    {n:'reference_id',t:'TEXT'},{n:'created_at',t:'TEXT'}
+  ]},
+  { name:'resend_webhook_log', cols:[
+    {n:'id',pk:true,t:'INT'},{n:'source_id',fk:'resend_webhook_sources',t:'TEXT'},
+    {n:'svix_id',t:'TEXT'},{n:'resend_email_id',t:'TEXT'},{n:'event_type',t:'TEXT'},
+    {n:'email_from',t:'TEXT'},{n:'email_to',t:'TEXT'},{n:'bounce_type',t:'TEXT'},
+    {n:'error_detail',t:'TEXT'},{n:'slack_result',t:'TEXT'},{n:'slack_result_at',t:'TEXT'},
+    {n:'proxy_result',t:'TEXT'},{n:'proxy_result_at',t:'TEXT'},{n:'created_at',t:'TEXT'}
+  ]},
+  { name:'email_suppression_list', cols:[
+    {n:'id',pk:true,t:'INT'},{n:'email',t:'TEXT'},
+    {n:'source_id',fk:'resend_webhook_sources',t:'TEXT'},
+    {n:'reason',t:'TEXT'},{n:'origin_webhook_log_id',fk:'resend_webhook_log',t:'INT'},
+    {n:'suppressed_at',t:'TEXT'},{n:'resubscribed_at',t:'TEXT'}
+  ]},
+  { name:'email_mfa_challenges', cols:[
+    {n:'id',pk:true,t:'TEXT'},{n:'user_id',t:'TEXT'},{n:'email',t:'TEXT'},
+    {n:'source_id',fk:'resend_webhook_sources',t:'TEXT'},{n:'resend_email_id',t:'TEXT'},
+    {n:'code_hash',t:'TEXT'},{n:'code_type',t:'TEXT'},{n:'code_algorithm',t:'TEXT'},
+    {n:'totp_period',t:'INT'},{n:'totp_counter',t:'INT'},{n:'purpose',t:'TEXT'},
+    {n:'attempts',t:'INT'},{n:'max_attempts',t:'INT'},{n:'expires_at',t:'TEXT'},
+    {n:'verified_at',t:'TEXT'},{n:'invalidated_at',t:'TEXT'},{n:'created_at',t:'TEXT'}
+  ]},
+  { name:'email_audit_anomalies', cols:[
+    {n:'id',pk:true,t:'INT'},{n:'period_start',t:'TEXT'},{n:'period_end',t:'TEXT'},
+    {n:'anomaly_type',t:'TEXT'},{n:'severity',t:'TEXT'},{n:'target_user_id',t:'TEXT'},
+    {n:'target_email',t:'TEXT'},{n:'source_id',fk:'resend_webhook_sources',t:'TEXT'},
+    {n:'metric_value',t:'REAL'},{n:'threshold_value',t:'REAL'},{n:'detail',t:'TEXT'},
+    {n:'acknowledged_at',t:'TEXT'},{n:'acknowledged_by',t:'TEXT'},{n:'created_at',t:'TEXT'}
+  ]}
+];
+
+const RELATIONS = [
+  { from:'workspaces', fromCol:'team_id', to:'teams', toCol:'id' },
+  { from:'team_members', fromCol:'team_id', to:'teams', toCol:'id' },
+  { from:'commit_search_repo_stats', fromCol:'search_history_id', to:'commit_search_history', toCol:'id' },
+  { from:'ai_summary_reviews', fromCol:'summary_request_id', to:'ai_summary_log', toCol:'request_id' },
+  { from:'repo_group_members', fromCol:'group_id', to:'repo_groups', toCol:'id' },
+  { from:'email_send_log', fromCol:'source_id', to:'resend_webhook_sources', toCol:'id' },
+  { from:'resend_webhook_log', fromCol:'source_id', to:'resend_webhook_sources', toCol:'id' },
+  { from:'email_suppression_list', fromCol:'source_id', to:'resend_webhook_sources', toCol:'id' },
+  { from:'email_suppression_list', fromCol:'origin_webhook_log_id', to:'resend_webhook_log', toCol:'id' },
+  { from:'email_mfa_challenges', fromCol:'source_id', to:'resend_webhook_sources', toCol:'id' },
+  { from:'email_audit_anomalies', fromCol:'source_id', to:'resend_webhook_sources', toCol:'id' }
+];
+
+const DEFAULT_POSITIONS = {
+  "user_sessions":              { "x": 50,   "y": 40 },
+  "teams":                      { "x": 50,   "y": 340 },
+  "workspaces":                 { "x": 280,  "y": 340 },
+  "team_members":               { "x": 280,  "y": 500 },
+
+  "commit_calendar_cache":      { "x": 560,  "y": 40 },
+  "commit_list_cache":          { "x": 560,  "y": 310 },
+  "cache_stats":                { "x": 560,  "y": 560 },
+  "commit_search_history":      { "x": 820,  "y": 40 },
+  "commit_search_repo_stats":   { "x": 820,  "y": 240 },
+  "cloudflare_setup_pending":   { "x": 820,  "y": 440 },
+
+  "ai_summary_log":             { "x": 1100, "y": 40 },
+  "ai_summary_reviews":         { "x": 1100, "y": 500 },
+
+  "installation_permissions":   { "x": 1380, "y": 40 },
+  "repo_color_settings":        { "x": 1380, "y": 260 },
+  "repo_groups":                { "x": 1380, "y": 510 },
+  "repo_group_members":         { "x": 1640, "y": 510 },
+
+  "resend_webhook_sources":     { "x": 1640, "y": 40 },
+  "email_send_log":             { "x": 1900, "y": 40 },
+  "resend_webhook_log":         { "x": 1900, "y": 260 },
+  "email_suppression_list":     { "x": 2160, "y": 260 },
+  "email_mfa_challenges":       { "x": 2160, "y": 40 },
+  "email_audit_anomalies":      { "x": 2420, "y": 40 }
+};
+
+let positions = {};
+let tableElements = {};
+
+function init() {
+  const saved = localStorage.getItem('er-positions-oauth1');
+  positions = saved ? JSON.parse(saved) : JSON.parse(JSON.stringify(DEFAULT_POSITIONS));
+
+  const canvas = document.getElementById('canvas');
+
+  for (const table of SCHEMA) {
+    const el = createTableElement(table);
+    canvas.appendChild(el);
+    tableElements[table.name] = el;
+    const pos = positions[table.name] || { x: 0, y: 0 };
+    positions[table.name] = pos;
+    el.style.left = pos.x + 'px';
+    el.style.top = pos.y + 'px';
+    makeDraggable(el, table.name);
+  }
+
+  drawRelations();
+}
+
+function createTableElement(table) {
+  const el = document.createElement('div');
+  el.className = 'er-table';
+  el.id = 'table-' + table.name;
+
+  const color = groupOf(table.name);
+
+  let headerHTML = `<div class="er-table-header">
+    <span class="group-dot" style="background:${color}"></span>
+    ${table.name}
+  </div>`;
+
+  let bodyHTML = '<div class="er-table-body">';
+  for (const col of table.cols) {
+    let badges = '';
+    if (col.pk) badges += '<span class="col-badge pk">PK</span>';
+    if (col.fk) badges += '<span class="col-badge fk">FK</span>';
+    bodyHTML += `<div class="er-col" data-col="${col.n}">
+      ${badges}
+      <span class="col-name">${col.n}</span>
+      <span class="col-type">${col.t}</span>
+    </div>`;
+  }
+  bodyHTML += '</div>';
+
+  el.innerHTML = headerHTML + bodyHTML;
+  return el;
+}
+
+function makeDraggable(el, tableName) {
+  el.addEventListener('pointerdown', (e) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    e.stopPropagation();
+    el.setPointerCapture(e.pointerId);
+    el.classList.add('dragging');
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const origX = positions[tableName].x;
+    const origY = positions[tableName].y;
+
+    function onMove(e2) {
+      e2.preventDefault();
+      const dx = e2.clientX - startX;
+      const dy = e2.clientY - startY;
+      const newX = Math.max(0, origX + dx);
+      const newY = Math.max(0, origY + dy);
+      positions[tableName].x = newX;
+      positions[tableName].y = newY;
+      el.style.left = newX + 'px';
+      el.style.top = newY + 'px';
+      drawRelations();
+    }
+
+    function onUp(e3) {
+      el.releasePointerCapture(e3.pointerId);
+      el.classList.remove('dragging');
+      el.removeEventListener('pointermove', onMove);
+      el.removeEventListener('pointerup', onUp);
+      localStorage.setItem('er-positions-oauth1', JSON.stringify(positions));
+    }
+
+    el.addEventListener('pointermove', onMove);
+    el.addEventListener('pointerup', onUp);
+  });
+}
+
+function drawRelations() {
+  const svg = document.getElementById('svg-layer');
+  svg.innerHTML = '';
+
+  for (const rel of RELATIONS) {
+    const fromEl = tableElements[rel.from];
+    const toEl = tableElements[rel.to];
+    if (!fromEl || !toEl) continue;
+    if (fromEl.style.display === 'none' || toEl.style.display === 'none') continue;
+
+    const fromRect = { x: positions[rel.from].x, y: positions[rel.from].y, w: fromEl.offsetWidth, h: fromEl.offsetHeight };
+    const toRect = { x: positions[rel.to].x, y: positions[rel.to].y, w: toEl.offsetWidth, h: toEl.offsetHeight };
+
+    const fromCx = fromRect.x + fromRect.w / 2;
+    const fromCy = fromRect.y + fromRect.h / 2;
+    const toCx = toRect.x + toRect.w / 2;
+    const toCy = toRect.y + toRect.h / 2;
+
+    const fromPt = edgePoint(fromRect, toCx, toCy);
+    const toPt = edgePoint(toRect, fromCx, fromCy);
+
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    line.setAttribute('x1', fromPt.x);
+    line.setAttribute('y1', fromPt.y);
+    line.setAttribute('x2', toPt.x);
+    line.setAttribute('y2', toPt.y);
+    line.setAttribute('marker-end', 'url(#arrowhead)');
+    svg.appendChild(line);
+
+    const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    label.setAttribute('x', (fromPt.x + toPt.x) / 2);
+    label.setAttribute('y', (fromPt.y + toPt.y) / 2 - 4);
+    label.setAttribute('text-anchor', 'middle');
+    label.classList.add('fk-label');
+    label.textContent = rel.fromCol;
+    svg.appendChild(label);
+  }
+
+  if (!svg.querySelector('defs')) {
+    const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+    const marker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
+    marker.setAttribute('id', 'arrowhead');
+    marker.setAttribute('markerWidth', '8');
+    marker.setAttribute('markerHeight', '6');
+    marker.setAttribute('refX', '8');
+    marker.setAttribute('refY', '3');
+    marker.setAttribute('orient', 'auto');
+    const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+    polygon.setAttribute('points', '0 0, 8 3, 0 6');
+    polygon.setAttribute('fill', 'var(--line-color)');
+    marker.appendChild(polygon);
+    defs.appendChild(marker);
+    svg.insertBefore(defs, svg.firstChild);
+  }
+}
+
+function edgePoint(rect, targetX, targetY) {
+  const cx = rect.x + rect.w / 2;
+  const cy = rect.y + rect.h / 2;
+  const dx = targetX - cx;
+  const dy = targetY - cy;
+
+  if (dx === 0 && dy === 0) return { x: cx, y: cy };
+
+  const absDx = Math.abs(dx);
+  const absDy = Math.abs(dy);
+  const hw = rect.w / 2;
+  const hh = rect.h / 2;
+
+  let scale;
+  if (absDx * hh > absDy * hw) {
+    scale = hw / absDx;
+  } else {
+    scale = hh / absDy;
+  }
+
+  return { x: cx + dx * scale, y: cy + dy * scale };
+}
+
+let activeFilter = 'all';
+
+function groupKeyOf(tableName) {
+  for (const [g, d] of Object.entries(GROUPS)) {
+    if (d.tables.includes(tableName)) return g;
+  }
+  return null;
+}
+
+function filterGroup(group) {
+  activeFilter = group;
+  document.getElementById('group-menu').classList.remove('show');
+
+  for (const table of SCHEMA) {
+    const el = tableElements[table.name];
+    const key = groupKeyOf(table.name);
+    if (group === 'all' || key === group) {
+      el.style.display = '';
+    } else {
+      el.style.display = 'none';
+    }
+  }
+  drawRelations();
+}
+
+function toggleGroupMenu(e) {
+  e.stopPropagation();
+  document.getElementById('save-menu').classList.remove('show');
+  document.getElementById('group-menu').classList.toggle('show');
+}
+
+function toggleSaveMenu(e) {
+  e.stopPropagation();
+  document.getElementById('group-menu').classList.remove('show');
+  document.getElementById('save-menu').classList.toggle('show');
+}
+
+document.addEventListener('click', () => {
+  document.getElementById('save-menu').classList.remove('show');
+  document.getElementById('group-menu').classList.remove('show');
+});
+
+function downloadPositions(format) {
+  document.getElementById('save-menu').classList.remove('show');
+
+  let content, filename, mime;
+
+  if (format === 'json') {
+    const ordered = {};
+    for (const table of SCHEMA) {
+      const p = positions[table.name];
+      ordered[table.name] = { x: Math.round(p.x), y: Math.round(p.y) };
+    }
+    content = JSON.stringify(ordered, null, 2);
+    filename = 'er-diagram-positions.json';
+    mime = 'application/json';
+  } else {
+    const lines = ['table_name,x,y'];
+    for (const table of SCHEMA) {
+      const p = positions[table.name];
+      lines.push(`${table.name},${Math.round(p.x)},${Math.round(p.y)}`);
+    }
+    content = lines.join('\n');
+    filename = 'er-diagram-positions.csv';
+    mime = 'text/csv';
+  }
+
+  const blob = new Blob([content], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function loadPositionsFromFile() {
+  document.getElementById('save-menu').classList.remove('show');
+  document.getElementById('file-input').click();
+}
+
+function handleFileLoad(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const text = e.target.result;
+    let newPositions = {};
+
+    if (file.name.endsWith('.json')) {
+      try {
+        newPositions = JSON.parse(text);
+      } catch (err) {
+        alert('Invalid JSON file');
+        return;
+      }
+    } else if (file.name.endsWith('.csv')) {
+      const lines = text.trim().split('\n');
+      for (let i = 1; i < lines.length; i++) {
+        const parts = lines[i].split(',');
+        if (parts.length >= 3) {
+          newPositions[parts[0].trim()] = {
+            x: parseInt(parts[1], 10),
+            y: parseInt(parts[2], 10)
+          };
+        }
+      }
+    } else {
+      alert('Unsupported file format. Use .json or .csv');
+      return;
+    }
+
+    applyPositions(newPositions);
+  };
+  reader.readAsText(file);
+  event.target.value = '';
+}
+
+function applyPositions(newPositions) {
+  for (const table of SCHEMA) {
+    if (newPositions[table.name]) {
+      positions[table.name] = newPositions[table.name];
+      const el = tableElements[table.name];
+      el.style.left = positions[table.name].x + 'px';
+      el.style.top = positions[table.name].y + 'px';
+    }
+  }
+  localStorage.setItem('er-positions-oauth1', JSON.stringify(positions));
+  drawRelations();
+}
+
+function resetPositions() {
+  positions = JSON.parse(JSON.stringify(DEFAULT_POSITIONS));
+  applyPositions(positions);
+}
+
+function fitToView() {
+  let minX = Infinity, minY = Infinity, maxX = 0, maxY = 0;
+  for (const table of SCHEMA) {
+    const p = positions[table.name];
+    const el = tableElements[table.name];
+    minX = Math.min(minX, p.x);
+    minY = Math.min(minY, p.y);
+    maxX = Math.max(maxX, p.x + el.offsetWidth);
+    maxY = Math.max(maxY, p.y + el.offsetHeight);
+  }
+  const wrapper = document.getElementById('canvas-wrapper');
+  const pad = 40;
+  wrapper.scrollLeft = minX - pad;
+  wrapper.scrollTop = minY - pad;
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+  init();
+  setTimeout(fitToView, 100);
+});
+</script>
+</body>
+</html>

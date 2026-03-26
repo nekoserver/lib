@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>React Dynamic CSS Interval Sample</title>
+  <link rel="stylesheet" href="color-chanege.css">
+</head>
+<body>
+  <div id="root"></div>
+
+  <!-- React / ReactDOM CDN -->
+  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+
+  <script type="text/javascript">
+    const { useEffect } = React;
+
+    function App() {
+      useEffect(() => {
+        const colors = ['red', 'blue', 'green', 'orange', 'purple']; // 変化させる色
+        let index = 0;
+
+        const intervalId = setInterval(() => {
+          index = (index + 1) % colors.length; // 配列をループ
+          document.documentElement.style.setProperty('--main-color', colors[index]);
+        }, 7000); // 7秒ごとに変更
+
+        // クリーンアップ
+        return () => clearInterval(intervalId);
+      }, []);
+
+      return React.createElement('div', { className: 'dynamic-text' }, '色が7秒ごとに変わります');
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(React.createElement(App));
+  </script>
+</body>
+</html>

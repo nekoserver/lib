@@ -1,0 +1,9 @@
+:root {
+  --main-color: red;
+}
+
+.dynamic-text {
+  color: var(--main-color);
+  font-size: 24px;
+  transition: color 0.5s ease; /* 色変化を滑らかに */
+}

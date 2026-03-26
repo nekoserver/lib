@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>React Countdown + Random Color</title>
+  <style>
+    :root {
+      --main-color: red;
+    }
+    .dynamic-text {
+      color: var(--main-color);
+      font-size: 24px;
+      transition: color 0.5s ease;
+    }
+    .timer {
+      font-size: 18px;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+
+  <script>
+    const { useState, useEffect } = React;
+
+    function App() {
+      const [secondsLeft, setSecondsLeft] = useState(7);
+
+      // ランダム色の生成関数
+      const getRandomColor = () => {
+        const letters = '0123456789ABCDEF';
+        let color = '#';
+        for (let i = 0; i < 6; i++) {
+          color += letters[Math.floor(Math.random() * 16)];
+        }
+        return color;
+      };
+
+      useEffect(() => {
+        const intervalId = setInterval(() => {
+          setSecondsLeft(prev => {
+            if (prev <= 1) {
+              // 0秒になったらランダム色に変更
+              const newColor = getRandomColor();
+              document.documentElement.style.setProperty('--main-color', newColor);
+              return 7; // カウントをリセット
+            }
+            return prev - 1;
+          });
+        }, 1000);
+
+        return () => clearInterval(intervalId);
+      }, []);
+
+      return React.createElement('div', null, [
+        React.createElement('div', { className: 'dynamic-text', key: 'text' }, '色が7秒ごとに変わります（ランダム）'),
+        React.createElement('div', { className: 'timer', key: 'timer' }, `次の色変更まで: ${secondsLeft} 秒`)
+      ]);
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(React.createElement(App));
+  </script>
+</body>
+</html>

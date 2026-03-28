@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>LLM Chat API (React)</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #0b0d12;
+      --panel: #121626;
+      --text: #e8eaf1;
+      --muted: #a6abc5;
+      --border: rgba(255, 255, 255, 0.12);
+      --accent: #6aa9ff;
+      --danger: #ff6a6a;
+      --ok: #56d49a;
+      --shadow: rgba(0, 0, 0, 0.35);
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+    }
+
+    @media (prefers-color-scheme: light) {
+      :root {
+        --bg: #f6f7fb;
+        --panel: #ffffff;
+        --text: #101225;
+        --muted: #5c617a;
+        --border: rgba(16, 18, 37, 0.12);
+        --shadow: rgba(16, 18, 37, 0.08);
+      }
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: var(--sans);
+      background: radial-gradient(1200px 600px at 20% -10%, rgba(106, 169, 255, 0.22), transparent 60%),
+                  radial-gradient(900px 500px at 100% 0%, rgba(86, 212, 154, 0.12), transparent 55%),
+                  var(--bg);
+      color: var(--text);
+    }
+    a { color: inherit; }
+
+    .wrap { max-width: 980px; margin: 0 auto; padding: 22px 14px 48px; }
+    header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 8px 4px 16px;
+    }
+    h1 {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: 0.2px;
+    }
+    .sub {
+      font-size: 12px;
+      color: var(--muted);
+      font-family: var(--mono);
+      overflow-wrap: anywhere;
+      text-align: right;
+    }
+
+    .grid { display: grid; grid-template-columns: 1fr; gap: 14px; }
+    @media (min-width: 920px) {
+      .grid { grid-template-columns: 1.05fr 0.95fr; }
+    }
+
+    .card {
+      background: color-mix(in srgb, var(--panel), transparent 0%);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      box-shadow: 0 12px 28px var(--shadow);
+      overflow: hidden;
+    }
+    .card .hd {
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .card .hd .title { font-size: 13px; font-weight: 700; letter-spacing: 0.2px; }
+    .card .bd { padding: 14px; }
+
+    label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+    textarea, input[type="text"] {
+      width: 100%;
+      background: transparent;
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 10px;
+      font-family: var(--sans);
+      font-size: 14px;
+      outline: none;
+    }
+    textarea { min-height: 168px; resize: vertical; line-height: 1.45; }
+    textarea:focus, input[type="text"]:focus { border-color: color-mix(in srgb, var(--accent), white 0%); }
+
+    .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .btn {
+      border: 1px solid var(--border);
+      background: color-mix(in srgb, var(--accent), transparent 86%);
+      color: var(--text);
+      padding: 10px 12px;
+      border-radius: 10px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.05s ease, background 0.2s ease, opacity 0.2s ease;
+      user-select: none;
+    }
+    .btn:active { transform: translateY(1px); }
+    .btn.secondary { background: transparent; }
+    .btn.danger { background: color-mix(in srgb, var(--danger), transparent 86%); }
+    .btn:disabled { opacity: 0.55; cursor: not-allowed; }
+
+    .pill {
+      font-family: var(--mono);
+      font-size: 11px;
+      padding: 6px 8px;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      color: var(--muted);
+    }
+    .pill.ok { color: var(--ok); border-color: color-mix(in srgb, var(--ok), transparent 60%); }
+    .pill.bad { color: var(--danger); border-color: color-mix(in srgb, var(--danger), transparent 60%); }
+
+    pre {
+      margin: 0;
+      padding: 12px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: auto;
+      background: color-mix(in srgb, var(--bg), transparent 30%);
+      font-family: var(--mono);
+      font-size: 12px;
+      line-height: 1.45;
+      white-space: pre;
+    }
+
+    .hint { margin-top: 10px; color: var(--muted); font-size: 12px; line-height: 1.5; }
+    .hint code { font-family: var(--mono); font-size: 12px; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <!-- React / ReactDOM CDN -->
+  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+
+  <script type="text/javascript">
+    const { useEffect, useMemo, useRef, useState } = React;
+
+    const API_URL = "https://llm-chat-app-template.nekoflare.workers.dev/api/chat";
+
+    function safeJsonStringify(value) {
+      try { return JSON.stringify(value, null, 2); } catch (e) { return String(value); }
+    }
+
+    function App() {
+      const [prompt, setPrompt] = useState("");
+      const [strictJsonHeaders, setStrictJsonHeaders] = useState(true);
+      const [loading, setLoading] = useState(false);
+      const [status, setStatus] = useState(null);
+      const [errorText, setErrorText] = useState("");
+      const [responseJson, setResponseJson] = useState(null);
+      const [responseText, setResponseText] = useState("");
+      const abortRef = useRef(null);
+
+      const requestBody = useMemo(() => ({
+        messages: [{ role: "user", content: prompt }]
+      }), [prompt]);
+
+      useEffect(() => () => {
+        if (abortRef.current) abortRef.current.abort();
+      }, []);
+
+      async function onSubmit(e) {
+        e.preventDefault();
+        setErrorText("");
+        setResponseJson(null);
+        setResponseText("");
+        setStatus(null);
+        setLoading(true);
+
+        if (abortRef.current) abortRef.current.abort();
+        const controller = new AbortController();
+        abortRef.current = controller;
+
+        try {
+          const headers = strictJsonHeaders
+            ? { "content-type": "application/json", "accept": "application/json" }
+            // `application/json` はブラウザでCORSプリフライト(OPTIONS)が必要になるため、
+            // サーバ側がOPTIONS未対応だと「Failed to fetch」になり得ます。
+            : { "content-type": "text/plain;charset=UTF-8", "accept": "application/json" };
+
+          const res = await fetch(API_URL, {
+            method: "POST",
+            headers,
+            body: JSON.stringify(requestBody),
+            signal: controller.signal,
+          });
+
+          setStatus({ ok: res.ok, status: res.status, statusText: res.statusText });
+
+          const contentType = (res.headers.get("content-type") || "").toLowerCase();
+
+          if (contentType.includes("application/json")) {
+            const data = await res.json();
+            setResponseJson(data);
+          } else {
+            const text = await res.text();
+            setResponseText(text);
+          }
+
+          if (!res.ok) {
+            setErrorText("HTTPエラーです（レスポンス本文も確認してください）。");
+          }
+        } catch (err) {
+          if (err && err.name === "AbortError") {
+            setErrorText("リクエストをキャンセルしました。");
+          } else {
+            const msg = String(err && err.message ? err.message : err);
+            const maybeCors = msg.toLowerCase().includes("failed to fetch") || msg.toLowerCase().includes("load failed");
+            setErrorText(maybeCors
+              ? "通信に失敗しました（CORS/プリフライトの可能性）。別オリジンで動かす場合は「CORS回避（text/plain）」をOFFにしてください。"
+              : msg
+            );
+          }
+        } finally {
+          setLoading(false);
+        }
+      }
+
+      async function copyResponse() {
+        const text = responseJson ? safeJsonStringify(responseJson) : (responseText || "");
+        if (!text) return;
+        try {
+          await navigator.clipboard.writeText(text);
+        } catch (e) {
+          // Clipboard APIが使えない場合は何もしない
+        }
+      }
+
+      return React.createElement("div", { className: "wrap" }, [
+        React.createElement("header", { key: "hd" }, [
+          React.createElement("div", { key: "left" }, [
+            React.createElement("h1", { key: "h1" }, "LLM Chat API /api/chat テスト（React単体HTML）"),
+          ]),
+          React.createElement("div", { className: "sub", key: "right" }, API_URL),
+        ]),
+
+        React.createElement("div", { className: "grid", key: "grid" }, [
+          React.createElement("div", { className: "card", key: "left" }, [
+            React.createElement("div", { className: "hd", key: "lhd" }, [
+              React.createElement("div", { className: "title", key: "t" }, "送信フォーム"),
+              React.createElement("div", { className: "pill", key: "p" }, "content-type/accept: application/json"),
+            ]),
+            React.createElement("div", { className: "bd", key: "lbd" }, [
+              React.createElement("form", { onSubmit, key: "form" }, [
+                React.createElement("label", { key: "lab1", htmlFor: "prompt" }, "メッセージ（xxxxx）"),
+                React.createElement("textarea", {
+                  id: "prompt",
+                  key: "ta",
+                  value: prompt,
+                  onChange: (e) => setPrompt(e.target.value),
+                  placeholder: "例）こんにちは。要約して…",
+                }),
+                React.createElement("div", { className: "row", key: "row0", style: { marginTop: 10 } }, [
+                  React.createElement("label", { key: "lab2", style: { margin: 0, display: "flex", alignItems: "center", gap: 8, cursor: "pointer" } }, [
+                    React.createElement("input", {
+                      key: "cb",
+                      type: "checkbox",
+                      checked: strictJsonHeaders,
+                      onChange: (e) => setStrictJsonHeaders(e.target.checked),
+                      disabled: loading,
+                    }),
+                    React.createElement("span", { key: "txt", style: { color: "var(--muted)", fontSize: 12 } },
+                      "厳密ヘッダ（content-type: application/json）"
+                    ),
+                  ]),
+                  React.createElement("div", { key: "pill0", className: "pill" },
+                    strictJsonHeaders ? "プリフライト有" : "CORS回避（text/plain）"
+                  ),
+                ]),
+                React.createElement("div", { className: "row", key: "row1", style: { marginTop: 10 } }, [
+                  React.createElement("button", {
+                    key: "send",
+                    type: "submit",
+                    className: "btn",
+                    disabled: loading || !prompt.trim(),
+                  }, loading ? "送信中…" : "送信"),
+                  React.createElement("button", {
+                    key: "cancel",
+                    type: "button",
+                    className: "btn danger",
+                    disabled: !loading,
+                    onClick: () => abortRef.current && abortRef.current.abort(),
+                  }, "キャンセル"),
+                  React.createElement("button", {
+                    key: "clear",
+                    type: "button",
+                    className: "btn secondary",
+                    disabled: loading,
+                    onClick: () => { setPrompt(""); setErrorText(""); setResponseJson(null); setResponseText(""); setStatus(null); },
+                  }, "クリア"),
+                ]),
+
+                React.createElement("div", { className: "hint", key: "hint" }, [
+                  React.createElement("div", { key: "h1" }, [
+                    "送信ボディ：",
+                    React.createElement("code", { key: "c1" }, safeJsonStringify(requestBody)),
+                  ]),
+                  React.createElement("div", { key: "h2", style: { marginTop: 6 } }, [
+                    "ローカルファイル（file://）で開くとCORSで失敗する場合があります。その場合は簡易サーバで配信してください（例：",
+                    React.createElement("code", { key: "c2" }, "python3 -m http.server"),
+                    "）。",
+                  ]),
+                  React.createElement("div", { key: "h3", style: { marginTop: 6 } }, [
+                    "補足：このAPIはCORSプリフライト(OPTIONS)に未対応のため、別オリジンから",
+                    React.createElement("code", { key: "c3" }, "content-type: application/json"),
+                    " を付けると失敗し得ます（その場合は同一オリジンでホストするか、上の「CORS回避（text/plain）」を使用）。",
+                  ]),
+                ]),
+              ]),
+            ]),
+          ]),
+
+          React.createElement("div", { className: "card", key: "right" }, [
+            React.createElement("div", { className: "hd", key: "rhd" }, [
+              React.createElement("div", { className: "title", key: "rt" }, "レスポンス（整形表示）"),
+              React.createElement("div", { className: "row", key: "rrow" }, [
+                status
+                  ? React.createElement("div", {
+                      key: "st",
+                      className: "pill " + (status.ok ? "ok" : "bad"),
+                      title: status.statusText || "",
+                    }, `${status.status} ${status.ok ? "OK" : "NG"}`)
+                  : React.createElement("div", { key: "st0", className: "pill" }, "未送信"),
+                React.createElement("button", {
+                  key: "copy",
+                  type: "button",
+                  className: "btn secondary",
+                  disabled: loading || (!responseJson && !responseText),
+                  onClick: copyResponse,
+                }, "コピー"),
+              ]),
+            ]),
+            React.createElement("div", { className: "bd", key: "rbd" }, [
+              errorText
+                ? React.createElement("div", { key: "err", className: "hint", style: { color: "var(--danger)", marginBottom: 10 } }, errorText)
+                : null,
+              React.createElement("pre", { key: "pre" }, responseJson ? safeJsonStringify(responseJson) : (responseText || "（ここにJSONが表示されます）")),
+            ]),
+          ]),
+        ]),
+      ]);
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById("root"));
+    root.render(React.createElement(App));
+  </script>
+</body>
+</html>

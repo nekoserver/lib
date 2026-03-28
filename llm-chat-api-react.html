@@ -158,6 +158,9 @@
     const { useEffect, useMemo, useRef, useState } = React;
 
     const API_URL = "https://llm-chat-app-template.nekoflare.workers.dev/api/chat";
+    const API_ORIGIN = (function () {
+      try { return new URL(API_URL).origin; } catch (e) { return ""; }
+    })();
 
     function safeJsonStringify(value) {
       try { return JSON.stringify(value, null, 2); } catch (e) { return String(value); }
@@ -172,6 +175,9 @@
       const [responseJson, setResponseJson] = useState(null);
       const [responseText, setResponseText] = useState("");
       const abortRef = useRef(null);
+      const pageOrigin = (typeof location !== "undefined" && location.origin) ? location.origin : "";
+      const isCrossOrigin = !!(API_ORIGIN && pageOrigin && API_ORIGIN !== pageOrigin);
+      const isFileLike = (typeof location !== "undefined" && (location.protocol === "file:" || pageOrigin === "null"));
 
       const requestBody = useMemo(() => ({
         messages: [{ role: "user", content: prompt }]
@@ -228,10 +234,13 @@
           } else {
             const msg = String(err && err.message ? err.message : err);
             const maybeCors = msg.toLowerCase().includes("failed to fetch") || msg.toLowerCase().includes("load failed");
-            setErrorText(maybeCors
-              ? "通信に失敗しました（CORS/プリフライトの可能性）。別オリジンで動かす場合は「CORS回避（text/plain）」をOFFにしてください。"
-              : msg
-            );
+            setErrorText(maybeCors ? (
+              "通信に失敗しました（ブラウザのCORS制限の可能性）。" +
+              "このAPIはPOSTレスポンスにCORSヘッダ（Access-Control-Allow-Origin）を返さないため、" +
+              "別オリジン（例: localhost / file://）からはブラウザ経由で呼べません。 " +
+              "対策は「同一オリジンでホスト」または「CORS対応のプロキシを用意」です。 " +
+              "※この画面の「プリフライト回避（text/plain）」は、OPTIONSが必要なケースの回避にしかなりません。"
+            ) : msg);
           }
         } finally {
           setLoading(false);
@@ -272,6 +281,15 @@
                   onChange: (e) => setPrompt(e.target.value),
                   placeholder: "例）こんにちは。要約して…",
                 }),
+                (isCrossOrigin || isFileLike)
+                  ? React.createElement("div", { key: "warn", className: "hint", style: { color: "var(--danger)", marginTop: 10 } }, [
+                      "警告：ページのオリジン（",
+                      React.createElement("code", { key: "po" }, pageOrigin || "(unknown)"),
+                      "）とAPIオリジン（",
+                      React.createElement("code", { key: "ao" }, API_ORIGIN || "(unknown)"),
+                      "）が一致していないため、ブラウザのCORS制限で失敗します。",
+                    ])
+                  : null,
                 React.createElement("div", { className: "row", key: "row0", style: { marginTop: 10 } }, [
                   React.createElement("label", { key: "lab2", style: { margin: 0, display: "flex", alignItems: "center", gap: 8, cursor: "pointer" } }, [
                     React.createElement("input", {
@@ -286,7 +304,7 @@
                     ),
                   ]),
                   React.createElement("div", { key: "pill0", className: "pill" },
-                    strictJsonHeaders ? "プリフライト有" : "CORS回避（text/plain）"
+                    strictJsonHeaders ? "プリフライト有" : "プリフライト回避（text/plain）"
                   ),
                 ]),
                 React.createElement("div", { className: "row", key: "row1", style: { marginTop: 10 } }, [

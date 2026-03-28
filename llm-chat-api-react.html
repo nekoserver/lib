@@ -157,9 +157,17 @@
   <script type="text/javascript">
     const { useEffect, useMemo, useRef, useState } = React;
 
-    const API_URL = "https://llm-chat-app-template.nekoflare.workers.dev/api/chat";
+    // 同一オリジンでホストする場合は相対パスにしておくとCORSに引っかかりません。
+    // ローカル開発などで別オリジンから叩きたい場合は下のFALLBACKを使う想定ですが、
+    // その場合はAPI側がCORS許可ヘッダを返さないとブラウザでは通信できません。
+    const API_PATH = "/api/chat";
+    const API_FALLBACK = "https://llm-chat-app-template.nekoflare.workers.dev/api/chat";
+    const API_URL = (typeof location !== "undefined" && location.origin && location.origin !== "null")
+      ? API_PATH
+      : API_FALLBACK;
+
     const API_ORIGIN = (function () {
-      try { return new URL(API_URL).origin; } catch (e) { return ""; }
+      try { return new URL(API_FALLBACK).origin; } catch (e) { return ""; }
     })();
 
     function safeJsonStringify(value) {

@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>Cloudflare tunnels API (SSI + Ruby filter)</title>
+<style>
+body { font-family: system-ui, sans-serif; margin: 1rem; }
+.cf-tunnels-table { border-collapse: collapse; }
+.cf-tunnels-table th, .cf-tunnels-table td { border: 1px solid #ccc; padding: 0.35rem 0.6rem; text-align: left; }
+.cf-tunnels-meta { color: #555; font-size: 0.9rem; }
+.cf-tunnels-error { color: #a00; }
+form.filter { margin-bottom: 1rem; display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: end; }
+form.filter label { display: flex; flex-direction: column; font-size: 0.85rem; gap: 0.2rem; }
+code.path { background: #f4f4f4; padding: 0.1rem 0.35rem; }
+</style>
+</head>
+<body>
+<h1>Cloudflare tunnels <small>(SSI → Ruby filter CGI)</small></h1>
+<p>JSON API: <code class="path">GET/POST /lib/api/tunnels.rb</code>
+ — filters: <code>status</code>, <code>name</code>, <code>format</code></p>
+
+<!-- Filter layer: GET form → query string; #exec cgi forwards QUERY_STRING to Ruby -->
+<form class="filter" method="get" action="tunnels.shtml">
+  <label>status
+    <select name="status">
+      <option value="">(any)</option>
+      <option value="healthy">healthy</option>
+      <option value="down">down</option>
+      <option value="degraded">degraded</option>
+    </select>
+  </label>
+  <label>name
+    <input type="text" name="name" placeholder="substring" value="">
+  </label>
+  <button type="submit">Filter</button>
+  <a href="tunnels.shtml">Clear</a>
+</form>
+<script>
+(function () {
+  var q = new URLSearchParams(location.search);
+  var s = document.querySelector('select[name=status]');
+  var n = document.querySelector('input[name=name]');
+  if (s && q.has('status')) s.value = q.get('status');
+  if (n) n.value = q.get('name') || '';
+})();
+</script>
+
+<!--#exec cgi="tunnels-filter.rb" -->
+
+<hr>
+<p><a href="../tunnels.shtml">既存 HTML UI (/lib/tunnels.shtml)</a></p>
+</body>
+</html>

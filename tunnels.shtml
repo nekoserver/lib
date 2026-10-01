@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>Cloudflare tunnels</title>
+<style>
+body { font-family: system-ui, sans-serif; margin: 1rem; }
+.cf-tunnels-table { border-collapse: collapse; }
+.cf-tunnels-table th, .cf-tunnels-table td { border: 1px solid #ccc; padding: 0.35rem 0.6rem; text-align: left; }
+.cf-tunnels-meta { color: #555; font-size: 0.9rem; }
+.cf-tunnels-error { color: #a00; }
+</style>
+</head>
+<body>
+<h1>Cloudflare tunnels</h1>
+<!--#exec cgi="tunnels.cgi" -->
+</body>
+</html>

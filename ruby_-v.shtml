@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>ruby -v</title>
+</head>
+<body>
+<pre><!--#exec cmd="/home/box/.rbenv/versions/4.0.7/bin/ruby -v" --></pre>
+</body>
+</html>

@@ -1,0 +1,5 @@
+<!DOCTYPE html>
+<html><head><title>SSI test</title></head>
+<body>
+<p>SSI ok: <!--#echo var="DATE_LOCAL" --></p>
+</body></html>

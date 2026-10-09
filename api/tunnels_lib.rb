@@ -12,6 +12,7 @@
 #   format=json|html
 #   message=...                   (question to 参謀; enqueue → ask_id)
 #   ask_id=...                    (poll for reply)
+#   message=codex_prompt=... / message=claude_prompt=...  (explicit LLM; see llm_prompt.rb)
 require "json"
 require "cgi"
 require "open3"
@@ -19,6 +20,10 @@ require "time"
 require "uri"
 require_relative "hmac_auth"
 require_relative "ask_sanbo"
+require_relative "llm_prompt"
+
+Encoding.default_external = Encoding::UTF_8
+Encoding.default_internal = nil
 
 module TunnelsLib
   ACCOUNT_ID = "4eb48547c6f6a8194e6c3eb5e700463f"
@@ -154,6 +159,27 @@ module TunnelsLib
       return payload
     end
 
+    filters["message"] = LlmPrompt.maybe_percent_decode(filters["message"]) if filters.key?("message")
+    routed = LlmPrompt.route(filters)
+    if routed
+      engine, prompt = routed
+      payload["message"] = AskSanbo.truncate(filters["message"].to_s) unless filters["message"].to_s.empty?
+      if engine == :conflict
+        payload["ask_error"] = "codex_and_claude_both_given"
+        return payload
+      end
+      reply, err, meta = LlmPrompt.run(engine, prompt)
+      payload["via"] = engine
+      payload["ask_status"] = "done"
+      payload["reply"] = reply if reply
+      payload["ask_error"] = err if err
+      if meta.is_a?(Hash)
+        payload["llm_model"] = meta["model"] if meta["model"].to_s != ""
+        payload["llm_effort"] = meta["effort"] if meta["effort"].to_s != ""
+      end
+      return payload
+    end
+
     msg = filters["message"].to_s
     return payload if msg.empty?
 
@@ -239,11 +265,15 @@ module TunnelsLib
   end
 
   def respond!(payload, format)
+    ctype = format == "html" ? "text/html" : "application/json"
+    print "Content-Type: #{ctype}; charset=utf-8\r\n"
+    print "X-LLM-Engine: #{payload["via"]}\r\n" if payload["via"].to_s != ""
+    print "X-LLM-Model: #{payload["llm_model"]}\r\n" if payload["llm_model"].to_s != ""
+    print "X-LLM-Effort: #{payload["llm_effort"]}\r\n" if payload["llm_effort"].to_s != ""
+    print "\r\n"
     if format == "html"
-      print "Content-Type: text/html; charset=utf-8\r\n\r\n"
       print render_html(payload)
     else
-      print "Content-Type: application/json; charset=utf-8\r\n\r\n"
       print JSON.pretty_generate(payload)
       print "\n"
     end

@@ -127,6 +127,8 @@ module HmacAuth
     end
 
     return :ip_ok if ip_allowlisted?
+    # Cloudflare Access JWT verified by Apache RewriteMap (cf-access-map) → env CF_ACCESS=ok
+    return :jwt_ok if ENV["CF_ACCESS"].to_s == "ok" || ENV["REDIRECT_CF_ACCESS"].to_s == "ok"
 
     :unauthorized
   end
@@ -148,7 +150,7 @@ module HmacAuth
   def enforce!(body)
     result = authorize(body)
     case result
-    when :hmac_ok, :ip_ok, :ok
+    when :hmac_ok, :ip_ok, :jwt_ok, :ok
       body
     else
       unauthorized_response!(result)

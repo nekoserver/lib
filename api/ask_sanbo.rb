@@ -154,6 +154,72 @@ module AskSanbo
     "実行エラー: #{e.class}"
   end
 
+  # Fixed git log listing (no Codex). Usage: commits [repo] [N]
+  GIT_REPOS_GLOB = "/home/box/apps/redmine/repos/*.git"
+  COMMITS_RE = /\A(?:commits|gitlog|コミット(?:ログ)?)(?:\s+([A-Za-z0-9_.-]+))?(?:\s+(\d{1,3}))?\s*\z/i
+
+  def git_repos
+    Dir.glob(GIT_REPOS_GLOB).sort.to_h { |d| [File.basename(d, ".git"), d] }
+  end
+
+  def commits_reply(q)
+    m = COMMITS_RE.match(q.strip)
+    return nil unless m
+    a, b = m[1], m[2]
+    if a && a.match?(/\A\d+\z/) && b.nil?
+      b, a = a, nil
+    end
+    repos = git_repos
+    return "リポジトリが見つかりません。" if repos.empty?
+    name = a || (repos.key?("rails8") ? "rails8" : repos.keys.first)
+    dir = repos[name]
+    return "不明なリポジトリ: #{name}（あるもの: #{repos.keys.join(", ")}）" unless dir
+    n = (b || 20).to_i.clamp(1, 200)
+    out, status = Open3.capture2e(
+      { "LANG" => "C.UTF-8", "LC_ALL" => "C.UTF-8", "GIT_CONFIG_COUNT" => "1",
+        "GIT_CONFIG_KEY_0" => "safe.directory", "GIT_CONFIG_VALUE_0" => "*" },
+      "git", "--git-dir=#{dir}", "log", "--all", "-n", n.to_s,
+      "--date=format-local:%Y-%m-%d %H:%M", "--pretty=format:%h %ad %an %s"
+    )
+    out = out.to_s.dup.force_encoding("UTF-8").scrub("?")
+    return "git log 失敗 (exit #{status.exitstatus}): #{out[0, 200]}" unless status.success?
+    out.empty? ? "#{name}: コミットなし" : "#{name}（最新#{n}件）\n#{out.rstrip}"
+  rescue StandardError => e
+    "git log エラー: #{e.class}"
+  end
+
+  REDMINE_HELPER = "/usr/local/libexec/redmine-status-query"
+  REDMINE_RE = /\A(issues|tickets|チケット|statuslog|ステータス(?:履歴|ログ))(?:\s+(.{1,100}))?\s*\z/i
+
+  # Redmine tickets by status / status-change log (read-only helper as box; no LLM).
+  def redmine_reply(q)
+    m = REDMINE_RE.match(q.strip)
+    return nil unless m
+    kind = m[1].match?(/\A(?:issues|tickets|チケット)\z/i) ? "issues" : "statuslog"
+    args = m[2].to_s.gsub(/[^\p{L}\p{N} _-]/, "").strip
+    out, err, status = Open3.capture3({ "LANG" => "C.UTF-8" }, "sudo", "-n", "-u", "box", REDMINE_HELPER,
+                                      stdin_data: [kind, args].reject(&:empty?).join(" "))
+    return "Redmine 照会失敗 (exit #{status.exitstatus}): #{err.to_s[0, 200]}" unless status.success?
+    out.force_encoding("UTF-8").rstrip[0, MAX_OUT]
+  rescue StandardError => e
+    "Redmine 照会エラー: #{e.class}"
+  end
+
+  APACHE_LOG_HELPER = "/usr/local/libexec/apache-status-log"
+  HTTPLOG_RE = /\A(httplog|apachelog|アクセスログ|(?:securemine|taskmine|smlog|セキュアマイン)(?:[\s_-]*(?:logs?|ログ))?)(?:\s+([A-Za-z0-9 ]{1,40}))?\s*\z/i
+
+  # Redmine vhost access log by HTTP status (root read-only helper; no LLM).
+  def httplog_reply(q)
+    m = HTTPLOG_RE.match(q.strip)
+    return nil unless m
+    out, err, status = Open3.capture3({ "LANG" => "C.UTF-8" }, "sudo", "-n", APACHE_LOG_HELPER,
+                                      stdin_data: "#{m[1].match?(/\A(?:securemine|taskmine|smlog|セキュアマイン)(?:[\s_-]*(?:logs?|ログ))?\z/i) ? 'securemine' : 'httplog'} #{m[2]}".strip)
+    return "アクセスログ照会失敗 (exit #{status.exitstatus}): #{err.to_s[0, 200]}" unless status.success?
+    out.force_encoding("UTF-8").rstrip[0, MAX_OUT]
+  rescue StandardError => e
+    "アクセスログ照会エラー: #{e.class}"
+  end
+
   def local_reply(msg, tunnels)
     q = msg.to_s.strip
     tunnels = tunnels.is_a?(Array) ? tunnels : []
@@ -161,6 +227,15 @@ module AskSanbo
     tunnels.each { |t| by_name[t["name"].to_s.downcase] = t if t.is_a?(Hash) }
     tun = tunnel_summary(tunnels)
 
+    if (c = commits_reply(q))
+      return c
+    end
+    if (h = httplog_reply(q))
+      return h
+    end
+    if (r = redmine_reply(q))
+      return r
+    end
     return run_allowed_command(q) if command_allowed?(q)
 
     if q.match?(/ハードウェア|hardware|CPU|メモリ|memory|構成|スペック|マシン/i)

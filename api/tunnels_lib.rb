@@ -37,6 +37,10 @@ module TunnelsLib
   end
 
   def fetch
+    cache = ENV['LIB_TUNNELS_CACHE']
+    if cache && File.file?(cache) && Time.now - File.mtime(cache) <= 120
+      return [File.read(cache), 'oauth', nil]
+    end
     raw, auth, err = fetch_with_token
     return [raw, auth, nil] if raw
 
@@ -61,6 +65,8 @@ module TunnelsLib
     return [nil, nil, out] if bad
 
     [out, "api_token", nil]
+  rescue SystemCallError
+    [nil, nil, 'cloudflare_cli_unavailable']
   end
 
   def fetch_with_oauth
@@ -68,6 +74,8 @@ module TunnelsLib
     return [nil, nil, out] unless status.success?
 
     [out, "oauth", nil]
+  rescue SystemCallError
+    [nil, nil, 'cloudflare_oauth_helper_unavailable']
   end
 
   def redact(err, limit = 400)
@@ -154,7 +162,7 @@ module TunnelsLib
   def attach_message!(payload, filters)
     ask_id = filters["ask_id"].to_s.strip
     unless ask_id.empty?
-      looked = AskSanbo.lookup(ask_id)
+      looked = LlmPrompt::ID.match?(ask_id) ? LlmPrompt.lookup(ask_id) : AskSanbo.lookup(ask_id)
       payload.merge!(looked)
       return payload
     end
@@ -170,7 +178,8 @@ module TunnelsLib
       end
       reply, err, meta = LlmPrompt.run(engine, prompt)
       payload["via"] = engine
-      payload["ask_status"] = "done"
+      payload["ask_status"] = meta.fetch('ask_status', err ? 'failed' : 'done')
+      payload["ask_id"] = meta['ask_id'] if meta['ask_id']
       payload["reply"] = reply if reply
       payload["ask_error"] = err if err
       if meta.is_a?(Hash)
@@ -267,6 +276,7 @@ module TunnelsLib
   def respond!(payload, format)
     ctype = format == "html" ? "text/html" : "application/json"
     print "Content-Type: #{ctype}; charset=utf-8\r\n"
+    print "Cache-Control: no-store\r\n"
     print "X-LLM-Engine: #{payload["via"]}\r\n" if payload["via"].to_s != ""
     print "X-LLM-Model: #{payload["llm_model"]}\r\n" if payload["llm_model"].to_s != ""
     print "X-LLM-Effort: #{payload["llm_effort"]}\r\n" if payload["llm_effort"].to_s != ""
@@ -283,16 +293,25 @@ module TunnelsLib
   # Auth: valid HMAC → allow; else allowlisted REMOTE_ADDR → allow; else 401.
   def run!(default_format: "json", force_format: nil)
     method = ENV["REQUEST_METHOD"].to_s.upcase
+    if ENV.fetch('CONTENT_LENGTH', '0').to_i > 65_536
+      print "Status: 413 Payload Too Large\r\nContent-Type: application/json\r\n\r\n{\"error\":\"body_too_large\"}\n"
+      return
+    end
     body = method == "POST" ? read_post_body : ""
-    return unless HmacAuth.enforce!(body)
-
     filters = parse_filters(body)
+    protected_request = LlmPrompt.route(filters) || !filters['message'].to_s.empty? || !filters['ask_id'].to_s.empty?
+    return unless HmacAuth.enforce!(body, require_hmac: !!protected_request)
+    if LlmPrompt.route(filters) && method != 'POST'
+      print "Status: 405 Method Not Allowed\r\nAllow: POST\r\nContent-Type: application/json\r\n\r\n{\"error\":\"use_post_for_codex\"}\n"
+      return
+    end
     fmt = (force_format || filters["format"] || default_format).to_s.downcase
     fmt = default_format unless %w[json html].include?(fmt)
 
     # Poll-only: ask_id without new message — do not refetch tunnels
     if !filters["ask_id"].to_s.strip.empty? && filters["message"].to_s.empty?
-      payload = AskSanbo.lookup(filters["ask_id"])
+      id = filters['ask_id']
+      payload = LlmPrompt::ID.match?(id) ? LlmPrompt.lookup(id) : AskSanbo.lookup(id)
       respond!(payload, fmt)
       return
     end

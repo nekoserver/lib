@@ -7,7 +7,7 @@ require "net/http"
 require "uri"
 
 module AskSanbo
-  ASK_DIR = "/var/www/html/lib/api/ask"
+  ASK_DIR = ENV.fetch('LIB_ASK_DIR', '/var/lib/lib-api/ask')
   HW_FILE = File.join(ASK_DIR, "box-hw.txt")
   WEBHOOK_FILE = "/etc/apache2/secrets/lib-api-ask-webhook"
   MAX_MSG = 4096
@@ -33,6 +33,7 @@ module AskSanbo
   end
 
   def read_req(id)
+    return nil unless id.to_s.match?(/\A[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}\z/)
     path = File.join(ASK_DIR, "req-#{id}.json")
     return nil unless File.file?(path)
     JSON.parse(File.read(path))
@@ -41,6 +42,7 @@ module AskSanbo
   end
 
   def read_reply(id)
+    return nil unless id.to_s.match?(/\A[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}\z/)
     path = File.join(ASK_DIR, "resp-#{id}.json")
     return nil unless File.file?(path)
     obj = JSON.parse(File.read(path))

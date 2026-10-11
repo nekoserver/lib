@@ -70,6 +70,20 @@ Other `/lib` paths remain IP-allowlisted before CGI.
 
 ## Endpoints
 
+### Codex / Claude CLI jobs
+
+POST JSON `{"codex_prompt":"..."}` or `{"claude_prompt":"..."}` to
+`/lib/api/tunnels.rb`. `message: "codex_prompt=..."` and
+`message: "claude_prompt=..."` also route to the respective CLI helper.
+All AI requests and polls require valid HMAC, including allowlisted/local callers.
+The signing format and headers above are unchanged. A new CLI request must use POST.
+
+The response contains `ask_id`, `via`, and `ask_status` (`pending` or `running`).
+Poll `GET /lib/api/tunnels.rb?ask_id=<ask_id>` with HMAC signing the entire query.
+Completed responses contain `ask_status: "done"` and `reply`; failures contain
+`ask_status: "failed"` and `ask_error`. Polls never submit a second CLI run.
+See `ops/LLM_SETUP.md` for limits, installation, and credential setup.
+
 | Method | Path | Notes |
 |--------|------|--------|
 | GET/POST | `/lib/api/tunnels` (`.rb` also OK) | JSON tunnel list (default) |

@@ -104,6 +104,20 @@ def limit_output():
     resource.setrlimit(resource.RLIMIT_FSIZE, (4_194_304, 4_194_304))
 
 
+def failure_code(text, engine):
+    """Return fixed diagnostic labels; never expose CLI text or credentials."""
+    text = text.lower()
+    if any(value in text for value in ('usage limit', 'quota', 'rate limit', 'insufficient_quota')):
+        return engine + '_usage_limit'
+    if any(value in text for value in ('unauthorized', 'authentication', '401', 'token expired')):
+        return engine + '_authentication_failed'
+    if any(value in text for value in ('connection', 'reconnecting', 'network', 'stream disconnected')):
+        return engine + '_connection_failed'
+    if any(value in text for value in ('permission denied', 'read-only file system', 'operation not permitted')):
+        return engine + '_permission_denied'
+    return engine + '_execution_failed'
+
+
 def execute(job, prompt):
     job.update(ask_status='running', started_at=time.time())
     save(job)
@@ -133,14 +147,16 @@ def execute(job, prompt):
                 item = event.get('item') or {}
                 if item.get('type') == 'agent_message':
                     reply = item.get('text')
-                if event.get('type') in ('error', 'turn.failed'):
-                    error = 'codex_execution_failed'
+                # An error event can be a recoverable reconnect. Only a terminal
+                # turn failure overrides a successful exit and final answer.
+                if event.get('type') == 'turn.failed':
+                    error = failure_code(json.dumps(event.get('error', {})), 'codex')
             elif event.get('type') == 'result':
                 reply = event.get('result')
                 if event.get('is_error'):
                     error = 'claude_execution_failed'
         if proc.returncode != 0 or error or not reply:
-            job.update(ask_status='failed', ask_error=error or job['via'] + '_execution_failed')
+            job.update(ask_status='failed', ask_error=error or failure_code(text, job['via']))
         else:
             job.update(ask_status='done', reply=reply.encode()[:MAX_OUTPUT].decode('utf-8', errors='ignore'))
     except TimeoutError:

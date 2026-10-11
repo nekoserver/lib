@@ -36,6 +36,8 @@ includes `reply`. Failure includes `ask_error`. Jobs expire after 24 hours;
 process restart marks unfinished jobs failed. Prompt maximum is 16 KiB, output
 maximum 32 KiB, execution timeout 300 seconds, and eight jobs can wait in the queue.
 Polling does not trigger another model call. Requests and replies are never cached.
+Captured CLI output is capped at 4 MiB by the parent process, independently of
+files written by the CLI runtime. The CLI's filesystem restrictions remain intact.
 
 The caller's shared secret must match `/etc/apache2/secrets/origin-hmac`,
 mode 640 root:www-data. Never commit or print the secret. CLI credentials remain

@@ -7,13 +7,11 @@ from pathlib import Path
 import pwd
 import queue
 import re
-import resource
 import signal
 import socket
 import socketserver
 import struct
 import subprocess
-import tempfile
 import threading
 import time
 import uuid
@@ -100,8 +98,50 @@ def command(engine):
     return args
 
 
-def limit_output():
-    resource.setrlimit(resource.RLIMIT_FSIZE, (4_194_304, 4_194_304))
+def run_bounded(args, prompt):
+    # RLIMIT_FSIZE affects every file written by the CLI and its tools, including
+    # databases and runtime artifacts. Bound only the captured output instead.
+    proc = subprocess.Popen(args, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT, start_new_session=True,
+        env={'PATH': '/usr/local/bin:/usr/bin:/bin', 'LANG': 'C.UTF-8'})
+    chunks = []
+    overflow = threading.Event()
+
+    def collect():
+        size = 0
+        while True:
+            chunk = proc.stdout.read(65_536)
+            if not chunk:
+                break
+            size += len(chunk)
+            if size > 4_194_304:
+                overflow.set()
+                try:
+                    os.killpg(proc.pid, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+                break
+            chunks.append(chunk)
+
+    reader = threading.Thread(target=collect, daemon=True)
+    reader.start()
+    try:
+        try:
+            proc.stdin.write(prompt.encode())
+            proc.stdin.close()
+        except BrokenPipeError:
+            pass
+        proc.wait(timeout=TIMEOUT)
+    except subprocess.TimeoutExpired:
+        os.killpg(proc.pid, signal.SIGKILL)
+        proc.wait()
+        raise TimeoutError
+    finally:
+        reader.join(timeout=2)
+        proc.stdout.close()
+    if overflow.is_set():
+        raise OverflowError
+    return proc.returncode, b''.join(chunks).decode('utf-8', errors='replace')
 
 
 def failure_code(text, engine):
@@ -137,19 +177,7 @@ def execute(job, prompt):
     save(job)
     try:
         # The prompt is stdin, never a shell command or CLI option.
-        with tempfile.TemporaryFile(dir=STATE) as output:
-            proc = subprocess.Popen(command(job['via']), stdin=subprocess.PIPE,
-                stdout=output, stderr=output, start_new_session=True,
-                env={'PATH': '/usr/local/bin:/usr/bin:/bin', 'LANG': 'C.UTF-8'},
-                preexec_fn=limit_output)
-            try:
-                proc.communicate(prompt.encode(), timeout=TIMEOUT)
-            except subprocess.TimeoutExpired:
-                os.killpg(proc.pid, signal.SIGKILL)
-                proc.wait()
-                raise TimeoutError
-            output.seek(0)
-            text = output.read(4_194_304).decode('utf-8', errors='replace')
+        returncode, text = run_bounded(command(job['via']), prompt)
         reply = None
         error = None
         diagnostic = ''
@@ -174,13 +202,15 @@ def execute(job, prompt):
                 reply = event.get('result')
                 if event.get('is_error'):
                     error = 'claude_execution_failed'
-        if proc.returncode != 0 or error or not reply:
+        if returncode != 0 or error or not reply:
             job.update(ask_status='failed', ask_error=error or failure_code(diagnostic, job['via']))
-            save_failure_diagnostic(job, proc.returncode, errors)
+            save_failure_diagnostic(job, returncode, errors)
         else:
             job.update(ask_status='done', reply=reply.encode()[:MAX_OUTPUT].decode('utf-8', errors='ignore'))
     except TimeoutError:
         job.update(ask_status='failed', ask_error='llm_timeout')
+    except OverflowError:
+        job.update(ask_status='failed', ask_error='llm_output_limit')
     except (OSError, ValueError):
         job.update(ask_status='failed', ask_error='llm_helper_failed')
     job['finished_at'] = time.time()

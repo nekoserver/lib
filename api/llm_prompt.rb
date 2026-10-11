@@ -24,7 +24,7 @@ module LlmPrompt
     match = filters['message'].to_s.match(/\A(codex|claude)_prompt=(.*)\z/m)
     if match
       value = match[2]
-      if value.start_with?('"') && value.end_with?('"') && value.length >= 2
+      if value.length >= 2 && [['"', '"'], ['“', '”']].any? { |left, right| value.start_with?(left) && value.end_with?(right) }
         value = URI.decode_www_form_component(value[1...-1])
       end
       prompts[match[1].to_sym] = value

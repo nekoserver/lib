@@ -24,6 +24,7 @@ class LlmPromptTest < Minitest::Test
     assert_equal [:codex, 'a"b'], LlmPrompt.route('message' => 'codex_prompt="a%22b"')
     assert_equal [:codex, 'a+b%20'], LlmPrompt.route('message' => 'codex_prompt=a+b%20')
     assert_equal [:codex, '"%20"'], LlmPrompt.route('codex_prompt' => '"%20"')
+    assert_equal [:codex, 'Railway のスペック'], LlmPrompt.route('message' => 'codex_prompt=“Railway+%E3%81%AE%E3%82%B9%E3%83%9A%E3%83%83%E3%82%AF”')
   end
 
   def test_wait_returns_completed_reply_without_submitting_again

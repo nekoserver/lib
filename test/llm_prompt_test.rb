@@ -18,6 +18,31 @@ class LlmPromptTest < Minitest::Test
     assert_equal 'invalid_ask_id', LlmPrompt.lookup('codex-../../auth.json')['ask_error']
   end
 
+  def test_quoted_message_decodes_inner_prompt_once
+    assert_equal [:codex, '日本語 + %20'], LlmPrompt.route('message' => 'codex_prompt="%E6%97%A5%E6%9C%AC%E8%AA%9E+%2B+%2520"')
+    assert_equal [:codex, 'a"b'], LlmPrompt.route('message' => 'codex_prompt="a%22b"')
+    assert_equal [:codex, 'a+b%20'], LlmPrompt.route('message' => 'codex_prompt=a+b%20')
+    assert_equal [:codex, '"%20"'], LlmPrompt.route('codex_prompt' => '"%20"')
+  end
+
+  def test_wait_returns_completed_reply_without_submitting_again
+    id = 'codex-12345678-1234-1234-1234-123456789abc'
+    ops = []
+    fake = lambda do |payload|
+      ops << payload['op']
+      payload['op'] == 'submit' ? {'ask_id' => id, 'ask_status' => 'pending'} : {'ask_id' => id, 'ask_status' => 'done', 'reply' => 'PONG'}
+    end
+    original = LlmPrompt.method(:request)
+    LlmPrompt.define_singleton_method(:request, fake)
+    reply, error, meta = LlmPrompt.run(:codex, 'test', wait_seconds: 2)
+    assert_equal 'PONG', reply
+    assert_nil error
+    assert_equal 'done', meta['ask_status']
+    assert_equal %w[submit poll], ops
+  ensure
+    LlmPrompt.define_singleton_method(:request, original) if original
+  end
+
   def test_size_limit_does_not_truncate_or_submit
     _, error, = LlmPrompt.run(:codex, 'あ' * 6000)
     assert_equal 'prompt_too_large', error

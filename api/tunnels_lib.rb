@@ -176,7 +176,7 @@ module TunnelsLib
         payload["ask_error"] = "codex_and_claude_both_given"
         return payload
       end
-      reply, err, meta = LlmPrompt.run(engine, prompt)
+      reply, err, meta = LlmPrompt.run(engine, prompt, wait_seconds: filters.key?('message') ? 90 : 0)
       payload["via"] = engine
       payload["ask_status"] = meta.fetch('ask_status', err ? 'failed' : 'done')
       payload["ask_id"] = meta['ask_id'] if meta['ask_id']

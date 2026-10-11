@@ -17,6 +17,13 @@ Claude uses `claude_prompt`. The existing `message=codex_prompt=...` and
 `message=claude_prompt=...` forms are also supported. Do not double URL-encode JSON.
 Supplying both engines returns `codex_and_claude_both_given`.
 
+The Worker-compatible `message` value `codex_prompt="URL-encoded prompt"`
+(or `claude_prompt="..."`) removes the surrounding double quotes and decodes
+the inner value once as form URL encoding (`+` is a space; `%2B` is a plus).
+Unquoted values and direct JSON prompt fields remain literal. Message submissions
+wait up to 90 seconds for `reply`; if still running, they return the job ID for
+polling. Direct prompt-field submissions remain asynchronous.
+
 Submission returns `ask_id`, `via`, and `ask_status: pending`. Poll with the same
 HMAC protocol (sign the full path including its query):
 

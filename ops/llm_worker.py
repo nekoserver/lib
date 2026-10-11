@@ -118,6 +118,20 @@ def failure_code(text, engine):
     return engine + '_execution_failed'
 
 
+def save_failure_diagnostic(job, returncode, errors):
+    directory = STATE.parent / 'diagnostics'
+    directory.mkdir(mode=0o700, exist_ok=True)
+    for old in directory.glob('*.json'):
+        if time.time() - old.stat().st_mtime > 3600:
+            old.unlink()
+    path = directory / (job['ask_id'] + '.json')
+    # Only CLI error events, never prompts, tool output, or final answers.
+    record = {'exit_code': returncode, 'errors': errors[-8:]}
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, 'w') as output:
+        json.dump(record, output, ensure_ascii=False)
+
+
 def execute(job, prompt):
     job.update(ask_status='running', started_at=time.time())
     save(job)
@@ -139,6 +153,7 @@ def execute(job, prompt):
         reply = None
         error = None
         diagnostic = ''
+        errors = []
         for line in text.splitlines():
             try:
                 event = json.loads(line)
@@ -150,6 +165,7 @@ def execute(job, prompt):
                     reply = item.get('text')
                 if event.get('type') in ('error', 'turn.failed'):
                     diagnostic = json.dumps(event.get('error', event.get('message', {})))
+                    errors.append({'type': event['type'], 'detail': diagnostic[:4096]})
                 # An error event can be a recoverable reconnect. Only a terminal
                 # turn failure overrides a successful exit and final answer.
                 if event.get('type') == 'turn.failed':
@@ -160,6 +176,7 @@ def execute(job, prompt):
                     error = 'claude_execution_failed'
         if proc.returncode != 0 or error or not reply:
             job.update(ask_status='failed', ask_error=error or failure_code(diagnostic, job['via']))
+            save_failure_diagnostic(job, proc.returncode, errors)
         else:
             job.update(ask_status='done', reply=reply.encode()[:MAX_OUTPUT].decode('utf-8', errors='ignore'))
     except TimeoutError:

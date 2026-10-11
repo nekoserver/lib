@@ -86,4 +86,15 @@ class HmacAuthTest < Minitest::Test
   ensure
     $stdout = previous
   end
+
+  def test_protected_requests_preserve_signature_failure_reason
+    sign
+    ENV['HTTP_X_SIGNATURE'] = '0' * 64
+    previous = $stdout
+    $stdout = StringIO.new
+    assert_nil HmacAuth.enforce!(@body, require_hmac: true)
+    assert_includes $stdout.string, '"reason":"bad_signature"'
+  ensure
+    $stdout = previous
+  end
 end

@@ -3,6 +3,7 @@ require 'minitest/autorun'
 require 'stringio'
 require_relative '../api/llm_prompt'
 require_relative '../api/hmac_auth'
+require_relative '../api/tunnels_lib'
 
 class LlmPromptTest < Minitest::Test
   def test_routes_both_supported_engines_without_shell_parsing
@@ -16,6 +17,45 @@ class LlmPromptTest < Minitest::Test
     assert_equal [:conflict, nil], LlmPrompt.route('codex_prompt' => 'a', 'claude_prompt' => 'b')
     assert_equal 'invalid_ask_id', LlmPrompt.lookup('../auth.json')['ask_error']
     assert_equal 'invalid_ask_id', LlmPrompt.lookup('codex-../../auth.json')['ask_error']
+  end
+
+  def test_quoted_message_decodes_inner_prompt_once
+    assert_equal [:codex, '日本語 + %20'], LlmPrompt.route('message' => 'codex_prompt="%E6%97%A5%E6%9C%AC%E8%AA%9E+%2B+%2520"')
+    assert_equal [:codex, 'a"b'], LlmPrompt.route('message' => 'codex_prompt="a%22b"')
+    assert_equal [:codex, 'a+b%20'], LlmPrompt.route('message' => 'codex_prompt=a+b%20')
+    assert_equal [:codex, '"%20"'], LlmPrompt.route('codex_prompt' => '"%20"')
+    assert_equal [:codex, 'Railway のスペック'], LlmPrompt.route('message' => 'codex_prompt=“Railway+%E3%81%AE%E3%82%B9%E3%83%9A%E3%83%83%E3%82%AF”')
+  end
+
+  def test_wait_returns_completed_reply_without_submitting_again
+    id = 'codex-12345678-1234-1234-1234-123456789abc'
+    ops = []
+    fake = lambda do |payload|
+      ops << payload['op']
+      payload['op'] == 'submit' ? {'ask_id' => id, 'ask_status' => 'pending'} : {'ask_id' => id, 'ask_status' => 'done', 'reply' => 'PONG'}
+    end
+    original = LlmPrompt.method(:request)
+    LlmPrompt.define_singleton_method(:request, fake)
+    reply, error, meta = LlmPrompt.run(:codex, 'test', wait_seconds: 2)
+    assert_equal 'PONG', reply
+    assert_nil error
+    assert_equal 'done', meta['ask_status']
+    assert_equal %w[submit poll], ops
+  ensure
+    LlmPrompt.define_singleton_method(:request, original) if original
+  end
+
+  def test_worker_caller_receives_failure_reply_and_status
+    original = LlmPrompt.method(:run)
+    LlmPrompt.define_singleton_method(:run) do |*_args, **_kwargs|
+      [nil, 'codex_execution_failed', {'ask_status' => 'failed'}]
+    end
+    payload = TunnelsLib.attach_message!({}, 'message' => 'codex_prompt="test"')
+    assert_equal 'failed', payload['ask_status']
+    assert_equal 'codex_execution_failed', payload['ask_error']
+    assert_includes payload['reply'], '実行に失敗'
+  ensure
+    LlmPrompt.define_singleton_method(:run, original) if original
   end
 
   def test_size_limit_does_not_truncate_or_submit
@@ -83,6 +123,17 @@ class HmacAuthTest < Minitest::Test
     assert_includes $stdout.string, '401 Unauthorized'
     sign
     assert_equal @body, HmacAuth.enforce!(@body, require_hmac: true)
+  ensure
+    $stdout = previous
+  end
+
+  def test_protected_requests_preserve_signature_failure_reason
+    sign
+    ENV['HTTP_X_SIGNATURE'] = '0' * 64
+    previous = $stdout
+    $stdout = StringIO.new
+    assert_nil HmacAuth.enforce!(@body, require_hmac: true)
+    assert_includes $stdout.string, '"reason":"bad_signature"'
   ensure
     $stdout = previous
   end

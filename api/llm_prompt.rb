@@ -2,6 +2,7 @@
 require 'json'
 require 'socket'
 require 'timeout'
+require 'uri'
 
 module LlmPrompt
   SOCKET = ENV.fetch('LIB_CODEX_SOCKET', '/run/lib-codex/worker.sock')
@@ -21,7 +22,13 @@ module LlmPrompt
       prompts[engine.to_sym] = filters[key].to_s if filters.key?(key)
     end
     match = filters['message'].to_s.match(/\A(codex|claude)_prompt=(.*)\z/m)
-    prompts[match[1].to_sym] = match[2] if match
+    if match
+      value = match[2]
+      if value.length >= 2 && [['"', '"'], ['“', '”']].any? { |left, right| value.start_with?(left) && value.end_with?(right) }
+        value = URI.decode_www_form_component(value[1...-1])
+      end
+      prompts[match[1].to_sym] = value
+    end
     return nil if prompts.empty?
     return [:conflict, nil] if prompts.size > 1
     prompts.first
@@ -40,11 +47,18 @@ module LlmPrompt
     { 'ask_error' => 'codex_worker_unavailable', 'ask_status' => 'failed', 'via' => 'codex' }
   end
 
-  def run(engine, prompt)
+  def run(engine, prompt, wait_seconds: 0)
     return [nil, 'unsupported_engine', { 'ask_status' => 'failed' }] unless %i[codex claude].include?(engine)
     return [nil, 'empty_prompt', { 'ask_status' => 'failed' }] if prompt.to_s.strip.empty?
     return [nil, 'prompt_too_large', { 'ask_status' => 'failed' }] if prompt.bytesize > MAX_PROMPT
     result = request('op' => 'submit', 'engine' => engine.to_s, 'prompt' => prompt)
+    deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + wait_seconds
+    while %w[pending running].include?(result['ask_status']) && ID.match?(result['ask_id'].to_s)
+      remaining = deadline - Process.clock_gettime(Process::CLOCK_MONOTONIC)
+      break if remaining <= 0
+      sleep [0.5, remaining].min
+      result = lookup(result['ask_id'])
+    end
     [result.delete('reply'), result.delete('ask_error'), result]
   end
 

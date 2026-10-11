@@ -176,12 +176,19 @@ module TunnelsLib
         payload["ask_error"] = "codex_and_claude_both_given"
         return payload
       end
-      reply, err, meta = LlmPrompt.run(engine, prompt)
+      reply, err, meta = LlmPrompt.run(engine, prompt, wait_seconds: filters.key?('message') ? 90 : 0)
       payload["via"] = engine
       payload["ask_status"] = meta.fetch('ask_status', err ? 'failed' : 'done')
       payload["ask_id"] = meta['ask_id'] if meta['ask_id']
       payload["reply"] = reply if reply
       payload["ask_error"] = err if err
+      if filters.key?('message') && !reply
+        payload['reply'] = if err
+          "#{engine} の実行に失敗しました（#{err}）。"
+        else
+          "#{engine} はまだ処理中です。ask_id: #{meta['ask_id']}"
+        end
+      end
       if meta.is_a?(Hash)
         payload["llm_model"] = meta["model"] if meta["model"].to_s != ""
         payload["llm_effort"] = meta["effort"] if meta["effort"].to_s != ""

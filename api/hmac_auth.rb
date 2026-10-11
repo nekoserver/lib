@@ -154,7 +154,8 @@ module HmacAuth
   def enforce!(body, require_hmac: false)
     result = authorize(body)
     if require_hmac && result != :hmac_ok
-      unauthorized_response!(:hmac_required)
+      reason = %i[missing_secret bad_timestamp bad_signature].include?(result) ? result : :hmac_required
+      unauthorized_response!(reason)
       return nil
     end
     case result

@@ -70,6 +70,9 @@ user, or provision one of these files, owned by codex-web with mode 600:
 
 Missing Claude authentication produces `claude_not_authenticated` before any job
 is launched. The helper disables hooks and external MCP servers.
+Its `dontAsk` mode explicitly allows `Read`, `Grep`, `Glob`, `Bash`, `WebSearch`,
+and `WebFetch`, so searching for current information does not require an
+interactive permission prompt.
 
 `ops/tunnel_cache.py` periodically writes a credential-free tunnel snapshot to
 `/var/cache/lib-api/tunnels.json`; configure Apache's `LIB_TUNNELS_CACHE` to that

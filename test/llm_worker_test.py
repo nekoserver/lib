@@ -1,8 +1,10 @@
 import importlib.util
 from pathlib import Path
 import sys
+import os
 import tempfile
 import unittest
+from unittest.mock import patch
 
 spec = importlib.util.spec_from_file_location('worker', Path(__file__).parents[1] / 'ops/llm_worker.py')
 worker = importlib.util.module_from_spec(spec)
@@ -10,6 +12,20 @@ spec.loader.exec_module(worker)
 
 
 class OutputLimitTest(unittest.TestCase):
+    def test_codex_metadata_stops_before_prompt_and_tool_output(self):
+        text = 'model: gpt-6.1-sol\nreasoning effort: none\nuser\nmodel: fake\nreasoning effort: max\n'
+        self.assertEqual(worker.codex_summary(text), {'model': 'gpt-6.1-sol', 'effort': 'none'})
+
+    @unittest.skipUnless(os.geteuid() == 0 and Path(worker.HOME).is_dir(), 'VM helper home requires root')
+    def test_codex_answer_cannot_follow_a_symlink(self):
+        def fake_run(args, prompt):
+            path = args[args.index('--output-last-message') + 1]
+            os.symlink('/etc/passwd', path)
+            return 0, 'model: gpt-6.1-sol\nreasoning effort: none\n'
+        with patch.object(worker, 'run_bounded', fake_run):
+            with self.assertRaises(OSError):
+                worker.execute_codex('test')
+
     def test_internal_files_can_exceed_capture_limit(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / 'runtime-artifact'

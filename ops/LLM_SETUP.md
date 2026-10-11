@@ -36,6 +36,12 @@ includes `reply`. Failure includes `ask_error`. Jobs expire after 24 hours;
 process restart marks unfinished jobs failed. Prompt maximum is 16 KiB, output
 maximum 32 KiB, execution timeout 300 seconds, and eight jobs can wait in the queue.
 Polling does not trigger another model call. Requests and replies are never cached.
+Completed replies and job polls include `llm_model` and `llm_effort`.
+Codex metadata comes from the native execution summary, with its answer read
+from the CLI's final-answer file. Codex's `none` effort value is the CLI's
+display for an unset reasoning-effort override, not a measurement of reasoning
+tokens. Claude's model comes from the final main assistant event; the helper
+explicitly uses `--effort high` to match its current Sonnet 5 default.
 Captured CLI output is capped at 4 MiB by the parent process, independently of
 files written by the CLI runtime. The CLI's filesystem restrictions remain intact.
 

@@ -182,6 +182,13 @@ module TunnelsLib
       payload["ask_id"] = meta['ask_id'] if meta['ask_id']
       payload["reply"] = reply if reply
       payload["ask_error"] = err if err
+      if filters.key?('message') && !reply
+        payload['reply'] = if err
+          "#{engine} の実行に失敗しました（#{err}）。"
+        else
+          "#{engine} はまだ処理中です。ask_id: #{meta['ask_id']}"
+        end
+      end
       if meta.is_a?(Hash)
         payload["llm_model"] = meta["model"] if meta["model"].to_s != ""
         payload["llm_effort"] = meta["effort"] if meta["effort"].to_s != ""

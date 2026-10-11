@@ -3,6 +3,7 @@ require 'minitest/autorun'
 require 'stringio'
 require_relative '../api/llm_prompt'
 require_relative '../api/hmac_auth'
+require_relative '../api/tunnels_lib'
 
 class LlmPromptTest < Minitest::Test
   def test_routes_both_supported_engines_without_shell_parsing
@@ -41,6 +42,19 @@ class LlmPromptTest < Minitest::Test
     assert_equal %w[submit poll], ops
   ensure
     LlmPrompt.define_singleton_method(:request, original) if original
+  end
+
+  def test_worker_caller_receives_failure_reply_and_status
+    original = LlmPrompt.method(:run)
+    LlmPrompt.define_singleton_method(:run) do |*_args, **_kwargs|
+      [nil, 'codex_execution_failed', {'ask_status' => 'failed'}]
+    end
+    payload = TunnelsLib.attach_message!({}, 'message' => 'codex_prompt="test"')
+    assert_equal 'failed', payload['ask_status']
+    assert_equal 'codex_execution_failed', payload['ask_error']
+    assert_includes payload['reply'], '実行に失敗'
+  ensure
+    LlmPrompt.define_singleton_method(:run, original) if original
   end
 
   def test_size_limit_does_not_truncate_or_submit

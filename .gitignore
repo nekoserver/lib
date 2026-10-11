@@ -1,2 +1,4 @@
 .github_token
 api/ask/
+__pycache__/
+*.pyc

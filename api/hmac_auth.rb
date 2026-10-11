@@ -95,7 +95,11 @@ module HmacAuth
 
   def client_ip
     # After mod_remoteip, REMOTE_ADDR is CF-Connecting-IP when present.
-    ENV["REMOTE_ADDR"].to_s.strip
+    remote = ENV["REMOTE_ADDR"].to_s.strip
+    forwarded = ENV["HTTP_CF_CONNECTING_IP"].to_s.strip
+    # Only the local cloudflared connector can supply this forwarding header.
+    return forwarded if %w[127.0.0.1 ::1].include?(remote) && !forwarded.empty?
+    remote
   end
 
   def ip_allowlisted?(ip = client_ip)
@@ -147,8 +151,12 @@ module HmacAuth
   end
 
   # Call before consuming business logic. Returns body String if allowed, else nil (response sent).
-  def enforce!(body)
+  def enforce!(body, require_hmac: false)
     result = authorize(body)
+    if require_hmac && result != :hmac_ok
+      unauthorized_response!(:hmac_required)
+      return nil
+    end
     case result
     when :hmac_ok, :ip_ok, :jwt_ok, :ok
       body

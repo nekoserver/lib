@@ -81,7 +81,8 @@ def command(engine):
     # root creates the namespace; the CLI and its tools run as codex-web.
     # Only the dedicated CLI home and temporary files are writable.
     args = ['/usr/bin/bwrap', '--ro-bind', '/', '/', '--bind', HOME, HOME,
-            '--tmpfs', '/tmp', '--tmpfs', '/run', '--proc', '/proc', '--dev', '/dev',
+            '--tmpfs', '/tmp', '--chmod', '1777', '/tmp',
+            '--tmpfs', '/run', '--proc', '/proc', '--dev', '/dev',
             '--unshare-pid', '--die-with-parent', '--new-session', '--cap-drop', 'ALL',
             '--cap-add', 'CAP_SETUID', '--cap-add', 'CAP_SETGID', '--chdir', WORKSPACE,
             '--setenv', 'HOME', HOME, '--setenv', 'CODEX_HOME', HOME + '/.codex',

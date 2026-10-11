@@ -107,7 +107,7 @@ def limit_output():
 def failure_code(text, engine):
     """Return fixed diagnostic labels; never expose CLI text or credentials."""
     text = text.lower()
-    if any(value in text for value in ('usage limit', 'quota', 'rate limit', 'insufficient_quota')):
+    if any(value in text for value in ('hit your usage limit', 'usage_limit_reached', 'insufficient_quota', 'rate_limit_exceeded')):
         return engine + '_usage_limit'
     if any(value in text for value in ('unauthorized', 'authentication', '401', 'token expired')):
         return engine + '_authentication_failed'
@@ -138,6 +138,7 @@ def execute(job, prompt):
             text = output.read(4_194_304).decode('utf-8', errors='replace')
         reply = None
         error = None
+        diagnostic = ''
         for line in text.splitlines():
             try:
                 event = json.loads(line)
@@ -147,6 +148,8 @@ def execute(job, prompt):
                 item = event.get('item') or {}
                 if item.get('type') == 'agent_message':
                     reply = item.get('text')
+                if event.get('type') in ('error', 'turn.failed'):
+                    diagnostic = json.dumps(event.get('error', event.get('message', {})))
                 # An error event can be a recoverable reconnect. Only a terminal
                 # turn failure overrides a successful exit and final answer.
                 if event.get('type') == 'turn.failed':
@@ -156,7 +159,7 @@ def execute(job, prompt):
                 if event.get('is_error'):
                     error = 'claude_execution_failed'
         if proc.returncode != 0 or error or not reply:
-            job.update(ask_status='failed', ask_error=error or failure_code(text, job['via']))
+            job.update(ask_status='failed', ask_error=error or failure_code(diagnostic, job['via']))
         else:
             job.update(ask_status='done', reply=reply.encode()[:MAX_OUTPUT].decode('utf-8', errors='ignore'))
     except TimeoutError:

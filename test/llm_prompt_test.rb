@@ -58,6 +58,19 @@ class LlmPromptTest < Minitest::Test
     LlmPrompt.define_singleton_method(:run, original) if original
   end
 
+  def test_worker_caller_receives_model_and_effort
+    original = LlmPrompt.method(:run)
+    LlmPrompt.define_singleton_method(:run) do |*_args, **_kwargs|
+      ['PONG', nil, {'ask_status' => 'done', 'model' => 'claude-sonnet-5', 'effort' => 'high'}]
+    end
+    payload = TunnelsLib.attach_message!({}, 'message' => 'claude_prompt="test"')
+    assert_equal 'PONG', payload['reply']
+    assert_equal 'claude-sonnet-5', payload['llm_model']
+    assert_equal 'high', payload['llm_effort']
+  ensure
+    LlmPrompt.define_singleton_method(:run, original) if original
+  end
+
   def test_size_limit_does_not_truncate_or_submit
     _, error, = LlmPrompt.run(:codex, 'あ' * 6000)
     assert_equal 'prompt_too_large', error

@@ -12,6 +12,8 @@ import socket
 import socketserver
 import struct
 import subprocess
+import tempfile
+import stat
 import threading
 import time
 import uuid
@@ -76,12 +78,13 @@ def submit(engine, prompt):
     return job
 
 
-def command(engine):
+def command(engine, answer_path=None):
     user = pwd.getpwnam('codex-web')
     # root creates the namespace; the CLI and its tools run as codex-web.
     # Only the dedicated CLI home and temporary files are writable.
     args = ['/usr/bin/bwrap', '--ro-bind', '/', '/', '--bind', HOME, HOME,
-            '--tmpfs', '/tmp', '--tmpfs', '/run', '--proc', '/proc', '--dev', '/dev',
+            '--tmpfs', '/tmp', '--chmod', '1777', '/tmp',
+            '--tmpfs', '/run', '--proc', '/proc', '--dev', '/dev',
             '--unshare-pid', '--die-with-parent', '--new-session', '--cap-drop', 'ALL',
             '--cap-add', 'CAP_SETUID', '--cap-add', 'CAP_SETGID', '--chdir', WORKSPACE,
             '--setenv', 'HOME', HOME, '--setenv', 'CODEX_HOME', HOME + '/.codex',
@@ -91,8 +94,10 @@ def command(engine):
     if engine == 'codex':
         args += ['/opt/codex-web/bin/codex', '-a', 'never', 'exec',
                  '--ignore-user-config', '--ignore-rules', '--ephemeral',
-                 '--sandbox', 'danger-full-access', '--json', '--color', 'never',
+                 '--sandbox', 'danger-full-access', '--color', 'never',
                  '--skip-git-repo-check', '-']
+        if answer_path:
+            args += ['--output-last-message', answer_path]
     else:
         args += ['/usr/local/libexec/lib-claude-helper']
     return args
@@ -172,32 +177,72 @@ def save_failure_diagnostic(job, returncode, errors):
         json.dump(record, output, ensure_ascii=False)
 
 
+def codex_summary(text):
+    metadata = {}
+    # Native exec prints its configuration before the user prompt and tool output.
+    for line in text.splitlines():
+        if line.strip() in ('user', 'codex', 'thinking'):
+            break
+        match = re.fullmatch(r'(model|reasoning effort): ([a-zA-Z0-9_.:/-]+)', line)
+        if match:
+            metadata['model' if match[1] == 'model' else 'effort'] = match[2]
+    return metadata
+
+
+def execute_codex(prompt):
+    user = pwd.getpwnam('codex-web')
+    with tempfile.TemporaryDirectory(prefix='.llm-answer-', dir=HOME) as directory:
+        os.chown(directory, user.pw_uid, user.pw_gid)
+        directory_fd = os.open(directory, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+        try:
+            code, text = run_bounded(command('codex', directory + '/answer'), prompt)
+            try:
+                fd = os.open('answer', os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=directory_fd)
+            except FileNotFoundError:
+                return code, text, None
+            with os.fdopen(fd, 'rb') as answer:
+                info = os.fstat(answer.fileno())
+                if not stat.S_ISREG(info.st_mode) or info.st_uid != user.pw_uid:
+                    raise ValueError('Invalid answer file')
+                reply = answer.read(MAX_OUTPUT).decode('utf-8', errors='ignore')
+            return code, text, reply
+        finally:
+            os.close(directory_fd)
+
+
 def execute(job, prompt):
     job.update(ask_status='running', started_at=time.time())
     save(job)
     try:
         # The prompt is stdin, never a shell command or CLI option.
-        returncode, text = run_bounded(command(job['via']), prompt)
-        reply = None
+        if job['via'] == 'codex':
+            returncode, text, reply = execute_codex(prompt)
+            job.update(codex_summary(text))
+        else:
+            returncode, text = run_bounded(command(job['via']), prompt)
+            reply = None
+            job['effort'] = 'high'
         error = None
         diagnostic = ''
         errors = []
         for line in text.splitlines():
+            if job['via'] == 'codex':
+                if line.startswith('ERROR:'):
+                    diagnostic = line
+                    errors.append({'type': 'cli_error', 'detail': line[:4096]})
+                continue
             try:
                 event = json.loads(line)
             except json.JSONDecodeError:
                 continue
-            if job['via'] == 'codex':
-                item = event.get('item') or {}
-                if item.get('type') == 'agent_message':
-                    reply = item.get('text')
-                if event.get('type') in ('error', 'turn.failed'):
-                    diagnostic = json.dumps(event.get('error', event.get('message', {})))
-                    errors.append({'type': event['type'], 'detail': diagnostic[:4096]})
-                # An error event can be a recoverable reconnect. Only a terminal
-                # turn failure overrides a successful exit and final answer.
-                if event.get('type') == 'turn.failed':
-                    error = failure_code(json.dumps(event.get('error', {})), 'codex')
+            if event.get('type') == 'system' and event.get('subtype') == 'init':
+                model = event.get('model', '')
+                if isinstance(model, str) and re.fullmatch(r'[a-zA-Z0-9_.:/-]{1,128}', model):
+                    job['model'] = model
+            elif event.get('type') == 'assistant' and not event.get('parent_tool_use_id'):
+                model = (event.get('message') or {}).get('model', '')
+                if isinstance(model, str) and re.fullmatch(r'[a-zA-Z0-9_.:/-]{1,128}', model):
+                    job['model'] = model
             elif event.get('type') == 'result':
                 reply = event.get('result')
                 if event.get('is_error'):
@@ -214,6 +259,10 @@ def execute(job, prompt):
     except (OSError, ValueError):
         job.update(ask_status='failed', ask_error='llm_helper_failed')
     job['finished_at'] = time.time()
+    if job.get('model'):
+        job['llm_model'] = job['model']
+    if job.get('effort'):
+        job['llm_effort'] = job['effort']
     save(job)
     print(json.dumps({'ask_id': job['ask_id'], 'status': job['ask_status']}), flush=True)
 

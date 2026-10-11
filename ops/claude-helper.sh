@@ -9,6 +9,6 @@ elif [ -f "$HOME/.claude-oauth-token" ]; then
   CLAUDE_CODE_OAUTH_TOKEN=$(cat "$HOME/.claude-oauth-token")
   export CLAUDE_CODE_OAUTH_TOKEN
 fi
-exec /opt/claude-web/claude -p --output-format json --permission-mode dontAsk \
-  --allowedTools 'Read,Grep,Glob,Bash' --strict-mcp-config --mcp-config '{"mcpServers":{}}' \
+exec /opt/claude-web/claude -p --output-format stream-json --verbose --effort high --permission-mode dontAsk \
+  --allowedTools 'Read,Grep,Glob,Bash,WebSearch,WebFetch' --strict-mcp-config --mcp-config '{"mcpServers":{}}' \
   --settings '{"disableAllHooks":true}' --setting-sources user --no-session-persistence

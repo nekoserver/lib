@@ -306,9 +306,19 @@ module TunnelsLib
     end
     body = method == "POST" ? read_post_body : ""
     filters = parse_filters(body)
+    require_relative 'railway_exec'
+    railway_command = RailwayExec.route(filters)
     uptime_command = filters['command'].to_s == 'railway_uptime' || filters['message'].to_s == 'railway_uptime'
     protected_request = uptime_command || LlmPrompt.route(filters) || !filters['message'].to_s.empty? || !filters['ask_id'].to_s.empty?
     return unless HmacAuth.enforce!(body, require_hmac: !!protected_request)
+    unless railway_command.nil?
+      unless %w[GET POST].include?(method)
+        print "Status: 405 Method Not Allowed\r\nAllow: GET, POST\r\nContent-Type: application/json\r\n\r\n{\"error\":\"unsupported_method\"}\n"
+        return
+      end
+      respond!(RailwayExec.run(railway_command), force_format || 'json')
+      return
+    end
     if uptime_command
       unless %w[GET POST].include?(method)
         print "Status: 405 Method Not Allowed\r\nAllow: GET, POST\r\nContent-Type: application/json\r\n\r\n{\"error\":\"unsupported_method\"}\n"

@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="ja">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Railway / デーモン稼働状況</title><link rel="stylesheet" href="/lib/dashboard/railway/style.css"><script src="/lib/dashboard/railway/dashboard.js" defer></script></head>
+<body>
+<main>
+  <header><div><div class="eyebrow"><span class="logo">R</span> RAILWAY VM <span class="slash">/</span> OBSERVABILITY</div><h1>デーモン稼働状況</h1><p class="subtitle">この VM で動くサービスと、実際の応答を確認します。</p></div><div class="controls"><label><input id="auto" type="checkbox" checked> 15秒ごとに更新</label><button id="refresh" type="button">↻ 更新</button></div></header>
+  <div class="freshness"><span id="live-dot" class="dot"></span><span id="freshness" role="status">最初の稼働データを取得しています…</span><span id="checked-at"></span></div>
+  <div id="error" class="notice" role="alert" hidden></div>
+  <form id="auth" class="auth" hidden><div><strong>この画面の稼働データには認証が必要です</strong><p>既存の HMAC キーで署名します。キーは保存せず、このページを閉じると破棄します。</p></div><label for="secret">HMAC キー</label><div class="auth-row"><input id="secret" type="password" autocomplete="off" spellcheck="false" required><button type="submit">接続</button></div></form>
+  <section class="metrics" aria-label="VM のリソース">
+    <article><div class="metric-label">稼働プロセス</div><div id="running" class="metric-value">—</div><div id="service-summary" class="metric-note">データ取得待ち</div></article>
+    <article><div class="metric-label">利用可能メモリ</div><div id="memory" class="metric-value">—</div><div class="meter"><span id="memory-bar"></span></div><div id="memory-note" class="metric-note">—</div></article>
+    <article><div class="metric-label">ディスク空き容量</div><div id="disk" class="metric-value">—</div><div class="meter"><span id="disk-bar"></span></div><div id="disk-note" class="metric-note">—</div></article>
+    <article><div class="metric-label">VM の OS 稼働時間</div><div id="uptime" class="metric-value">—</div><div id="load" class="metric-note">—</div></article>
+  </section>
+  <section class="panel"><div class="panel-head"><div><h2>サービス</h2><p>プロセスの存在と応答テストを分けて表示</p></div><div class="filters" role="group" aria-label="状態で絞り込み"><button data-filter="all" aria-pressed="true">すべて</button><button data-filter="issues" aria-pressed="false">要確認</button></div></div><div class="table-wrap"><table><thead><tr><th>サービス</th><th>状態</th><th>応答・確認結果</th><th>プロセス稼働時間</th><th>PID</th></tr></thead><tbody id="services"><tr><td colspan="5" class="empty">確認中…</td></tr></tbody></table></div></section>
+  <section class="panel"><div class="panel-head"><div><h2>Docker コンテナ <span id="container-count" class="count">—</span></h2><p>Docker デーモンと、コンテナの稼働は別々に確認します</p></div></div><div id="containers" class="container-list"><p class="empty">データ取得待ち</p></div></section>
+  <footer><span>対象：この Railway VM 内 · 他ホストの状態は含みません</span><span>応答テストは接続やプロトコルの確認です。業務処理の正常性は未検査です。</span></footer>
+</main>
+</body></html>

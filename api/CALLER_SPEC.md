@@ -70,6 +70,73 @@ Other `/lib` paths remain IP-allowlisted before CGI.
 
 ## Endpoints
 
+### Railway list commands through message
+
+Send POST JSON `{"message":"railway_exec=\"railway_list_services\""}`,
+or GET `?message=railway_exec%3D%22railway_list_services%22`.
+Quoted content is URL decoded once, as with CLI prompts. Spaces are supported:
+`{"message":"railway_exec=\"service%20list%20--json\""}` executes
+`railway service list --json`. A literal `+` must be encoded as `%2B`.
+The command names below are also accepted inside `railway_exec="..."`.
+Valid HMAC is required, including loopback and allowlisted callers; sign the
+actual query or raw POST body. No LLM job or Cloudflare fetch is started.
+
+| Name inside `railway_exec="..."` | Railway CLI |
+| --- | --- |
+| `railway_get_usage` | `railway usage --json` |
+| `railway_list_project_usage` | `railway usage projects --json` |
+| `railway_get_usage_limits` | `railway usage limit status --json` |
+| `railway_get_service_status` | `railway service status --json` |
+| `railway_list_environments` | `railway environment list --json` |
+| `railway_list_cloud_agents` | `railway ca list --json` |
+| `railway_get_status` | `railway status --json` |
+| `railway_whoami` | `railway whoami --json` |
+| `railway_list_projects` | `railway project list --json` |
+| `railway_list_services` | `railway service list --json` |
+| `railway_list_deployments` | `railway deployment list --json` |
+| `railway_list_domains` | `railway domain list --json` |
+| `railway_list_buckets` | `railway bucket list --json` |
+
+Names map to fixed CLI argument arrays using the CGI's current project context.
+CLI-style arguments accept the listed read commands, optionally preceded by
+`railway`, and `--json` (added automatically if omitted).
+Supported value options are `--project`/`-p`, `--environment`/`-e`,
+`--service`/`-s`, and `--limit`; actual support depends on the CLI subcommand.
+Other commands and options are rejected. Arguments are passed as an array,
+without invoking a shell.
+Command names also accept these options, for example
+`railway_exec="railway_get_service_status%20--service%20api%20--environment%20production"`.
+
+For service start/stop preparation, first retrieve `railway_get_status`
+(project/environment/service selectors), `railway_list_environments`,
+`railway_get_service_status` (current deployment state), and
+`railway_list_deployments` (deployment IDs and statuses). For Cloud Agent
+VM sleep/wake preparation, use `railway_list_cloud_agents`.
+These routes retrieve information only; they do not start or stop resources.
+The successful response's `command` is the decoded content inside the quotes.
+
+Usage examples (quoted content is inner URL encoded):
+
+```json
+{"message":"railway_exec=\"railway%20usage\""}
+{"message":"railway_exec=\"usage%20--period%20previous\""}
+{"message":"railway_exec=\"usage%20projects%20--project%20strong-spirit\""}
+{"message":"railway_exec=\"usage%20limit%20status%20--target%20agent\""}
+```
+
+`usage` accepts `--workspace` and `--period`; `usage projects` also accepts
+`--project` and `--limit`. `usage limit status` accepts `--workspace` and
+`--target`. Usage reads are workspace/billing-period scoped. Billing access is
+required in the CGI execution environment. Limit changes (`set`, `update`,
+`remove`) are rejected. CLI output and authentication errors are returned in
+`reply` with the existing `exit_code` / `ask_status` fields.
+
+The response contains `reply` (CLI output), `exit_code`, `ask_status`, and
+`ask_error` on failure. Execution is limited to 20 seconds and output to 16 KiB.
+The CGI execution user must have Railway CLI credentials and project context;
+SSH session authentication alone does not establish CGI authentication.
+Set `LIB_RAILWAY_BIN` to override `/usr/local/bin/railway` when needed.
+
 ### Codex / Claude CLI jobs
 
 POST JSON `{"codex_prompt":"..."}` or `{"claude_prompt":"..."}` to

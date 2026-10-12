@@ -7,7 +7,7 @@ require 'uri'
 module LlmPrompt
   SOCKET = ENV.fetch('LIB_CODEX_SOCKET', '/run/lib-codex/worker.sock')
   MAX_PROMPT = 16_384
-  ID = /\A(?:codex|claude)-[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}\z/
+  ID = /\A(?:codex|claude|nemotron)-[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}\z/
   module_function
 
   def maybe_percent_decode(value)
@@ -17,11 +17,11 @@ module LlmPrompt
 
   def route(filters)
     prompts = {}
-    %w[codex claude].each do |engine|
+    %w[codex claude nemotron].each do |engine|
       key = "#{engine}_prompt"
       prompts[engine.to_sym] = filters[key].to_s if filters.key?(key)
     end
-    match = filters['message'].to_s.match(/\A(codex|claude)_prompt=(.*)\z/m)
+    match = filters['message'].to_s.match(/\A(codex|claude|nemotron)_prompt=(.*)\z/m)
     if match
       value = match[2]
       if value.length >= 2 && [['"', '"'], ['“', '”']].any? { |left, right| value.start_with?(left) && value.end_with?(right) }

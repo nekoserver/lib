@@ -54,7 +54,7 @@ def main():
                     added = register.append_key(ssh / 'authorized_keys', line, encoded)
                     result = {'added': added, 'fingerprint': fingerprint, 'user': 'root'}
                 except (ValueError, UnicodeError, KeyError, TypeError):
-                    result = {'error': 'invalid_rsa_public_key'}
+                    result = {'error': 'invalid_ed25519_public_key'}
                 except (OSError, TimeoutError):
                     result = {'error': 'registration_unavailable'}
                 try:

@@ -1,14 +1,13 @@
 # PKCS#8 SSH key page
 
-URL: `/lib/keys/`. RSA 3072/4096 key generation, PKCS#8 private PEM,
+URL: `/lib/keys/`. Ed25519 key generation, PKCS#8 private PEM,
 SPKI public PEM, and OpenSSH public keys run in the browser via Web Crypto.
 No key material is stored in browser storage. Only the public key is POSTed
 when the user explicitly registers it. The private key is unencrypted.
 
 Registration requires the existing `api/hmac_auth.rb` HMAC authentication,
 even from an allowlisted IP. `keys/register.rb` invokes a narrowly scoped root
-helper over a local Unix socket. The worker accepts only bare RSA keys with exponent 65537
-and 3072/4096 bits, appends to `/root/.ssh/authorized_keys` under a lock,
+helper over a local Unix socket. The worker accepts only bare Ed25519 keys with a 32-byte public key, appends to `/root/.ssh/authorized_keys` under a lock,
 and preserves existing keys. It does not accept a target path or arguments.
 Duplicate keys are not added, including keys with existing restrictions.
 

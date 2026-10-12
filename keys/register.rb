@@ -31,7 +31,7 @@ begin
       JSON.parse(line)
     end
   end
-  if payload['error'] == 'invalid_rsa_public_key'
+  if payload['error'] == 'invalid_ed25519_public_key'
     reply('400 Bad Request', payload)
   elsif payload['error']
     reply('503 Service Unavailable', payload)

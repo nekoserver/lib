@@ -4,10 +4,8 @@ const endpoint = '/lib/keys/register.rb';
 let material = null;
 const bytes = value => new Uint8Array(value);
 const b64 = value => btoa(String.fromCharCode(...value));
-const decode = value => bytes(Uint8Array.from(atob(value.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0)));
 const concat = (...arrays) => { const out = new Uint8Array(arrays.reduce((n, a) => n + a.length, 0)); let offset = 0; for (const a of arrays) { out.set(a, offset); offset += a.length; } return out; };
 const sshString = value => { const length = new Uint8Array(4); new DataView(length.buffer).setUint32(0, value.length); return concat(length, value); };
-const mpint = value => { let i = 0; while (i < value.length - 1 && value[i] === 0) i++; const v = value.slice(i); return sshString(v[0] & 128 ? concat(new Uint8Array([0]), v) : v); };
 const pem = (label, value) => `-----BEGIN ${label}-----\n${b64(bytes(value)).match(/.{1,64}/g).join('\n')}\n-----END ${label}-----\n`;
 const hex = value => [...bytes(value)].map(b => b.toString(16).padStart(2, '0')).join('');
 function clear() { material = null; $('private').value = ''; $('public').value = ''; $('secret').value = ''; $('fingerprint').textContent = ''; $('result').hidden = true; $('registration').hidden = true; $('clear').disabled = true; $('register-status').textContent = ''; }
@@ -15,14 +13,14 @@ $('generate').addEventListener('click', async () => {
   clear(); $('generate').disabled = true; $('status').textContent = 'キーペアを生成しています…';
   try {
     if (!globalThis.isSecureContext || !crypto.subtle) throw new Error('HTTPSでページを開いてください。');
-    const pair = await crypto.subtle.generateKey({name: 'RSASSA-PKCS1-v1_5', modulusLength: Number($('bits').value), publicExponent: new Uint8Array([1, 0, 1]), hash: 'SHA-256'}, true, ['sign', 'verify']);
-    const [privateDer, publicDer, jwk] = await Promise.all([crypto.subtle.exportKey('pkcs8', pair.privateKey), crypto.subtle.exportKey('spki', pair.publicKey), crypto.subtle.exportKey('jwk', pair.publicKey)]);
-    const wire = concat(sshString(new TextEncoder().encode('ssh-rsa')), mpint(decode(jwk.e)), mpint(decode(jwk.n)));
-    material = {private: pem('PRIVATE KEY', privateDer), public: `ssh-rsa ${b64(wire)} browser-pkcs8\n`, spki: pem('PUBLIC KEY', publicDer)};
+    const pair = await crypto.subtle.generateKey({name: 'Ed25519'}, true, ['sign', 'verify']);
+    const [privateDer, publicDer, publicRaw] = await Promise.all([crypto.subtle.exportKey('pkcs8', pair.privateKey), crypto.subtle.exportKey('spki', pair.publicKey), crypto.subtle.exportKey('raw', pair.publicKey)]);
+    const wire = concat(sshString(new TextEncoder().encode('ssh-ed25519')), sshString(bytes(publicRaw)));
+    material = {private: pem('PRIVATE KEY', privateDer), public: `ssh-ed25519 ${b64(wire)} browser-pkcs8\n`, spki: pem('PUBLIC KEY', publicDer)};
     $('private').value = material.private; $('public').value = material.public;
     $('fingerprint').textContent = `SHA256:${b64(bytes(await crypto.subtle.digest('SHA-256', wire))).replace(/=+$/, '')}`;
     $('result').hidden = false; $('registration').hidden = false; $('clear').disabled = false; $('status').textContent = '生成完了。秘密鍵を保存してください。公開鍵はまだ登録されていません。';
-  } catch (e) { clear(); $('status').textContent = `生成できませんでした: ${e.message}`; }
+  } catch (e) { clear(); $('status').textContent = e.name === 'NotSupportedError' ? 'このブラウザはEd25519に対応していません。対応ブラウザで開いてください。' : `生成できませんでした: ${e.message}`; }
   finally { $('generate').disabled = false; }
 });
 $('clear').addEventListener('click', () => { clear(); $('status').textContent = '画面から鍵を破棄しました。ダウンロード済みファイルや登録済み公開鍵は保持されます。'; });

@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-"""Root helper: accept only a bare RSA public key on stdin; fixed root target."""
+"""Root helper: accept only a bare Ed25519 public key on stdin; fixed root target."""
 import base64
 import binascii
 import fcntl
@@ -13,12 +13,12 @@ import sys
 
 def validate(text):
     parts = text.strip().split()
-    if len(parts) not in (2, 3) or parts[0] != 'ssh-rsa':
-        raise ValueError('Expected bare RSA public key')
+    if len(parts) not in (2, 3) or parts[0] != 'ssh-ed25519':
+        raise ValueError('Expected bare Ed25519 public key')
     wire = base64.b64decode(parts[1], validate=True)
     offset = 0
     values = []
-    for _ in range(3):
+    for _ in range(2):
         if offset + 4 > len(wire):
             raise ValueError('Truncated key')
         size = struct.unpack('>I', wire[offset:offset+4])[0]
@@ -27,17 +27,13 @@ def validate(text):
             raise ValueError('Invalid field')
         values.append(wire[offset:offset+size])
         offset += size
-    if offset != len(wire) or values[0] != b'ssh-rsa':
+    if offset != len(wire) or values[0] != b'ssh-ed25519':
         raise ValueError('Invalid wire key')
-    for value in values[1:]:
-        if value[0] & 128 or (len(value) > 1 and value[0] == 0 and not value[1] & 128):
-            raise ValueError('Invalid mpint')
-    exponent, modulus = (int.from_bytes(value, 'big') for value in values[1:])
-    if exponent != 65537 or modulus.bit_length() not in (3072, 4096) or not modulus & 1:
-        raise ValueError('Unsupported RSA key')
+    if len(values[1]) != 32:
+        raise ValueError('Ed25519 public key must be 32 bytes')
     encoded = base64.b64encode(wire).decode()
     fingerprint = 'SHA256:' + base64.b64encode(hashlib.sha256(wire).digest()).decode().rstrip('=')
-    return 'ssh-rsa ' + encoded + ' browser-pkcs8', encoded, fingerprint
+    return 'ssh-ed25519 ' + encoded + ' browser-pkcs8', encoded, fingerprint
 
 
 def append_key(path, line, encoded):
@@ -51,7 +47,7 @@ def append_key(path, line, encoded):
             if row.lstrip().startswith('#'):
                 continue
             fields = row.split()
-            if any(fields[i:i+2] == ['ssh-rsa', encoded] for i in range(len(fields)-1)):
+            if any(fields[i:i+2] == ['ssh-ed25519', encoded] for i in range(len(fields)-1)):
                 return False
         handle.seek(0, os.SEEK_END)
         handle.write(('\n' if existing and not existing.endswith('\n') else '') + line + '\n')

@@ -306,8 +306,31 @@ module TunnelsLib
     end
     body = method == "POST" ? read_post_body : ""
     filters = parse_filters(body)
-    protected_request = LlmPrompt.route(filters) || !filters['message'].to_s.empty? || !filters['ask_id'].to_s.empty?
+    uptime_command = filters['command'].to_s == 'railway_uptime' || filters['message'].to_s == 'railway_uptime'
+    protected_request = uptime_command || LlmPrompt.route(filters) || !filters['message'].to_s.empty? || !filters['ask_id'].to_s.empty?
     return unless HmacAuth.enforce!(body, require_hmac: !!protected_request)
+    if uptime_command
+      unless %w[GET POST].include?(method)
+        print "Status: 405 Method Not Allowed\r\nAllow: GET, POST\r\nContent-Type: application/json\r\n\r\n{\"error\":\"unsupported_method\"}\n"
+        return
+      end
+      seconds = Float(File.read('/proc/uptime').split.first).floor
+      boot = Integer(File.read('/proc/stat').match(/^btime (\d+)$/)[1])
+      days, rest = seconds.divmod(86_400)
+      hours, rest = rest.divmod(3_600)
+      minutes = rest / 60
+      reply = "Railway VMのOS稼働時間: #{days}日#{hours}時間#{minutes}分（課金対象時間ではありません）"
+      respond!({
+        'command' => 'railway_uptime',
+        'uptime_seconds' => seconds,
+        'booted_at' => Time.at(boot).utc.iso8601,
+        'checked_at' => Time.now.utc.iso8601,
+        'source' => '/proc/uptime',
+        'billing_time' => false,
+        'reply' => reply
+      }, force_format || 'json')
+      return
+    end
     if LlmPrompt.route(filters) && method != 'POST'
       print "Status: 405 Method Not Allowed\r\nAllow: POST\r\nContent-Type: application/json\r\n\r\n{\"error\":\"use_post_for_codex\"}\n"
       return

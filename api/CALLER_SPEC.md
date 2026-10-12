@@ -70,6 +70,21 @@ Other `/lib` paths remain IP-allowlisted before CGI.
 
 ## Endpoints
 
+### Railway VM uptime
+
+Send POST JSON `{"command":"railway_uptime"}` (recommended),
+or GET `?command=railway_uptime` to `/lib/api/tunnels.rb` (the extensionless
+alias also works). `message=railway_uptime` is accepted for message-based callers.
+Valid HMAC is required even for loopback and allowlisted clients.
+Sign the actual method, path/query, and raw body using the existing protocol.
+
+The immediate JSON response contains `command`, integer `uptime_seconds`,
+UTC `booted_at` and `checked_at`, `source`, `billing_time: false`, and a Japanese
+`reply`. It reads Linux `/proc/uptime` and `/proc/stat` directly; no LLM job,
+shell command, or Cloudflare API call is started. This is OS uptime, not Railway
+billing duration or accumulated active time excluding VM sleeps.
+QUERY support remains a separate plan and is not added here.
+
 ### Codex / Claude CLI jobs
 
 POST JSON `{"codex_prompt":"..."}` or `{"claude_prompt":"..."}` to

@@ -25,5 +25,5 @@ accepts only the www-data UID (SO_PEERCRED); CGI requires a signed HMAC request.
 Add lib-ssh-key-worker to the worker list in /app/start-web.sh to restart on wake. Clearing the page clears its displayed
 keys; it does not revoke already registered keys or delete downloaded files.
 
-Checks: `node --check keys/keygen.js`, `ruby -c keys/register.rb`,
+Checks: `node --check keys/ed25519.js`, `ruby -c keys/register.rb`,
 `python3 -m unittest discover -s test -p ssh_key_register_test.py`.

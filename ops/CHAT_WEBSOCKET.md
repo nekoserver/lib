@@ -1,5 +1,8 @@
 # AI chat over WebSocket
 
+SSE・NDJSON・JSON Text Sequenceの切替と、この会話の閲覧専用接続は
+[STREAM_FINDINGS.md](STREAM_FINDINGS.md) を参照。
+
 `llm-chat-api-react.html` now connects to the same-origin `/lib/api/chat/ws`.
 It offers Codex/Claude selection, HMAC authentication, job status, final reply,
 model/effort metadata, stop-watching, and reconnect-to-result controls.

@@ -1,0 +1,20 @@
+[Unit]
+Description=Read-only observer of the configured Codex conversation
+After=network.target
+
+[Service]
+User=root
+Group=www-data
+EnvironmentFile=/etc/lib-chat.env
+ExecStart=/opt/lib-chat/bin/python /var/www/html/lib/ops/chat_observer.py
+RuntimeDirectory=lib-chat-observer
+RuntimeDirectoryMode=0750
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/run/lib-chat-observer
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

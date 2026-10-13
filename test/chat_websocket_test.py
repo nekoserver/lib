@@ -57,13 +57,19 @@ class ChatIntegrationTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(json.loads(await ws.recv())['type'], 'authenticated')
         return signature
 
+    async def next_result(self, ws):
+        while True:
+            event = json.loads(await ws.recv())
+            if event["type"] not in ("info", "heartbeat"):
+                return event
+
     async def test_submit_delivers_status_and_final_reply(self):
         self.results = [{'ask_id': ID, 'ask_status': status} for status in ('pending', 'pending', 'running')]
         self.results.append({'ask_id': ID, 'ask_status': 'done', 'reply': 'こんにちは', 'llm_model': 'test-model'})
         async with connect(self.url, origin=ORIGIN) as ws:
             await self.auth(ws)
             await ws.send(json.dumps({'type': 'submit', 'engine': 'codex', 'prompt': 'Hello\nworld'}))
-            states = [json.loads(await ws.recv()) for _ in range(3)]
+            states = [await self.next_result(ws) for _ in range(3)]
             self.assertEqual([s['ask_status'] for s in states], ['pending', 'running', 'done'])
             self.assertEqual(states[-1]['reply'], 'こんにちは')
             self.assertEqual(states[-1]['llm_model'], 'test-model')
@@ -75,7 +81,7 @@ class ChatIntegrationTest(unittest.IsolatedAsyncioTestCase):
         async with connect(self.url, origin=ORIGIN) as ws:
             await self.auth(ws)
             await ws.send(json.dumps({'type': 'resume', 'ask_id': ID}))
-            self.assertEqual(json.loads(await ws.recv())['reply'], 'existing')
+            self.assertEqual((await self.next_result(ws))['reply'], 'existing')
         self.assertEqual(self.calls, [{'op': 'poll', 'ask_id': ID}])
 
     async def test_bad_auth_cannot_enqueue(self):
@@ -85,6 +91,34 @@ class ChatIntegrationTest(unittest.IsolatedAsyncioTestCase):
             with self.assertRaises(ConnectionClosed) as error:
                 await ws.recv()
             self.assertEqual(error.exception.rcvd.code, 1008)
+        self.assertEqual(self.calls, [])
+
+    async def test_demo_auth_cannot_observe_or_submit(self):
+        for operation in ({'type': 'observe'}, {'type': 'submit', 'engine': 'codex', 'prompt': 'hello'}):
+            async with connect(self.url, origin=ORIGIN) as ws:
+                await ws.recv()
+                await ws.send(json.dumps({'type': 'demo_auth'}))
+                self.assertEqual(json.loads(await ws.recv())['type'], 'authenticated')
+                await ws.send(json.dumps(operation))
+                with self.assertRaises(ConnectionClosed) as error:
+                    await ws.recv()
+                self.assertEqual(error.exception.rcvd.code, 1008)
+        self.assertEqual(self.calls, [])
+
+    async def test_demo_delivers_deltas_without_calling_queue(self):
+        with patch.object(chat, 'DEMO_TEXT', '日本語' * 10), patch.object(chat, 'DEMO_INTERVAL', 0):
+            async with connect(self.url, origin=ORIGIN) as ws:
+                await ws.recv()
+                await ws.send(json.dumps({'type': 'demo_auth'}))
+                await ws.recv()
+                await ws.send(json.dumps({'type': 'demo'}))
+                events = []
+                while True:
+                    event = json.loads(await ws.recv())
+                    events.append(event)
+                    if event.get('ask_status') == 'done':
+                        break
+        self.assertEqual(''.join(event['text'] for event in events if event['type'] == 'delta'), '日本語' * 10)
         self.assertEqual(self.calls, [])
 
     async def test_signature_cannot_be_replayed(self):
@@ -117,14 +151,14 @@ class ChatIntegrationTest(unittest.IsolatedAsyncioTestCase):
             async with connect(self.url, origin=ORIGIN) as ws:
                 await self.auth(ws)
                 await ws.send(json.dumps({'type': 'resume', 'ask_id': ID}))
-                result = json.loads(await ws.recv())
+                result = await self.next_result(ws)
                 self.assertEqual(result, {'type': 'error', 'error': 'worker_unavailable'})
 
     async def test_disconnect_stops_polling_without_resubmit(self):
         async with connect(self.url, origin=ORIGIN) as ws:
             await self.auth(ws)
             await ws.send(json.dumps({'type': 'submit', 'engine': 'claude', 'prompt': 'Hello'}))
-            await ws.recv()
+            await self.next_result(ws)
         await asyncio.sleep(0.03)
         count = len(self.calls)
         await asyncio.sleep(0.03)

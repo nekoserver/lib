@@ -163,6 +163,12 @@ messages continue to pass their text through unchanged.
 POST JSON `{"codex_prompt":"..."}` or `{"claude_prompt":"..."}` to
 `/lib/api/tunnels.rb`. `message: "codex_prompt=..."` and
 `message: "claude_prompt=..."` also route to the respective CLI helper.
+CLI requests supplied through `message` wait up to 290 seconds for completion,
+then return the existing processing reply and `ask_id` if the job is still active.
+Direct `codex_prompt` / `claude_prompt` fields return immediately. The worker's
+300-second execution limit is unchanged; queued jobs may outlast the response wait.
+Callers must allow more than 290 seconds or use immediate submission and polling.
+
 All AI requests and polls require valid HMAC, including allowlisted/local callers.
 The signing format and headers above are unchanged. A new CLI request must use POST.
 

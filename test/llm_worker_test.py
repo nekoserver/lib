@@ -45,5 +45,31 @@ class OutputLimitTest(unittest.TestCase):
             ], 'test')
 
 
+class ConsumerRecoveryTest(unittest.TestCase):
+    def test_closed_log_stream_does_not_raise(self):
+        with patch('builtins.print', side_effect=BrokenPipeError):
+            worker.log_event({'status': 'done'})
+
+    def test_failed_job_does_not_stop_next_job(self):
+        class StopConsumer(BaseException):
+            pass
+        first = {'ask_id': 'first', 'ask_status': 'pending'}
+        second = {'ask_id': 'second', 'ask_status': 'pending'}
+        from unittest.mock import Mock
+        jobs = Mock()
+        jobs.get.side_effect = [(first, 'first prompt'), (second, 'second prompt'), StopConsumer]
+        with patch.object(worker, 'JOBS', jobs), \
+             patch.object(worker, 'execute', side_effect=[RuntimeError('unexpected result'), None]) as execute, \
+             patch.object(worker, 'save') as save, \
+             patch.object(worker, 'log_event'):
+            with self.assertRaises(StopConsumer):
+                worker.consume()
+            self.assertEqual(execute.call_count, 2)
+            self.assertEqual(jobs.task_done.call_count, 2)
+            self.assertEqual(first['ask_status'], 'failed')
+            self.assertEqual(first['ask_error'], 'worker_job_failed')
+            save.assert_called_once_with(first)
+
+
 if __name__ == '__main__':
     unittest.main()

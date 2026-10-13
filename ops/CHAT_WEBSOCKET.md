@@ -19,6 +19,9 @@ before using the new chat screen. The existing private queue must be running.
 
 1. Create `/opt/lib-chat` as a Python 3.11+ venv and install
    `ops/chat-websocket-requirements.txt` into it (tested with Python 3.14).
+   Use an interpreter accessible to `www-data`, e.g.
+   `uv venv --python /usr/bin/python3 /opt/lib-chat`; an interpreter under
+   `/root` cannot be used by the unprivileged service.
 2. Place the checkout at `/var/www/html/lib`, or update the service's ExecStart
    to its actual location (e.g. `/app/railway/redmine/public/lib`). Keep `ops`
    and `test` excluded from public file serving.
@@ -36,19 +39,19 @@ before using the new chat screen. The existing private queue must be running.
    For a VM without systemd, have its existing bootstrap supervisor start the
    same command as www-data with the environment above. Do not launch a second
    LLM execution worker.
-6. In each Caddy public listener, replace its standalone `import origin-proxy`
-   with these two mutually exclusive handlers:
+6. Inside Caddy's existing `(origin-proxy)` snippet, add this specific route
+   before its existing unmatched `reverse_proxy https://127.0.0.1:8443`:
 
    ```caddyfile
-   handle /lib/api/chat/ws {
-       reverse_proxy 127.0.0.1:8091
-   }
-   handle {
-       import origin-proxy
-   }
+   @chat_ws path /lib/api/chat/ws
+   reverse_proxy @chat_ws 127.0.0.1:8091
    ```
 
-   Caddy handles HTTP Upgrade automatically. External clients must use `wss`;
+   Keep each listener's top-level `import origin-proxy`. Do not place that
+   import inside a `handle` block: the snippet includes the site-level `log`
+   directive, which is invalid there. The matched proxy runs before the
+   unmatched Apache proxy. Caddy handles HTTP Upgrade automatically.
+   External clients must use `wss`;
    the plaintext hop is loopback-only. The route bypasses Apache CGI/Passenger.
    Preserve existing TLS and ordinary-page headers in the fallback handler.
    Do not log WebSocket frames. Validate Caddy before reloading the Web proxy.

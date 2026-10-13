@@ -23,11 +23,16 @@ export class ChatSocket {
         ws.close();
         error ? reject(error) : resolve();
       };
-      const timer = setTimeout(() => finish(new Error('接続がタイムアウトしました。')), 325000);
+      const timer = request.type === 'observe' ? null : setTimeout(() => finish(new Error('接続がタイムアウトしました。')), 325000);
       ws.onmessage = async event => {
         try {
           const data = JSON.parse(event.data);
           if (phase === 'challenge' && data.type === 'challenge' && /^[0-9a-f]{64}$/.test(data.nonce)) {
+            if (request.type === 'demo') {
+              phase = 'authenticating';
+              ws.send(JSON.stringify({ type: 'demo_auth' }));
+              return;
+            }
             phase = 'signing';
             const enc = new TextEncoder();
             const key = await this.crypto.subtle.importKey('raw', enc.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
@@ -39,9 +44,9 @@ export class ChatSocket {
           } else if (phase === 'authenticating' && data.type === 'authenticated') {
             phase = 'watching';
             ws.send(JSON.stringify(request));
-          } else if (phase === 'watching' && data.type === 'job') {
+          } else if (phase === 'watching' && ['job', 'delta', 'heartbeat', 'info', 'conversation'].includes(data.type)) {
             onUpdate(data);
-            if (!['pending', 'running'].includes(data.ask_status)) finish();
+            if (data.type === 'job' && !['pending', 'running'].includes(data.ask_status)) finish();
           } else if (data.type === 'error') {
             const messages = {
               worker_unavailable: 'AI実行サーバーに接続できません。',
@@ -55,7 +60,7 @@ export class ChatSocket {
         } catch (error) { finish(error); }
       };
       ws.onerror = () => finish(new Error('WebSocketに接続できません。サーバーと公開経路を確認してください。'));
-      ws.onclose = event => finish(new Error(event.code === 1008 ? '認証に失敗しました。HMACキーを確認してください。' : '接続が切れました。ジョブIDがあれば「結果に再接続」で確認できます。'));
+      ws.onclose = event => finish(new Error(event.code === 1008 ? '認証に失敗しました。HMACキーを確認してください。' : event.reason === 'stop_watching' ? '受信を停止しました。' : '接続が切れました。再接続して確認してください。'));
     });
   }
 }

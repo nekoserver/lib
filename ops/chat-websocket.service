@@ -1,0 +1,19 @@
+[Unit]
+Description=Authenticated AI chat WebSocket bridge
+After=network.target
+
+[Service]
+User=www-data
+Group=www-data
+EnvironmentFile=/etc/lib-chat.env
+ExecStart=/opt/lib-chat/bin/python /var/www/html/lib/ops/chat_websocket.py
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

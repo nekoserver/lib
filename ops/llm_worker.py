@@ -31,6 +31,15 @@ JOBS = queue.Queue(maxsize=8)
 LOCK = threading.Lock()
 
 
+def log_event(event):
+    # Detached service stdout may no longer have a reader; logging must not
+    # terminate the queue consumer.
+    try:
+        print(json.dumps(event), flush=True)
+    except OSError:
+        pass
+
+
 def save(job):
     path = STATE / (job['ask_id'] + '.json')
     tmp = path.with_suffix('.tmp')
@@ -264,14 +273,25 @@ def execute(job, prompt):
     if job.get('effort'):
         job['llm_effort'] = job['effort']
     save(job)
-    print(json.dumps({'ask_id': job['ask_id'], 'status': job['ask_status']}), flush=True)
+    log_event({'ask_id': job['ask_id'], 'status': job['ask_status']})
 
 
 def consume():
     while True:
         job, prompt = JOBS.get()
-        execute(job, prompt)
-        JOBS.task_done()
+        try:
+            execute(job, prompt)
+        except Exception as error:
+            # Keep accepting later jobs even if a helper or result parser fails.
+            job.update(ask_status='failed', ask_error='worker_job_failed', finished_at=time.time())
+            try:
+                save(job)
+            except OSError:
+                pass
+            log_event({'ask_id': job['ask_id'], 'status': 'failed',
+                       'error_type': type(error).__name__})
+        finally:
+            JOBS.task_done()
 
 
 class Handler(socketserver.StreamRequestHandler):

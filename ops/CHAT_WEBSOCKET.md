@@ -89,7 +89,10 @@ Unchanged snapshots are suppressed. The connection closes after a terminal
 result. Invalid requests and worker outages produce a fixed error code.
 Prompt limit is 16 KiB, WebSocket message limit 32 KiB; reply bounds and execution
 limits remain those of the private worker. Browser keys live only in memory,
-with the input cleared on use. Replies are rendered using textContent.
+with the input cleared on use. Replies are rendered as Markdown with the
+vendored markdown-it browser parser (no runtime CDN). Raw HTML is disabled;
+code fences are escaped and unsafe link schemes are rejected. Headings, lists,
+tables, quotes, and links are styled for desktop and mobile layouts.
 
 Stopping reception/disconnecting never cancels the CLI job. Reconnect requires
 authentication and only polls the existing ID: no automatic retry submits a new

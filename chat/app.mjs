@@ -1,4 +1,5 @@
 import { ChatSocket } from './socket.mjs';
+import { showMarkdown } from './markdown.mjs';
 
 const $ = id => document.getElementById(id);
 const url = new URL('/lib/api/chat/ws', location.href);
@@ -30,7 +31,7 @@ async function watch(request) {
     await client.watch(secret, request, data => {
       if (data.ask_id) { askId = data.ask_id; $('job').textContent = askId; }
       $('status').textContent = ({ pending: '実行待ち', running: '回答を生成中…', done: '完了', failed: '実行失敗' })[data.ask_status] || '状態不明';
-      if (data.reply !== undefined) $('answer').textContent = data.reply;
+      if (data.reply !== undefined) showMarkdown($('answer'), data.reply);
       if (data.ask_error) $('status').textContent = `実行失敗: ${data.ask_error}`;
       $('metadata').textContent = [data.llm_model, data.llm_effort && `effort: ${data.llm_effort}`].filter(Boolean).join(' / ');
     });

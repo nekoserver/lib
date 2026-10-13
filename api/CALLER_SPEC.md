@@ -154,6 +154,12 @@ Set `LIB_RAILWAY_BIN` to override `/usr/local/bin/railway` when needed.
 
 ### Codex / Claude CLI jobs
 
+Quoted `codex_prompt="..."` / `claude_prompt="..."` messages decode valid inner
+form encoding once. If the quoted text contains a literal `%` that is not
+followed by two hexadecimal digits (for example `100%`), the whole inner text
+is passed through unchanged, including `+`. Direct prompt fields and unquoted
+messages continue to pass their text through unchanged.
+
 POST JSON `{"codex_prompt":"..."}` or `{"claude_prompt":"..."}` to
 `/lib/api/tunnels.rb`. `message: "codex_prompt=..."` and
 `message: "claude_prompt=..."` also route to the respective CLI helper.

@@ -25,7 +25,9 @@ module LlmPrompt
     if match
       value = match[2]
       if value.length >= 2 && [['"', '"'], ['“', '”']].any? { |left, right| value.start_with?(left) && value.end_with?(right) }
-        value = URI.decode_www_form_component(value[1...-1])
+        value = value[1...-1]
+        # A literal percent in ordinary text is not a form-encoded prompt.
+        value = URI.decode_www_form_component(value) unless /%(?![0-9a-fA-F]{2})/.match?(value)
       end
       prompts[match[1].to_sym] = value
     end

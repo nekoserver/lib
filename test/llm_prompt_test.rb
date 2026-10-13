@@ -27,6 +27,23 @@ class LlmPromptTest < Minitest::Test
     assert_equal [:codex, 'Railway のスペック'], LlmPrompt.route('message' => 'codex_prompt=“Railway+%E3%81%AE%E3%82%B9%E3%83%9A%E3%83%83%E3%82%AF”')
   end
 
+  def test_quoted_plain_text_with_literal_percent_reaches_worker_unchanged
+    prompt = 'Claude Code の週間使用量が100%で解除されない。C++ と %GG も調査'
+    assert_equal [:claude, prompt], LlmPrompt.route('message' => "claude_prompt=\"#{prompt}\"")
+    assert_equal [:codex, prompt], LlmPrompt.route('message' => "codex_prompt=“#{prompt}”")
+    received = nil
+    original = LlmPrompt.method(:run)
+    LlmPrompt.define_singleton_method(:run) do |engine, value, **_kwargs|
+      received = [engine, value]
+      ['test reply', nil, {'ask_status' => 'done'}]
+    end
+    payload = TunnelsLib.attach_message!({}, 'message' => "claude_prompt=\"#{prompt}\"")
+    assert_equal [:claude, prompt], received
+    assert_equal 'test reply', payload['reply']
+  ensure
+    LlmPrompt.define_singleton_method(:run, original) if original
+  end
+
   def test_wait_returns_completed_reply_without_submitting_again
     id = 'codex-12345678-1234-1234-1234-123456789abc'
     ops = []

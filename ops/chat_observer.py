@@ -17,7 +17,7 @@ from websockets.exceptions import ConnectionClosed
 SOCKET = '/run/lib-chat-observer/observer.sock'
 INTERVAL = 1
 SOURCE_FILE = Path('/var/lib/lib-chat-observer/source.json')
-READ_METHODS = frozenset({'thread/read', 'thread/turns/list'})
+READ_METHODS = frozenset({'thread/read', 'thread/turns/list', 'thread/loaded/list'})
 TOOL_TYPES = frozenset({'commandExecution', 'webSearch', 'fileChange', 'mcpToolCall', 'dynamicToolCall'})
 
 
@@ -88,7 +88,12 @@ def configured_source(path, thread_id, source_file=None):
     if not isinstance(data, dict):
         raise ValueError('Invalid source configuration')
     path, thread_id = data.get('appSocket'), data.get('threadId')
-    if not isinstance(path, str) or not Path(path).is_absolute() or not isinstance(thread_id, str) or not re.fullmatch(r'[A-Za-z0-9_-]{1,128}', thread_id):
+    workspace = data.get('followWorkspace')
+    if workspace is not None:
+        if not isinstance(workspace, str) or not Path(workspace).is_absolute():
+            raise ValueError('Invalid workspace')
+        thread_id = 'workspace:' + workspace
+    if not isinstance(path, str) or not Path(path).is_absolute() or not isinstance(thread_id, str) or not (thread_id.startswith('workspace:/') or re.fullmatch(r'[A-Za-z0-9_-]{1,128}', thread_id)):
         raise ValueError('Invalid source configuration')
     return path, thread_id
 
@@ -100,6 +105,18 @@ async def snapshots(path, thread_id, source_file=None):
             yield event
 
 
+async def workspace_threads(client, workspace):
+    loaded = await client.request('thread/loaded/list', {})
+    if loaded.get('nextCursor'):
+        raise ValueError('Loaded conversations require pagination')
+    candidates = []
+    for candidate in loaded.get('data', []):
+        info = (await client.request('thread/read', {'threadId': candidate, 'includeTurns': False}))['thread']
+        if info.get('cwd') == workspace:
+            candidates.append(candidate)
+    return candidates
+
+
 async def target_snapshots(path, thread_id, source_file=None, fallback=None):
     # The upstream connection itself is WebSocket over a root-only Unix socket.
     async with unix_connect(path, uri='ws://localhost', max_size=16_777_216) as ws:
@@ -107,12 +124,25 @@ async def target_snapshots(path, thread_id, source_file=None, fallback=None):
         await client.request('initialize', {'clientInfo': {'name': 'readonly_chat_observer', 'version': '0.1.0'}})
         await ws.send(json.dumps({'method': 'initialized', 'params': {}}))
         previous = None
+        selected = None
         while True:
             if source_file is not None and configured_source(*fallback, source_file) != (path, thread_id):
                 return
-            thread = (await client.request('thread/read', {'threadId': thread_id, 'includeTurns': False}))['thread']
+            current_id = thread_id
+            if thread_id.startswith('workspace:'):
+                workspace = thread_id.removeprefix('workspace:')
+                candidates = await workspace_threads(client, workspace)
+                if len(candidates) != 1:
+                    yield {'type': 'error', 'error': 'conversation_ambiguous' if candidates else 'conversation_waiting'}
+                    await asyncio.sleep(INTERVAL)
+                    continue
+                current_id = candidates[0]
+            if selected != current_id:
+                previous = None
+                selected = current_id
+            thread = (await client.request('thread/read', {'threadId': current_id, 'includeTurns': False}))['thread']
             turns = await client.request('thread/turns/list', {
-                'threadId': thread_id, 'limit': 10, 'sortDirection': 'desc', 'itemsView': 'full',
+                'threadId': current_id, 'limit': 10, 'sortDirection': 'desc', 'itemsView': 'full',
             })
             snapshot = public_snapshot(thread, turns.get('data', []))
             if snapshot != previous:

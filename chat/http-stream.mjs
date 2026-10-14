@@ -67,7 +67,7 @@ export class HttpStream {
 
   cancel() { this.controller?.abort(); }
 
-  async watch(secret, request, onUpdate) {
+  async watch(secret, request, onUpdate, sessionToken = null) {
     if (this.controller) throw new Error('すでに接続中です。');
     const controller = new AbortController();
     this.controller = controller;
@@ -75,7 +75,8 @@ export class HttpStream {
     try {
       const path = `/lib/api/chat/${this.protocol}`, body = JSON.stringify(request);
       const headers = { 'Content-Type': 'application/json', Accept: CONTENT_TYPES[this.protocol] };
-      if (request.type !== 'demo') {
+      if (sessionToken && request.type === 'observe') headers.Authorization = 'Bearer ' + sessionToken;
+      else if (request.type !== 'demo') {
         const enc = new TextEncoder(), timestamp = String(Math.floor(Date.now() / 1000));
         const key = await this.crypto.subtle.importKey('raw', enc.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
         secret = '';
@@ -84,6 +85,7 @@ export class HttpStream {
         headers['X-Signature'] = hex(await this.crypto.subtle.sign('HMAC', key, enc.encode(`POST\n${path}\n${timestamp}\n${hash}`)));
       }
       const response = await this.fetch(path, { method: 'POST', headers, body, signal: controller.signal, cache: 'no-store' });
+      if (response.status === 401 && sessionToken) onUpdate({ type: 'session_expired' });
       if (!response.ok) throw new Error(response.status === 401 ? '認証に失敗しました。HMACキーを確認してください。' : `接続できませんでした（HTTP ${response.status}）。`);
       if (!response.headers.get('content-type')?.startsWith(CONTENT_TYPES[this.protocol])) throw new Error('ストリームの種類が不正です。');
       let terminal = false;

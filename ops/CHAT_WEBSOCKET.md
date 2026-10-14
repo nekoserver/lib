@@ -116,3 +116,19 @@ During PR preparation, Chromium also verified the page against this bridge
 through a temporary Caddy route: wrong-key rejection, final-answer display,
 safe text rendering, reconnect without duplicate submission, and mobile layout.
 This local smoke check does not verify the deployed public endpoint.
+
+## Conversation authentication session
+
+The embedded conversation view asks for the HMAC key once. A signed POST to `/lib/api/chat/session` exchanges it for a seven-day, origin-bound, read-only observation token. Only the token is retained in iframe sessionStorage (this browser tab); the HMAC key is cleared and never stored. Transport changes, closing/reopening the panel, and reloading the parent page reuse the token. An expired token or secret rotation requires authentication again. Storage-disabled browsers retain the token only until the iframe is removed.
+
+The token permits `observe` only, not job submission/resume. HTTP streams accept it as a Bearer header; WebSocket accepts `session_auth`. The origin allowlist and existing HMAC routes remain enforced. Session responses use no-store. Add `/lib/api/chat/session` to the Caddy matcher forwarding HTTP streams to port 8092. Deploy `chat_session.py`, both bridge changes, frontend modules, embed CSS and conversation-embed.html together; restart the HTTP and WebSocket bridges. The parent Worker UI PR removes its old key instructions.
+
+The observer follows the explicit LIB_CHAT_THREAD_ID, not whichever conversation was opened most recently. After resuming work in a new conversation, verify the selected thread against the latest user message and restart only chat_observer.py with the correct fixed selection. Otherwise the stream can authenticate successfully while still showing the previous conversation. On 2026-10-14 the VM selection was corrected and the current user message plus assistant update were verified in the public WebSocket page. Updates remain read-only snapshots at approximately one-second intervals, not token-by-token generation.
+
+The embedded view omits the old read-only/job explanation and accepts start/stop controls from the fixed parent toolbar. postMessage commands require the exact approved parent origin and window.parent as source; parent state updates target that origin. The embedded duplicate buttons and authenticated form are hidden only when the parent handshake is active. In standalone use, start/stop buttons remain available. The answer section scrolls independently. If WebSocket fails to connect, an authenticated observer falls back to SSE and notifies the parent to select SSE. This fallback does not remove authentication.
+
+Run `python3 ops/build_chat_embed.py` after updating embed frontend sources. Commit the generated content-fingerprinted assets and updated conversation-embed.html, and deploy them together. Public testing found Cloudflare serving an old embed.css from cache even with a new query string; filename fingerprints prevent cache rules that ignore query parameters from mixing old CSS or transport modules with the current application.
+
+On initial observation and reconnection, the embedded answer section scrolls to the latest message and focuses it without an additional scroll jump. Later updates follow the bottom only while the viewer remains near the bottom, preserving an older reading position. Embedded body text is 11px and metadata 9px. Parent stream toolbar buttons use 7px text (6px on narrow screens), with protocol/start/stop controls on the same row and no visible panel heading.
+
+Markdown links, including PRs and detected URLs, use target=_blank with noopener/noreferrer. The parent iframe must allow-popups and allow-popups-to-escape-sandbox so GitHub and other destinations open as normal tabs rather than inside the embedded frame. Embedded links have no underline. Regenerate fingerprinted assets after changing the Markdown renderer.

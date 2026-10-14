@@ -9,6 +9,7 @@ from pathlib import Path
 import re
 import secrets
 import time
+from chat_session import valid
 from websockets.asyncio.server import serve
 from websockets.exceptions import ConnectionClosed
 
@@ -148,12 +149,19 @@ def handler(secret):
             expected = hmac.new(secret, f'WS\n{ENDPOINT}\n{nonce}'.encode(), hashlib.sha256).hexdigest()
             signature = auth.get('signature') if isinstance(auth, dict) else None
             demo_only = isinstance(auth, dict) and auth.get('type') == 'demo_auth'
-            if not demo_only and (not isinstance(signature, str) or not re.fullmatch(r'[0-9a-f]{64}', signature) or not hmac.compare_digest(expected, signature)):
+            session_only = isinstance(auth, dict) and auth.get('type') == 'session_auth'
+            if session_only and not valid(secret, auth.get('token'), ws.request.headers.get('Origin')):
+                await ws.close(1008, 'session_expired')
+                return
+            if not demo_only and not session_only and (not isinstance(signature, str) or not re.fullmatch(r'[0-9a-f]{64}', signature) or not hmac.compare_digest(expected, signature)):
                 await ws.close(1008, 'authentication_failed')
                 return
             await ws.send(json.dumps({'type': 'authenticated'}))
             async with asyncio.timeout(30):
                 payload = worker_payload(await receive(ws))
+            if session_only and payload.get('op') != 'observe':
+                await ws.close(1008, 'observation_only')
+                return
             if demo_only and payload.get('op') != 'demo':
                 await ws.close(1008, 'authentication_required')
                 return

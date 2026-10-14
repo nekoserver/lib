@@ -8,6 +8,7 @@ import os
 import re
 import time
 from aiohttp import web
+from chat_session import issue, valid, TTL
 from chat_websocket import event_stream, load_secret, worker_payload
 
 PREFIX = '/lib/api/chat/'
@@ -38,6 +39,17 @@ def create_app(secret, origins):
     app = web.Application(client_max_size=32_768)
     active = set()
 
+    async def session(request):
+        origin = request.headers.get('Origin')
+        if origin not in origins or request.query_string:
+            return web.json_response({'error': 'origin_rejected'}, status=403)
+        body = await request.read()
+        if not authenticated(secret, request, body):
+            return web.json_response({'error': 'authentication_failed'}, status=401)
+        if body != b'{"type":"observe"}':
+            return web.json_response({'error': 'invalid_request'}, status=400)
+        return web.json_response({'token': issue(secret, origin), 'expires_in': TTL}, headers={'Cache-Control': 'no-store'})
+
     async def stream(request):
         protocol = request.match_info['protocol']
         if protocol not in TYPES or request.query_string:
@@ -55,7 +67,8 @@ def create_app(secret, origins):
                 payload = worker_payload(data)
             except (ValueError, UnicodeError):
                 return web.json_response({'error': 'invalid_request'}, status=400)
-            if payload.get('op') != 'demo' and not authenticated(secret, request, body):
+            session_ok = payload.get('op') == 'observe' and valid(secret, request.headers.get('Authorization', '').removeprefix('Bearer '), request.headers.get('Origin'))
+            if payload.get('op') != 'demo' and not session_ok and not authenticated(secret, request, body):
                 return web.json_response({'error': 'authentication_failed'}, status=401)
             response = web.StreamResponse(headers={
                 'Content-Type': TYPES[protocol] + '; charset=utf-8',
@@ -82,6 +95,7 @@ def create_app(secret, origins):
         finally:
             active.discard(marker)
 
+    app.router.add_post(PREFIX + 'session', session)
     app.router.add_post(PREFIX + '{protocol}', stream)
     return app
 

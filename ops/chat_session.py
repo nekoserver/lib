@@ -1,4 +1,4 @@
-"""Eight-hour, origin-bound capability for read-only conversation observation."""
+"""Seven-day, origin-bound capability for read-only conversation observation."""
 import base64
 import hashlib
 import hmac
@@ -6,7 +6,7 @@ import json
 import secrets
 import time
 
-TTL = 8 * 60 * 60
+TTL = 7 * 24 * 60 * 60
 
 def issue(secret, origin):
     payload = json.dumps({'scope': 'observe', 'origin': origin, 'expires': int(time.time()) + TTL, 'nonce': secrets.token_hex(16)}, separators=(',', ':')).encode()

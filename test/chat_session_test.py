@@ -28,6 +28,16 @@ class SessionTest(unittest.IsolatedAsyncioTestCase):
         with patch.object(session.time, 'time', return_value=time.time() + session.TTL + 1):
             self.assertFalse(session.valid(SECRET, token, ORIGIN))
 
+    def test_observation_session_lasts_seven_days(self):
+        issued_at = 1_800_000_000
+        with patch.object(session.time, 'time', return_value=issued_at):
+            token = session.issue(SECRET, ORIGIN)
+        for age in (8 * 60 * 60 + 1, 6 * 24 * 60 * 60, 7 * 24 * 60 * 60 - 1):
+            with patch.object(session.time, 'time', return_value=issued_at + age):
+                self.assertTrue(session.valid(SECRET, token, ORIGIN), f'age={age}')
+        with patch.object(session.time, 'time', return_value=issued_at + 7 * 24 * 60 * 60):
+            self.assertFalse(session.valid(SECRET, token, ORIGIN))
+
     async def test_http_issue_then_readonly_stream_and_reject_submission(self):
         async with TestClient(TestServer(http.create_app(SECRET, {ORIGIN}))) as client:
             path = http.PREFIX + 'session'; body = b'{"type":"observe"}'; timestamp = str(int(time.time()))
@@ -37,7 +47,9 @@ class SessionTest(unittest.IsolatedAsyncioTestCase):
             response = await client.post(path, data=body, headers=headers)
             self.assertEqual(response.status, 200)
             self.assertEqual(response.headers['Cache-Control'], 'no-store')
-            token = (await response.json())['token']
+            data = await response.json()
+            self.assertEqual(data['expires_in'], 7 * 24 * 60 * 60)
+            token = data['token']
             async def events(payload, disconnected):
                 yield {'type': 'conversation', 'messages': []}
             with patch.object(http, 'event_stream', events):

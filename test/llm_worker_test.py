@@ -13,6 +13,38 @@ spec.loader.exec_module(worker)
 
 
 class OutputLimitTest(unittest.TestCase):
+    def test_claude_control_commands_and_permission_alias(self):
+        init = {'type': 'system', 'subtype': 'init', 'model': 'actual-model',
+                'permissionMode': 'dontAsk', 'cwd': '/workspace', 'claude_code_version': 'actual-version', 'mcp_servers': []}
+        for name in ['/mcp', '/model', '/status', '/permission', '/permissions']:
+            native = name if name in ('/mcp', '/model') else '/model'
+            event = {'type': 'result', 'local_command': native[1:], 'num_turns': 0, 'result': 'native output'}
+            with self.subTest(name=name), patch.object(worker, 'command', return_value=['helper']), patch.object(worker, 'run_bounded', return_value=(0, json.dumps(init)+'\n'+json.dumps(event))) as run, patch.object(worker.Path, 'is_file', return_value=False):
+                code, _, reply = worker.execute_claude_control(name)
+                self.assertEqual(code, 0)
+                run.assert_called_once_with(['helper'], native)
+                if name == '/status':
+                    self.assertIn('actual-model', reply)
+                    self.assertIn('/workspace', reply)
+                elif name.startswith('/permission'):
+                    self.assertIn('dontAsk', reply)
+                    self.assertIn('変更しません', reply)
+                else:
+                    self.assertIn('native output', reply)
+        with patch.object(worker, 'run_control', return_value='native help') as help_cli:
+            self.assertIn('native help', worker.execute_claude_control('/help')[2])
+            help_cli.assert_called_once_with(['/opt/claude-web/claude', '--help'])
+
+    def test_claude_dialog_adapters_require_init_and_reject_mutating_args(self):
+        event = {'type': 'result', 'local_command': 'model', 'num_turns': 0, 'result': 'native output'}
+        with patch.object(worker, 'command', return_value=['helper']), patch.object(worker, 'run_bounded', return_value=(0, json.dumps(event))):
+            self.assertEqual(worker.execute_claude_control('/status'), (1, '', None))
+            self.assertEqual(worker.execute_claude_control('/permission'), (1, '', None))
+        with patch.object(worker, 'run_bounded') as run:
+            for name in ['/model opus', '/mcp disable all', '/permissions allow Bash']:
+                self.assertIn('未対応', worker.execute_claude_control(name)[2])
+            run.assert_not_called()
+
     def test_claude_cost_returns_native_output_without_codex_or_model_turn(self):
         event = {'type': 'result', 'local_command': 'cost', 'num_turns': 0,
                  'is_error': False, 'result': 'Current session: 20% used'}

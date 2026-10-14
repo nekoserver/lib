@@ -178,7 +178,17 @@ uses the same route. The reply is the CLI's actual output: subscription accounts
 may return plan usage and reset times instead of a dollar cost. Each request
 starts an independent CLI session; it does not report another interactive
 session's accumulated cost. Only a successful local command result with zero
-model turns is accepted. Other Claude slash commands remain unsupported.
+model turns is accepted.
+
+Claude also supports `/mcp` and `/model` as native read-only local commands.
+`/help` returns the supported integration commands and native CLI `--help`.
+`/status` displays the actual CLI initialization model, permission mode, version,
+working directory and MCP servers. `/permissions` (alias `/permission`) displays
+the actual permission mode, integration helper restrictions and user permission
+and sandbox settings. These last three are text adapters because the native
+dialogs are unavailable in print mode. No model inference is used. Arguments
+and configuration changes are not supported; existing interactive session state
+is not queried. Other Claude slash commands remain unsupported.
 
 | Method | Path | Notes |
 |--------|------|--------|

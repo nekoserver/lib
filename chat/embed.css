@@ -14,3 +14,14 @@ input, button.secondary, .message.user { background: var(--embed-input); color: 
 #conversation { max-height: none; }
 
 [hidden] { display: none !important; }
+
+html[data-parent-controls="true"] .actions { display: none; }
+html, body { height: 100%; overflow: hidden; }
+main { height: 100%; display: flex; flex-direction: column; padding: 4px; }
+section { margin-top: 4px; padding: 6px; border-radius: 6px; }
+section:first-of-type { flex-shrink: 0; }
+section[aria-label="回答"] { flex: 1; min-height: 0; overflow-y: auto; }
+.actions { gap: 4px; margin-top: 4px; }
+.actions button { font-size: 9px; padding: 3px 6px; min-height: 24px; }
+
+html[data-parent-controls="true"][data-authenticated="true"] section:first-of-type { display: none; }

@@ -1,16 +1,23 @@
-import { getSession, startSession, clearSession } from './session.mjs?v=session2';
-import { ChatSocket } from './socket.mjs?v=session2';
+import { getSession, startSession, clearSession } from './session.mjs?v=controls3';
+import { ChatSocket } from './socket.mjs?v=controls3';
 import { showMarkdown } from './markdown.mjs';
-import { HttpStream } from './http-stream.mjs?v=session2';
+import { HttpStream } from './http-stream.mjs?v=controls3';
 
 const $ = id => document.getElementById(id);
 const embedded = document.documentElement.dataset.embed === 'conversation';
+const parentOrigins = new Set([location.origin, 'https://1.cfw1.nekomaneki.work', 'https://cloudflare-workers-github-oauth-1.nekoflare.workers.dev']);
+let parentOrigin = null;
 if (embedded) {
   const parameters = new URLSearchParams(location.search);
   if (['sse', 'websocket', 'ndjson', 'jsonseq'].includes(parameters.get('protocol'))) $('protocol').value = parameters.get('protocol');
   document.documentElement.dataset.theme = parameters.get('theme') === 'light' ? 'light' : 'dark';
   window.addEventListener('message', event => {
-    if (event.source === window.parent && event.data?.type === 'conversation-theme' && ['light', 'dark'].includes(event.data.theme)) document.documentElement.dataset.theme = event.data.theme;
+    if (event.source !== window.parent || !parentOrigins.has(event.origin)) return;
+    parentOrigin = event.origin;
+    if (event.data?.type === 'conversation-controls') { document.documentElement.dataset.parentControls = 'true'; notifyParent({ type: 'conversation-state', busy }); }
+    if (event.data?.type === 'conversation-start') watch({ type: 'observe' });
+    if (event.data?.type === 'conversation-stop') client?.cancel();
+    if (event.data?.type === 'conversation-theme' && ['light', 'dark'].includes(event.data.theme)) document.documentElement.dataset.theme = event.data.theme;
   });
 }
 const url = new URL('/lib/api/chat/ws', location.href);
@@ -73,6 +80,8 @@ function describe() { $('protocol-hint').textContent = descriptions[$('protocol'
 describe();
 $('protocol').addEventListener('change', describe);
 
+function notifyParent(data) { if (embedded && parentOrigin) window.parent.postMessage(data, parentOrigin); }
+
 function setBusy(value) {
   busy = value;
   $('send').disabled = value;
@@ -82,6 +91,7 @@ function setBusy(value) {
   $('protocol').disabled = value;
   $('demo').disabled = value;
   $('source').disabled = value;
+  notifyParent({ type: 'conversation-state', busy: value });
 }
 
 async function watch(request) {
@@ -138,7 +148,15 @@ async function watch(request) {
       if (data.ask_error) $('status').textContent = `実行失敗: ${data.ask_error}`;
       $('metadata').textContent = [data.llm_model, data.llm_effort && `effort: ${data.llm_effort}`].filter(Boolean).join(' / ');
     }, sessionToken);
-  } catch (error) { $('status').textContent = error.message; if (!getSession()) hideKeyInput(false); }
+  } catch (error) {
+    $('status').textContent = error.message; if (!getSession()) hideKeyInput(false);
+    if (request.type === 'observe' && protocol === 'websocket' && getSession() && error.message.startsWith('WebSocketに接続できません')) {
+      $('protocol').value = 'sse'; describe();
+      notifyParent({ type: 'conversation-transport', protocol: 'sse' });
+      $('status').textContent = 'WebSocketに接続できないため、SSEで再接続します。';
+      setTimeout(() => watch({ type: 'observe' }), 0);
+    }
+  }
   finally { setBusy(false); }
 }
 
@@ -157,6 +175,7 @@ window.addEventListener('pagehide', () => client?.cancel());
 setBusy(false);
 
 function hideKeyInput(hidden) {
+  if (embedded) document.documentElement.dataset.authenticated = String(hidden);
   for (const node of document.querySelectorAll('label[for="secret"], #secret, #key-hint')) node.hidden = hidden;
 }
 if (embedded && getSession()) { hideKeyInput(true); watch({ type: 'observe' }); }

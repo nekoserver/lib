@@ -76,7 +76,7 @@ def submit(engine, prompt):
         return {'ask_error': 'empty_prompt', 'ask_status': 'failed'}
     if len(prompt.encode()) > MAX_PROMPT:
         return {'ask_error': 'prompt_too_large', 'ask_status': 'failed'}
-    if engine == 'claude' and not claude_authenticated():
+    if engine == 'claude' and prompt.strip().lower() not in ('/usage', '/status', './usage') and not claude_authenticated():
         return {'ask_error': 'claude_not_authenticated', 'ask_status': 'failed', 'via': engine}
     job = {'ask_id': engine + '-' + str(uuid.uuid4()), 'ask_status': 'pending',
            'via': engine, 'created_at': time.time()}
@@ -318,7 +318,9 @@ def execute(job, prompt):
     save(job)
     try:
         # The prompt is stdin, never a shell command or CLI option.
-        if job['via'] == 'codex':
+        if job['via'] == 'claude' and prompt.strip().lower() in ('/usage', '/status', './usage'):
+            returncode, text, reply = 0, '', 'Claude の利用枠取得は現在未対応です。Codex の利用枠は代用せず、Claude の残り枠は不明として返します。'
+        elif job['via'] == 'codex':
             returncode, text, reply = execute_codex(prompt)
             job.update(codex_summary(text))
         else:

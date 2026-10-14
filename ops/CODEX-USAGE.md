@@ -4,6 +4,13 @@ Authenticated POST requests to `api/tunnels.rb` accept `message=/usage`,
 `message=/status`, or `message=./usage`. Explicit `codex_prompt=/usage` also works.
 Existing submit/poll response fields (`ask_id`, `ask_status`, `reply`) are retained.
 
+Select the agent using the existing prefix: `message=codex_prompt="/usage"`
+or `message=claude_prompt="/usage"`. The spelling `codex_prmpt` (and equivalent
+prefixes for other engines) is accepted as an alias, both in `message` and as a
+direct request field. Claude quota commands currently return an explicit
+unsupported/unknown message without running a model or reading Codex's account.
+Other unsupported engines retain the existing `unsupported_engine` response.
+
 The queue worker intercepts exact commands before starting a model turn. It starts
 Codex App Server as the existing `codex-web` identity in the existing read-only
 namespace, initializes the stdio protocol, and calls `account/rateLimits/read`.

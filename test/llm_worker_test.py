@@ -12,6 +12,16 @@ spec.loader.exec_module(worker)
 
 
 class OutputLimitTest(unittest.TestCase):
+    def test_claude_usage_does_not_read_codex_account_or_start_model(self):
+        job = {'ask_id': 'test', 'via': 'claude'}
+        with patch.object(worker, 'save'), patch.object(worker, 'run_bounded') as model, patch.object(worker, 'read_codex_limits') as quota:
+            worker.execute(job, '/usage')
+            self.assertEqual(job['ask_status'], 'done')
+            self.assertIn('Claude', job['reply'])
+            self.assertIn('未対応', job['reply'])
+            model.assert_not_called()
+            quota.assert_not_called()
+
     def test_usage_commands_never_start_model_turn(self):
         data = {'rateLimits': {'primary': {'usedPercent': 25, 'windowDurationMins': 300, 'resetsAt': 0}}}
         with patch.object(worker, 'read_codex_limits', return_value=data), patch.object(worker, 'run_bounded') as model:

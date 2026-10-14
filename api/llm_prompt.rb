@@ -31,6 +31,9 @@ module LlmPrompt
       end
       prompts[match[1].to_sym] = value
     end
+    if prompts.empty? && %w[/usage /status ./usage].include?(filters['message'].to_s.strip.downcase)
+      return [:codex, filters['message'].to_s.strip]
+    end
     return nil if prompts.empty?
     return [:conflict, nil] if prompts.size > 1
     prompts.first

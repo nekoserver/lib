@@ -1,8 +1,18 @@
+import { getSession, startSession, clearSession } from './session.mjs';
 import { ChatSocket } from './socket.mjs';
 import { showMarkdown } from './markdown.mjs';
 import { HttpStream } from './http-stream.mjs';
 
 const $ = id => document.getElementById(id);
+const embedded = document.documentElement.dataset.embed === 'conversation';
+if (embedded) {
+  const parameters = new URLSearchParams(location.search);
+  if (['sse', 'websocket', 'ndjson', 'jsonseq'].includes(parameters.get('protocol'))) $('protocol').value = parameters.get('protocol');
+  document.documentElement.dataset.theme = parameters.get('theme') === 'light' ? 'light' : 'dark';
+  window.addEventListener('message', event => {
+    if (event.source === window.parent && event.data?.type === 'conversation-theme' && ['light', 'dark'].includes(event.data.theme)) document.documentElement.dataset.theme = event.data.theme;
+  });
+}
 const url = new URL('/lib/api/chat/ws', location.href);
 url.protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
 let client = null;
@@ -46,6 +56,7 @@ function renderConversation(data) {
 }
 
 function updateSource() {
+  if (embedded) $('source').value = 'conversation';
   const observing = $('source').value === 'conversation';
   $('ai-fields').hidden = observing;
   $('send').textContent = observing ? '表示を開始' : '別のAI実行に送信';
@@ -75,8 +86,9 @@ function setBusy(value) {
 
 async function watch(request) {
   if (busy) return;
-  const secret = $('secret').value;
-  if (!secret && request.type !== 'demo') { $('status').textContent = 'HMACキーを入力してください。'; return; }
+  let secret = $('secret').value;
+  let sessionToken = request.type === 'observe' ? getSession() : null;
+  if (!secret && !sessionToken && request.type !== 'demo') { $('status').textContent = 'HMACキーを入力してください。'; return; }
   if (!globalThis.isSecureContext || !globalThis.crypto?.subtle) {
     $('status').textContent = 'HTTPSでページを開いてください。'; return;
   }
@@ -95,7 +107,13 @@ async function watch(request) {
   setBusy(true);
   $('status').textContent = '接続・認証中…';
   try {
+    if (request.type === 'observe') {
+      if (!sessionToken) sessionToken = await startSession(secret);
+      secret = '';
+      hideKeyInput(true);
+    }
     await client.watch(secret, request, data => {
+      if (data.type === 'session_expired') { clearSession(); hideKeyInput(false); return; }
       const now = performance.now();
       if (first === null) first = now - started;
       count++;
@@ -119,14 +137,14 @@ async function watch(request) {
       if (data.reply !== undefined) { answer = data.reply; showMarkdown($('answer'), answer); }
       if (data.ask_error) $('status').textContent = `実行失敗: ${data.ask_error}`;
       $('metadata').textContent = [data.llm_model, data.llm_effort && `effort: ${data.llm_effort}`].filter(Boolean).join(' / ');
-    });
-  } catch (error) { $('status').textContent = error.message; }
+    }, sessionToken);
+  } catch (error) { $('status').textContent = error.message; if (!getSession()) hideKeyInput(false); }
   finally { setBusy(false); }
 }
 
 $('form').addEventListener('submit', event => {
   event.preventDefault();
-  if ($('source').value === 'conversation') { watch({ type: 'observe' }); return; }
+  if (embedded || $('source').value === 'conversation') { watch({ type: 'observe' }); return; }
   const prompt = $('prompt').value;
   if (!prompt.trim()) { $('status').textContent = 'メッセージを入力してください。'; return; }
   if (new TextEncoder().encode(prompt).length > 16384) { $('status').textContent = 'メッセージは16 KiB以内にしてください。'; return; }
@@ -137,3 +155,8 @@ $('demo').addEventListener('click', () => watch({ type: 'demo' }));
 $('stop').addEventListener('click', () => client?.cancel());
 window.addEventListener('pagehide', () => client?.cancel());
 setBusy(false);
+
+function hideKeyInput(hidden) {
+  for (const node of document.querySelectorAll('label[for="secret"], #secret, #key-hint')) node.hidden = hidden;
+}
+if (embedded && getSession()) { hideKeyInput(true); watch({ type: 'observe' }); }

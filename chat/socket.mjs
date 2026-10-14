@@ -8,7 +8,7 @@ export class ChatSocket {
 
   cancel() { this.socket?.close(1000, 'stop_watching'); }
 
-  watch(secret, request, onUpdate) {
+  watch(secret, request, onUpdate, sessionToken = null) {
     if (this.socket) return Promise.reject(new Error('すでに接続中です。'));
     return new Promise((resolve, reject) => {
       const ws = new this.WebSocketClass(this.url);
@@ -28,6 +28,11 @@ export class ChatSocket {
         try {
           const data = JSON.parse(event.data);
           if (phase === 'challenge' && data.type === 'challenge' && /^[0-9a-f]{64}$/.test(data.nonce)) {
+            if (sessionToken && request.type === 'observe') {
+              phase = 'authenticating';
+              ws.send(JSON.stringify({ type: 'session_auth', token: sessionToken }));
+              return;
+            }
             if (request.type === 'demo') {
               phase = 'authenticating';
               ws.send(JSON.stringify({ type: 'demo_auth' }));
@@ -60,7 +65,7 @@ export class ChatSocket {
         } catch (error) { finish(error); }
       };
       ws.onerror = () => finish(new Error('WebSocketに接続できません。サーバーと公開経路を確認してください。'));
-      ws.onclose = event => finish(new Error(event.code === 1008 ? '認証に失敗しました。HMACキーを確認してください。' : event.reason === 'stop_watching' ? '受信を停止しました。' : '接続が切れました。再接続して確認してください。'));
+      ws.onclose = event => { if (event.code === 1008) onUpdate({ type: 'session_expired' }); finish(new Error(event.code === 1008 ? '認証に失敗しました。HMACキーを確認してください。' : event.reason === 'stop_watching' ? '受信を停止しました。' : '接続が切れました。再接続して確認してください。')); };
     });
   }
 }

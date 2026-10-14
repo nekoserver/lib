@@ -116,3 +116,9 @@ During PR preparation, Chromium also verified the page against this bridge
 through a temporary Caddy route: wrong-key rejection, final-answer display,
 safe text rendering, reconnect without duplicate submission, and mobile layout.
 This local smoke check does not verify the deployed public endpoint.
+
+## Conversation authentication session
+
+The embedded conversation view asks for the HMAC key once. A signed POST to `/lib/api/chat/session` exchanges it for an eight-hour, origin-bound, read-only observation token. Only the token is retained in iframe sessionStorage (this browser tab); the HMAC key is cleared and never stored. Transport changes, closing/reopening the panel, and reloading the parent page reuse the token. An expired token or secret rotation requires authentication again. Storage-disabled browsers retain the token only until the iframe is removed.
+
+The token permits `observe` only, not job submission/resume. HTTP streams accept it as a Bearer header; WebSocket accepts `session_auth`. The origin allowlist and existing HMAC routes remain enforced. Session responses use no-store. Add `/lib/api/chat/session` to the Caddy matcher forwarding HTTP streams to port 8092. Deploy `chat_session.py`, both bridge changes, frontend modules, embed CSS and conversation-embed.html together; restart the HTTP and WebSocket bridges. The parent Worker UI PR removes its old key instructions.

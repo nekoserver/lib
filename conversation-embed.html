@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="ja" data-embed="conversation">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>この会話（閲覧のみ）</title>
+  <link rel="stylesheet" href="chat/style-streams-6a4c2f3c.css">
+  <link rel="stylesheet" href="chat/embed.css">
+  <script type="module" src="chat/app.mjs?v=session1"></script>
+</head>
+<body>
+<main>
+  <h1>AIチャット</h1>
+  <p class="subtitle">通信方式を切り替えて、イベントの届き方を比べられます。</p>
+  <section>
+    <form id="form">
+      <label for="source">表示するもの</label>
+      <select id="source">
+        <option value="conversation">この会話（閲覧のみ）</option>
+        <option value="ai">別のAI実行</option>
+      </select>
+      <label for="protocol">通信方式</label>
+      <select id="protocol" aria-describedby="protocol-hint">
+        <option value="sse">SSE（Server-Sent Events）</option>
+        <option value="websocket">WebSocket</option>
+        <option value="ndjson">NDJSON（HTTPストリーム）</option>
+        <option value="jsonseq">JSON Text Sequence（RFC 7464）</option>
+      </select>
+      <p id="protocol-hint" class="hint"></p>
+      <label for="secret">HMACキー</label>
+      <input id="secret" type="password" autocomplete="off" spellcheck="false" aria-describedby="key-hint">
+      <p id="key-hint" class="hint">既存の認証キーを入力してください。最初の接続時だけ入力してください。認証後は入力欄が非表示になります。</p>
+      <div id="ai-fields" hidden>
+        <label for="engine">AI</label>
+        <select id="engine"><option value="codex">Codex</option><option value="claude">Claude</option></select>
+        <label for="prompt">メッセージ（この会話には送信されません）</label>
+        <textarea id="prompt" placeholder="別のAI実行への質問を入力してください"></textarea>
+      </div>
+      <div class="actions">
+        <button id="send" type="submit">表示を開始</button>
+        <button id="demo" class="secondary" type="button">比較デモ（キー不要）</button>
+        <button id="resume" class="secondary" type="button" disabled>結果に再接続</button>
+        <button id="stop" class="secondary" type="button" disabled>受信を停止</button>
+      </div>
+      <p class="hint">「この会話」は閲覧専用です。最近40メッセージを表示し、長い本文は省略します。再接続は表示を開始し直してください。「別のAI実行」は受信を停止しても実行が続き、ジョブIDで同じ結果に再接続できます。</p>
+    </form>
+  </section>
+  <section aria-label="回答">
+    <p id="status" role="status" aria-live="polite">未接続</p>
+    <p id="job"></p>
+    <p id="metadata"></p>
+    <p id="delivery" class="hint">比較デモなら、AIを実行せずに少しずつ届く文章を試せます。</p>
+    <p id="stats" class="hint"></p>
+    <p id="activity" class="hint"></p>
+    <div id="conversation" hidden></div>
+    <div id="answer" class="markdown"></div>
+    <details>
+      <summary>受信イベントを見る（最新60件）</summary>
+      <pre id="events" class="event-log"></pre>
+    </details>
+  </section>
+</main>
+</body>
+</html>

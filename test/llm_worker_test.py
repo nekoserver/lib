@@ -1,3 +1,4 @@
+import json
 import importlib.util
 from pathlib import Path
 import sys
@@ -12,6 +13,30 @@ spec.loader.exec_module(worker)
 
 
 class OutputLimitTest(unittest.TestCase):
+    def test_claude_cost_returns_native_output_without_codex_or_model_turn(self):
+        event = {'type': 'result', 'local_command': 'cost', 'num_turns': 0,
+                 'is_error': False, 'result': 'Current session: 20% used'}
+        job = {'ask_id': 'test', 'via': 'claude'}
+        with patch.object(worker, 'save'), patch.object(worker, 'command', return_value=['helper']), patch.object(worker, 'run_bounded', return_value=(0, json.dumps(event))) as native, patch.object(worker, 'read_codex_limits') as codex:
+            worker.execute(job, ' /COST ')
+            self.assertEqual(job['ask_status'], 'done')
+            self.assertIn(event['result'], job['reply'])
+            native.assert_called_once_with(['helper'], '/cost')
+            codex.assert_not_called()
+
+    def test_claude_cost_rejects_model_answers_errors_and_missing_results(self):
+        for event in [
+            {'type': 'result', 'num_turns': 1, 'result': 'invented cost'},
+            {'type': 'result', 'local_command': 'cost', 'num_turns': 1, 'result': 'invented cost'},
+            {'type': 'result', 'local_command': 'cost', 'num_turns': 0, 'is_error': True, 'result': 'error'},
+            {'type': 'result', 'local_command': 'cost', 'num_turns': 0},
+        ]:
+            with self.subTest(event=event), patch.object(worker, 'command', return_value=['helper']), patch.object(worker, 'run_bounded', return_value=(0, json.dumps(event))):
+                self.assertEqual(worker.execute_claude_control('/cost'), (1, '', None))
+        with patch.object(worker, 'run_bounded') as native:
+            self.assertIn('未対応', worker.execute_claude_control('/cost extra')[2])
+            native.assert_not_called()
+
     def test_inventory_commands_use_readonly_sources_not_model(self):
         def rpc(method, params=None, **kwargs):
             if method == 'mcpServerStatus/list':

@@ -1,3 +1,4 @@
+const streamError = (message, code) => Object.assign(new Error(message), { code });
 const CONTENT_TYPES = { sse: 'text/event-stream', ndjson: 'application/x-ndjson', jsonseq: 'application/json-seq' };
 const hex = value => [...new Uint8Array(value)].map(b => b.toString(16).padStart(2, '0')).join('');
 
@@ -67,7 +68,7 @@ export class HttpStream {
 
   cancel() { this.controller?.abort(); }
 
-  async watch(secret, request, onUpdate) {
+  async watch(secret, request, onUpdate, sessionToken = null) {
     if (this.controller) throw new Error('すでに接続中です。');
     const controller = new AbortController();
     this.controller = controller;
@@ -75,7 +76,8 @@ export class HttpStream {
     try {
       const path = `/lib/api/chat/${this.protocol}`, body = JSON.stringify(request);
       const headers = { 'Content-Type': 'application/json', Accept: CONTENT_TYPES[this.protocol] };
-      if (request.type !== 'demo') {
+      if (sessionToken && request.type === 'observe') headers.Authorization = 'Bearer ' + sessionToken;
+      else if (request.type !== 'demo') {
         const enc = new TextEncoder(), timestamp = String(Math.floor(Date.now() / 1000));
         const key = await this.crypto.subtle.importKey('raw', enc.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
         secret = '';
@@ -84,18 +86,19 @@ export class HttpStream {
         headers['X-Signature'] = hex(await this.crypto.subtle.sign('HMAC', key, enc.encode(`POST\n${path}\n${timestamp}\n${hash}`)));
       }
       const response = await this.fetch(path, { method: 'POST', headers, body, signal: controller.signal, cache: 'no-store' });
-      if (!response.ok) throw new Error(response.status === 401 ? '認証に失敗しました。HMACキーを確認してください。' : `接続できませんでした（HTTP ${response.status}）。`);
+      if (response.status === 401 && sessionToken) onUpdate({ type: 'session_expired' });
+      if (!response.ok) throw streamError(response.status === 401 ? '認証に失敗しました。HMACキーを確認してください。' : `接続できませんでした（HTTP ${response.status}）。`, response.status === 401 ? 'auth_rejected' : response.status >= 500 ? 'disconnected' : 'invalid_request');
       if (!response.headers.get('content-type')?.startsWith(CONTENT_TYPES[this.protocol])) throw new Error('ストリームの種類が不正です。');
       let terminal = false;
       for await (const event of parseStream(response.body, this.protocol)) {
-        if (event.type === 'error') throw new Error(({ worker_unavailable: 'AI実行サーバーに接続できません。', connection_timeout: '接続がタイムアウトしました。結果に再接続してください。' })[event.error] || 'サーバーでエラーが発生しました。');
+        if (event.type === 'error') throw streamError(({ worker_unavailable: 'AI実行サーバーに接続できません。', connection_timeout: '接続がタイムアウトしました。結果に再接続してください。' })[event.error] || 'サーバーでエラーが発生しました。', event.error);
         if (!['job', 'delta', 'info', 'heartbeat', 'conversation'].includes(event.type)) throw new Error('応答が不正です。');
         onUpdate(event);
         if (event.type === 'job' && !['pending', 'running'].includes(event.ask_status)) { terminal = true; break; }
       }
-      if (!terminal) throw new Error('接続が切れました。「結果に再接続」で確認できます。');
+      if (!terminal) throw streamError('接続が切れました。「結果に再接続」で確認できます。', 'disconnected');
     } catch (error) {
-      if (error.name === 'AbortError') throw new Error('受信を停止しました。');
+      if (error.name === 'AbortError') throw streamError('受信を停止しました。', 'stopped');
       throw error;
     } finally {
       secret = '';

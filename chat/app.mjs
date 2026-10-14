@@ -1,19 +1,42 @@
-import { ChatSocket } from './socket.mjs';
+import { getSession, startSession, restoreSession, clearSession } from './session.mjs?v=cookie7d';
+import { ChatSocket } from './socket.mjs?v=controls3';
 import { showMarkdown } from './markdown.mjs';
-import { HttpStream } from './http-stream.mjs';
+import { ObserveReconnect } from './reconnect.mjs';
+import { HttpStream } from './http-stream.mjs?v=controls3';
 
 const $ = id => document.getElementById(id);
+const embedded = document.documentElement.dataset.embed === 'conversation';
+const parentOrigins = new Set([location.origin, 'https://1.cfw1.nekomaneki.work', 'https://cloudflare-workers-github-oauth-1.nekoflare.workers.dev']);
+let parentOrigin = null;
+if (embedded) {
+  const parameters = new URLSearchParams(location.search);
+  if (['sse', 'websocket', 'ndjson', 'jsonseq'].includes(parameters.get('protocol'))) $('protocol').value = parameters.get('protocol');
+  document.documentElement.dataset.theme = parameters.get('theme') === 'light' ? 'light' : 'dark';
+  window.addEventListener('message', event => {
+    if (event.source !== window.parent || !parentOrigins.has(event.origin)) return;
+    parentOrigin = event.origin;
+    if (event.data?.type === 'conversation-controls') { document.documentElement.dataset.parentControls = 'true'; notifyParent({ type: 'conversation-state', busy }); }
+    if (event.data?.type === 'conversation-start') watch({ type: 'observe' });
+    if (event.data?.type === 'conversation-stop') stopWatching();
+    if (event.data?.type === 'conversation-theme' && ['light', 'dark'].includes(event.data.theme)) document.documentElement.dataset.theme = event.data.theme;
+  });
+}
 const url = new URL('/lib/api/chat/ws', location.href);
 url.protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
 let client = null;
 let askId = null;
 let busy = false;
+const reconnect = new ObserveReconnect(() => watch({ type: 'observe' }));
+function stopWatching() { reconnect.stop(); client?.cancel(); }
 let answer = '';
 const messageNodes = new Map();
+let focusLatestOnNextSnapshot = true;
 
 function renderConversation(data) {
   const container = $('conversation');
-  const follow = container.scrollHeight - container.scrollTop - container.clientHeight < 80;
+  const scroller = embedded ? container.closest('section') : container;
+  const focusLatest = focusLatestOnNextSnapshot;
+  const follow = focusLatest || scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight < 80;
   const fragment = document.createDocumentFragment(), retained = new Set();
   for (const message of data.messages) {
     retained.add(message.id);
@@ -21,6 +44,7 @@ function renderConversation(data) {
     if (!record) {
       const element = document.createElement('article');
       element.className = `message ${message.role === 'user' ? 'user' : 'assistant'}`;
+      element.tabIndex = -1;
       const label = document.createElement('p'); label.className = 'message-label';
       const content = document.createElement('div'); content.className = 'markdown';
       element.append(label, content);
@@ -39,13 +63,20 @@ function renderConversation(data) {
   container.replaceChildren(fragment);
   container.hidden = false;
   $('answer').hidden = true;
-  if (follow) container.scrollTop = container.scrollHeight;
-  $('status').textContent = data.status === 'active' ? 'この会話を表示中 · AIが作業中' : 'この会話を表示中 · 次の更新を待っています';
+  if (data.messages.length) {
+    focusLatestOnNextSnapshot = false;
+    requestAnimationFrame(() => {
+      if (follow) scroller.scrollTop = scroller.scrollHeight;
+      if (focusLatest) container.lastElementChild?.focus({ preventScroll: true });
+    });
+  }
+  $('status').textContent = data.status === 'notLoaded' ? '監視対象の会話は終了しています。サーバーの監視先設定を確認してください。' : data.status === 'active' ? 'この会話を表示中 · AIが作業中' : 'この会話を表示中 · 次の更新を待っています';
   const activities = { commandExecution: 'コマンド', webSearch: '検索', fileChange: 'ファイル変更', mcpToolCall: 'ツール', dynamicToolCall: 'ツール' };
   $('activity').textContent = data.activity.map(item => activities[item.kind] || 'ツール').join(' · ');
 }
 
 function updateSource() {
+  if (embedded) $('source').value = 'conversation';
   const observing = $('source').value === 'conversation';
   $('ai-fields').hidden = observing;
   $('send').textContent = observing ? '表示を開始' : '別のAI実行に送信';
@@ -62,26 +93,33 @@ function describe() { $('protocol-hint').textContent = descriptions[$('protocol'
 describe();
 $('protocol').addEventListener('change', describe);
 
+function notifyParent(data) { if (embedded && parentOrigin) window.parent.postMessage(data, parentOrigin); }
+
 function setBusy(value) {
   busy = value;
   $('send').disabled = value;
   $('resume').disabled = value || !askId;
-  $('stop').disabled = !value;
+  $('stop').disabled = !value && reconnect.timer === null;
   $('engine').disabled = value;
   $('protocol').disabled = value;
   $('demo').disabled = value;
   $('source').disabled = value;
+  notifyParent({ type: 'conversation-state', busy: value });
 }
 
 async function watch(request) {
   if (busy) return;
-  const secret = $('secret').value;
-  if (!secret && request.type !== 'demo') { $('status').textContent = 'HMACキーを入力してください。'; return; }
+  let secret = $('secret').value;
+  let sessionToken = request.type === 'observe' ? (getSession() || await restoreSession()) : null;
+  if (busy) return;
+  if (!secret && !sessionToken && request.type !== 'demo') { $('status').textContent = 'HMACキーを入力してください。'; return; }
   if (!globalThis.isSecureContext || !globalThis.crypto?.subtle) {
     $('status').textContent = 'HTTPSでページを開いてください。'; return;
   }
+  if (request.type === 'observe') reconnect.begin(); else reconnect.stop();
   $('secret').value = '';
   if (request.type !== 'resume') { askId = null; answer = ''; $('job').textContent = ''; $('answer').textContent = ''; $('metadata').textContent = ''; }
+  if (request.type === 'observe') focusLatestOnNextSnapshot = true;
   $('conversation').hidden = true;
   $('answer').hidden = false;
   $('activity').textContent = '';
@@ -95,7 +133,13 @@ async function watch(request) {
   setBusy(true);
   $('status').textContent = '接続・認証中…';
   try {
+    if (request.type === 'observe') {
+      if (!sessionToken) sessionToken = await startSession(secret);
+      secret = '';
+      hideKeyInput(true);
+    }
     await client.watch(secret, request, data => {
+      if (data.type === 'session_expired') { clearSession(); hideKeyInput(false); return; }
       const now = performance.now();
       if (first === null) first = now - started;
       count++;
@@ -111,7 +155,7 @@ async function watch(request) {
         $('delivery').textContent = data.source === 'conversation' ? 'この会話の閲覧専用表示です。履歴と状態を約1秒間隔で確認します。Web画面からのメッセージ送信は行いません。' : data.source === 'demo' ? '比較デモ：固定文章を分割配信。AIは実行しません。' : '別のAI実行：状態は随時配信、回答は生成完了時に届きます。文字単位の生成配信ではありません。';
         return;
       }
-      if (data.type === 'conversation') { renderConversation(data); return; }
+      if (data.type === 'conversation') { reconnect.reset(); renderConversation(data); return; }
       if (data.type === 'heartbeat') return;
       if (data.type === 'delta') { answer += data.text; showMarkdown($('answer'), answer); return; }
       if (data.ask_id) { askId = data.ask_id; $('job').textContent = askId; }
@@ -119,14 +163,24 @@ async function watch(request) {
       if (data.reply !== undefined) { answer = data.reply; showMarkdown($('answer'), answer); }
       if (data.ask_error) $('status').textContent = `実行失敗: ${data.ask_error}`;
       $('metadata').textContent = [data.llm_model, data.llm_effort && `effort: ${data.llm_effort}`].filter(Boolean).join(' / ');
-    });
-  } catch (error) { $('status').textContent = error.message; }
+    }, sessionToken);
+  } catch (error) {
+    $('status').textContent = error.message; if (!getSession()) hideKeyInput(false);
+    if (request.type === 'observe') {
+      if (protocol === 'websocket' && error.code === 'websocket_unavailable') {
+        $('protocol').value = 'sse'; describe();
+        notifyParent({ type: 'conversation-transport', protocol: 'sse' });
+      }
+      const delay = reconnect.schedule(error, Boolean(getSession()));
+      if (delay !== null) $('status').textContent = `接続が切れました。${delay / 1000}秒後に再接続します。`;
+    }
+  }
   finally { setBusy(false); }
 }
 
 $('form').addEventListener('submit', event => {
   event.preventDefault();
-  if ($('source').value === 'conversation') { watch({ type: 'observe' }); return; }
+  if (embedded || $('source').value === 'conversation') { watch({ type: 'observe' }); return; }
   const prompt = $('prompt').value;
   if (!prompt.trim()) { $('status').textContent = 'メッセージを入力してください。'; return; }
   if (new TextEncoder().encode(prompt).length > 16384) { $('status').textContent = 'メッセージは16 KiB以内にしてください。'; return; }
@@ -134,6 +188,12 @@ $('form').addEventListener('submit', event => {
 });
 $('resume').addEventListener('click', () => { if (askId) watch({ type: 'resume', ask_id: askId }); });
 $('demo').addEventListener('click', () => watch({ type: 'demo' }));
-$('stop').addEventListener('click', () => client?.cancel());
-window.addEventListener('pagehide', () => client?.cancel());
+$('stop').addEventListener('click', () => stopWatching());
+window.addEventListener('pagehide', () => stopWatching());
 setBusy(false);
+
+function hideKeyInput(hidden) {
+  if (embedded) document.documentElement.dataset.authenticated = String(hidden);
+  for (const node of document.querySelectorAll('label[for="secret"], #secret, #key-hint')) node.hidden = hidden;
+}
+if (embedded) restoreSession().then(token => { if (token) { hideKeyInput(true); watch({ type: 'observe' }); } });

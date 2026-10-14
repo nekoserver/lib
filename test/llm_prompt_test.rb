@@ -6,6 +6,23 @@ require_relative '../api/hmac_auth'
 require_relative '../api/tunnels_lib'
 
 class LlmPromptTest < Minitest::Test
+  def test_usage_commands_route_to_codex_and_preserve_explicit_engine
+    %w[/usage /status ./usage].each do |command|
+      assert_equal [:codex, command], LlmPrompt.route('message' => command)
+    end
+    assert_equal [:claude, '/usage'], LlmPrompt.route('claude_prompt' => '/usage')
+    assert_nil LlmPrompt.route('message' => '/usage explain this')
+  end
+
+  def test_engine_prefixes_and_prmpt_alias_select_usage_agent
+    %w[codex claude nemotron].each do |engine|
+      %w[prompt prmpt].each do |suffix|
+        assert_equal [engine.to_sym, '/usage'], LlmPrompt.route('message' => "#{engine}_#{suffix}=\"/usage\"")
+        assert_equal [engine.to_sym, '/usage'], LlmPrompt.route("#{engine}_#{suffix}" => '/usage')
+      end
+    end
+    assert_equal [:conflict, nil], LlmPrompt.route('codex_prompt' => '/usage', 'codex_prmpt' => 'different')
+  end
   def test_routes_both_supported_engines_without_shell_parsing
     prompt = 'echo $(id); a+b%20 & <tag>'
     assert_equal [:codex, prompt], LlmPrompt.route('codex_prompt' => prompt)

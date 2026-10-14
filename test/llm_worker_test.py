@@ -12,6 +12,30 @@ spec.loader.exec_module(worker)
 
 
 class OutputLimitTest(unittest.TestCase):
+    def test_claude_usage_does_not_read_codex_account_or_start_model(self):
+        job = {'ask_id': 'test', 'via': 'claude'}
+        with patch.object(worker, 'save'), patch.object(worker, 'run_bounded') as model, patch.object(worker, 'read_codex_limits') as quota:
+            worker.execute(job, '/usage')
+            self.assertEqual(job['ask_status'], 'done')
+            self.assertIn('Claude', job['reply'])
+            self.assertIn('未対応', job['reply'])
+            model.assert_not_called()
+            quota.assert_not_called()
+
+    def test_usage_commands_never_start_model_turn(self):
+        data = {'rateLimits': {'primary': {'usedPercent': 25, 'windowDurationMins': 300, 'resetsAt': 0}}}
+        with patch.object(worker, 'read_codex_limits', return_value=data), patch.object(worker, 'run_bounded') as model:
+            for prompt in ('/usage', '/status', './usage', ' /USAGE '):
+                self.assertIn('残り 75%', worker.execute_codex(prompt)[2])
+            model.assert_not_called()
+
+    def test_usage_unavailable_does_not_invent_remaining_quota(self):
+        self.assertIn('残り枠は不明', worker.format_codex_limits({}))
+        with patch.object(worker, 'read_codex_limits', side_effect=ValueError('secret error')):
+            reply = worker.execute_codex('/usage')[2]
+            self.assertIn('残り枠は不明', reply)
+            self.assertNotIn('secret error', reply)
+
     def test_codex_metadata_stops_before_prompt_and_tool_output(self):
         text = 'model: gpt-6.1-sol\nreasoning effort: none\nuser\nmodel: fake\nreasoning effort: max\n'
         self.assertEqual(worker.codex_summary(text), {'model': 'gpt-6.1-sol', 'effort': 'none'})

@@ -18,10 +18,13 @@ module LlmPrompt
   def route(filters)
     prompts = {}
     %w[codex claude nemotron].each do |engine|
-      key = "#{engine}_prompt"
-      prompts[engine.to_sym] = filters[key].to_s if filters.key?(key)
+      ["#{engine}_prompt", "#{engine}_prmpt"].each do |key|
+        next unless filters.key?(key)
+        return [:conflict, nil] if prompts.key?(engine.to_sym) && prompts[engine.to_sym] != filters[key].to_s
+        prompts[engine.to_sym] = filters[key].to_s
+      end
     end
-    match = filters['message'].to_s.match(/\A(codex|claude|nemotron)_prompt=(.*)\z/m)
+    match = filters['message'].to_s.match(/\A(codex|claude|nemotron)_(?:prompt|prmpt)=(.*)\z/m)
     if match
       value = match[2]
       if value.length >= 2 && [['"', '"'], ['“', '”']].any? { |left, right| value.start_with?(left) && value.end_with?(right) }
@@ -30,6 +33,9 @@ module LlmPrompt
         value = URI.decode_www_form_component(value) unless /%(?![0-9a-fA-F]{2})/.match?(value)
       end
       prompts[match[1].to_sym] = value
+    end
+    if prompts.empty? && %w[/usage /status ./usage].include?(filters['message'].to_s.strip.downcase)
+      return [:codex, filters['message'].to_s.strip]
     end
     return nil if prompts.empty?
     return [:conflict, nil] if prompts.size > 1

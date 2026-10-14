@@ -17,6 +17,7 @@ import stat
 import threading
 import time
 import uuid
+from datetime import datetime, timezone
 
 SOCKET = os.environ.get('LIB_CODEX_SOCKET', '/run/lib-codex/worker.sock')
 STATE = Path(os.environ.get('LIB_LLM_STATE', '/var/lib/lib-llm/jobs'))
@@ -75,7 +76,7 @@ def submit(engine, prompt):
         return {'ask_error': 'empty_prompt', 'ask_status': 'failed'}
     if len(prompt.encode()) > MAX_PROMPT:
         return {'ask_error': 'prompt_too_large', 'ask_status': 'failed'}
-    if engine == 'claude' and not claude_authenticated():
+    if engine == 'claude' and prompt.strip().lower() not in ('/usage', '/status', './usage') and not claude_authenticated():
         return {'ask_error': 'claude_not_authenticated', 'ask_status': 'failed', 'via': engine}
     job = {'ask_id': engine + '-' + str(uuid.uuid4()), 'ask_status': 'pending',
            'via': engine, 'created_at': time.time()}
@@ -198,7 +199,100 @@ def codex_summary(text):
     return metadata
 
 
+def read_codex_limits():
+    """Read account limits without starting a model turn, using the helper identity."""
+    args = command('codex')
+    args = args[:args.index('/opt/codex-web/bin/codex')] + [
+        '/opt/codex-web/bin/codex', 'app-server', '--listen', 'stdio://']
+    proc = subprocess.Popen(args, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL, start_new_session=True,
+        env={'PATH': '/usr/local/bin:/usr/bin:/bin', 'LANG': 'C.UTF-8'})
+    responses = queue.Queue(maxsize=64)
+    deadline = time.monotonic() + 25
+
+    def collect():
+        while True:
+            line = proc.stdout.readline(65_537)
+            if not line or len(line) > 65_536:
+                responses.put(None)
+                return
+            try:
+                responses.put_nowait(json.loads(line))
+            except (ValueError, queue.Full):
+                return
+
+    reader = threading.Thread(target=collect, daemon=True)
+    reader.start()
+
+    def send(message):
+        proc.stdin.write((json.dumps(message) + '\n').encode())
+        proc.stdin.flush()
+
+    def receive(request_id):
+        while True:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise TimeoutError
+            try:
+                message = responses.get(timeout=remaining)
+            except queue.Empty:
+                raise TimeoutError
+            if message is None:
+                raise ValueError('Usage connection closed')
+            if message.get('id') == request_id:
+                if 'error' in message:
+                    raise ValueError('Usage API unavailable')
+                return message['result']
+
+    try:
+        send({'id': 1, 'method': 'initialize', 'params': {
+            'clientInfo': {'name': 'tunnels_usage', 'version': '1.0.0'}}})
+        receive(1)
+        send({'method': 'initialized', 'params': {}})
+        send({'id': 2, 'method': 'account/rateLimits/read'})
+        return receive(2)
+    finally:
+        if proc.poll() is None:
+            try:
+                os.killpg(proc.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+        proc.wait(timeout=5)
+        reader.join(timeout=2)
+        proc.stdin.close()
+        proc.stdout.close()
+
+
+def format_codex_limits(data):
+    buckets = data.get('rateLimitsByLimitId') or {}
+    if not buckets and data.get('rateLimits'):
+        buckets = {'codex': data['rateLimits']}
+    lines = ['Codex 利用枠（アカウントの実データ）']
+    count = 0
+    for key, bucket in buckets.items():
+        for label in ('primary', 'secondary'):
+            window = bucket.get(label)
+            if not window or window.get('usedPercent') is None:
+                continue
+            used = float(window['usedPercent'])
+            remaining = max(0, min(100, 100 - used))
+            minutes = window.get('windowDurationMins')
+            period = f'{minutes / 60:g}時間枠' if minutes else label
+            reset = window.get('resetsAt')
+            reset_text = datetime.fromtimestamp(reset, timezone.utc).strftime('%Y-%m-%d %H:%M UTC') if reset else '不明'
+            lines.append(f'{key} {period}: 残り {remaining:g}%（使用 {used:g}%）、リセット {reset_text}')
+            count += 1
+    if not count:
+        lines.append('この認証では利用枠が提供されていません。残り枠は不明です。')
+    return '\n'.join(lines)
+
+
 def execute_codex(prompt):
+    if prompt.strip().lower() in ('/usage', '/status', './usage'):
+        try:
+            return 0, '', format_codex_limits(read_codex_limits())
+        except (OSError, ValueError, KeyError, TypeError, TimeoutError, subprocess.TimeoutExpired):
+            return 0, '', 'Codex の利用枠を取得できませんでした。認証状態・接続を確認して再試行してください（残り枠は不明）。'
     user = pwd.getpwnam('codex-web')
     with tempfile.TemporaryDirectory(prefix='.llm-answer-', dir=HOME) as directory:
         os.chown(directory, user.pw_uid, user.pw_gid)
@@ -224,7 +318,9 @@ def execute(job, prompt):
     save(job)
     try:
         # The prompt is stdin, never a shell command or CLI option.
-        if job['via'] == 'codex':
+        if job['via'] == 'claude' and prompt.strip().lower() in ('/usage', '/status', './usage'):
+            returncode, text, reply = 0, '', 'Claude の利用枠取得は現在未対応です。Codex の利用枠は代用せず、Claude の残り枠は不明として返します。'
+        elif job['via'] == 'codex':
             returncode, text, reply = execute_codex(prompt)
             job.update(codex_summary(text))
         else:

@@ -8,11 +8,16 @@ import os
 import re
 import time
 from aiohttp import web
-from chat_session import issue, valid, TTL
+from chat_session import issue, valid, remaining, TTL
 from chat_websocket import event_stream, load_secret, worker_payload
 
 PREFIX = '/lib/api/chat/'
 TYPES = {'sse': 'text/event-stream', 'ndjson': 'application/x-ndjson', 'jsonseq': 'application/json-seq'}
+SESSION_COOKIE = '__Host-conversation-observer'
+
+def session_cookie(token, max_age):
+    # Partitioned supports the stream iframe without broad third-party cookies.
+    return f'{SESSION_COOKIE}={token}; Path=/; Max-Age={max_age}; Secure; HttpOnly; SameSite=None; Partitioned'
 
 
 def encode_event(protocol, event, sequence):
@@ -40,15 +45,24 @@ def create_app(secret, origins):
     active = set()
 
     async def session(request):
-        origin = request.headers.get('Origin')
+        origin = request.headers.get('Origin') or f'https://{request.host}'
         if origin not in origins or request.query_string:
             return web.json_response({'error': 'origin_rejected'}, status=403)
+        if request.method == 'DELETE':
+            return web.json_response({'cleared': True}, headers={'Cache-Control': 'no-store', 'Set-Cookie': session_cookie('', 0)})
+        if request.method == 'GET':
+            token = request.cookies.get(SESSION_COOKIE) or request.headers.get('Authorization', '').removeprefix('Bearer ')
+            seconds = remaining(secret, token, origin)
+            if seconds <= 0:
+                return web.json_response({'error': 'session_expired'}, status=401, headers={'Cache-Control': 'no-store', 'Set-Cookie': session_cookie('', 0)})
+            return web.json_response({'token': token, 'expires_in': seconds}, headers={'Cache-Control': 'no-store', 'Set-Cookie': session_cookie(token, seconds)})
         body = await request.read()
         if not authenticated(secret, request, body):
             return web.json_response({'error': 'authentication_failed'}, status=401)
         if body != b'{"type":"observe"}':
             return web.json_response({'error': 'invalid_request'}, status=400)
-        return web.json_response({'token': issue(secret, origin), 'expires_in': TTL}, headers={'Cache-Control': 'no-store'})
+        token = issue(secret, origin)
+        return web.json_response({'token': token, 'expires_in': TTL}, headers={'Cache-Control': 'no-store', 'Set-Cookie': session_cookie(token, TTL)})
 
     async def stream(request):
         protocol = request.match_info['protocol']
@@ -96,6 +110,8 @@ def create_app(secret, origins):
             active.discard(marker)
 
     app.router.add_post(PREFIX + 'session', session)
+    app.router.add_get(PREFIX + 'session', session)
+    app.router.add_delete(PREFIX + 'session', session)
     app.router.add_post(PREFIX + '{protocol}', stream)
     return app
 

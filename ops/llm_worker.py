@@ -113,7 +113,7 @@ def command(engine, answer_path=None):
     return args
 
 
-def run_bounded(args, prompt):
+def run_bounded(args, prompt, timeout=TIMEOUT):
     # RLIMIT_FSIZE affects every file written by the CLI and its tools, including
     # databases and runtime artifacts. Bound only the captured output instead.
     proc = subprocess.Popen(args, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
@@ -146,7 +146,7 @@ def run_bounded(args, prompt):
             proc.stdin.close()
         except BrokenPipeError:
             pass
-        proc.wait(timeout=TIMEOUT)
+        proc.wait(timeout=timeout)
     except subprocess.TimeoutExpired:
         os.killpg(proc.pid, signal.SIGKILL)
         proc.wait()
@@ -207,7 +207,39 @@ def canonical_command(prompt):
     return COMMAND_ALIASES.get(value, value)
 
 
-def read_codex_rpc(method, params=None):
+def control_command(argv):
+    args = command('codex')
+    return args[:args.index('/opt/codex-web/bin/codex')] + argv
+
+
+def run_control(argv, truncate=True):
+    code, text = run_bounded(control_command(argv), '', timeout=25)
+    if code:
+        raise ValueError('Control command failed')
+    if truncate and len(text.encode()) > MAX_OUTPUT - 512:
+        return text.encode()[:MAX_OUTPUT - 512].decode(errors='ignore') + '\n（表示上限で省略しました）'
+    return text
+
+
+DIFF_SCRIPT = r'''
+import subprocess
+base = ['git', '-c', 'safe.directory=' + __import__('os').getcwd(), '--no-pager']
+def git(args, allowed=(0,)):
+    p = subprocess.run(base + args, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+    if p.returncode not in allowed: raise SystemExit(2)
+    return p.stdout
+print('ステージ済み変更:')
+print(git(['diff', '--no-ext-diff', '--no-textconv', '--cached']).decode(errors='replace'))
+print('未ステージ変更:')
+print(git(['diff', '--no-ext-diff', '--no-textconv']).decode(errors='replace'))
+print('未追跡ファイル（gitignore 対象を除く）:')
+for path in git(['ls-files', '--others', '--exclude-standard', '-z']).split(b'\0'):
+    if path:
+        print(git(['diff', '--no-ext-diff', '--no-textconv', '--no-index', '--', '/dev/null', path.decode()], (0, 1)).decode(errors='replace'))
+'''
+
+
+def read_codex_rpc(method, params=None, timeout=25):
     """Read account limits without starting a model turn, using the helper identity."""
     args = command('codex')
     args = args[:args.index('/opt/codex-web/bin/codex')] + [
@@ -216,12 +248,24 @@ def read_codex_rpc(method, params=None):
         stderr=subprocess.DEVNULL, start_new_session=True,
         env={'PATH': '/usr/local/bin:/usr/bin:/bin', 'LANG': 'C.UTF-8'})
     responses = queue.Queue(maxsize=64)
-    deadline = time.monotonic() + 25
+    deadline = time.monotonic() + timeout
 
     def collect():
         while True:
-            line = proc.stdout.readline(65_537)
-            if not line or len(line) > 65_536:
+            line = proc.stdout.readline(4_194_305)
+            if len(line) > 4_194_304:
+                # Directory update notifications can contain the entire catalog,
+                # even when the requested response is paginated. Drain that
+                # bounded frame and continue to the requested response.
+                discarded = len(line)
+                while line and not line.endswith(b'\n') and discarded <= 33_554_432:
+                    line = proc.stdout.readline(4_194_305)
+                    discarded += len(line)
+                if discarded <= 33_554_432 and line.endswith(b'\n'):
+                    continue
+                responses.put(None)
+                return
+            if not line:
                 responses.put(None)
                 return
             try:
@@ -304,6 +348,62 @@ def format_codex_limits(data):
 
 def codex_control_reply(prompt):
     command_name = canonical_command(prompt)
+    if command_name in ('/mcp', '/mcp verbose'):
+        data = read_codex_rpc('mcpServerStatus/list', {'limit': 100, 'detail': 'toolsAndAuthOnly'})
+        lines = ['Codex /mcp — 連携用 Codex の MCP サーバー・ツール']
+        for server in data.get('data', []):
+            tools = server.get('tools') or {}
+            lines.append(f'{server["name"]}: 認証 {server.get("authStatus", "不明")}, ツール {len(tools)}件')
+            lines.extend('  ' + name for name in tools)
+            if command_name.endswith(' verbose'):
+                lines.append(f'  接続状態: {server.get("runtimeStatus") or "未取得"}')
+                if server.get('toolsError'): lines.append('  ツール取得に失敗しました。')
+        if not data.get('data'): lines.append('登録済みサーバーはありません。')
+        if data.get('nextCursor'): lines.append('表示は最初の100件です。続きは対話型CLIで確認してください。')
+        return '\n'.join(lines)
+    if command_name == '/apps':
+        installed = read_codex_rpc('app/installed', {'forceRefresh': False})
+        try:
+            data = read_codex_rpc('app/list', {'limit': 100, 'forceRefetch': False}, timeout=10)
+            directory_unavailable = False
+        except (OSError, ValueError, TimeoutError):
+            data = {'data': []}
+            directory_unavailable = True
+        lines = ['Codex /apps — 利用可能なアプリ（連携用アカウント）']
+        for app in installed.get('apps', []):
+            lines.append(f'{app.get("runtimeName") or app["id"]}: 設定 {"有効" if app.get("enabled") else "無効"}, 呼出 {"可" if app.get("callable") else "不可"}')
+        for app in data.get('data', []):
+            lines.append(f'{app["name"]}: アクセス {"可" if app.get("isAccessible") else "不可"}, 設定 {"有効" if app.get("isEnabled", True) else "無効"}')
+        if directory_unavailable: lines.append('アプリディレクトリの取得に失敗しました。上記は取得できたインストール済みアプリです。')
+        elif not data.get('data') and not installed.get('apps'): lines.append('一覧にアプリはありません。')
+        if data.get('nextCursor'): lines.append('表示は最初の100件です。続きは対話型CLIで確認してください。')
+        lines.append('この表示ではアプリの選択・設定変更は行いません。')
+        return '\n'.join(lines)
+    if command_name == '/plugins':
+        # Use the native CLI; plugin/list RPC is documented as under development.
+        data = json.loads(run_control(['/opt/codex-web/bin/codex', 'plugin', 'list', '--available', '--json'], truncate=False))
+        lines = ['Codex /plugins — インストール済み・利用可能なプラグイン']
+        if isinstance(data, list): plugins = data
+        else:
+            plugins = data.get('plugins', []) + data.get('installed', []) + data.get('available', [])
+            for marketplace in data.get('marketplaces', []): plugins.extend(marketplace.get('plugins', []))
+        seen = set()
+        for plugin in plugins:
+            name = plugin.get('name') or plugin.get('id') or plugin.get('pluginId') or '名称不明'
+            identity = plugin.get('pluginId') or name
+            if identity in seen: continue
+            seen.add(identity)
+            lines.append(f'{name}: installed={plugin.get("installed", plugin.get("isInstalled", "不明"))}, enabled={plugin.get("enabled", plugin.get("isEnabled", "不明"))}')
+        if not plugins: lines.append('一覧にプラグインはありません。')
+        lines.append('この表示ではインストール・有効化の変更は行いません。')
+        return '\n'.join(lines)
+    if command_name == '/diff':
+        return 'Codex /diff — 連携用作業ディレクトリの Git 差分\n' + run_control(['/usr/bin/python3', '-c', DIFF_SCRIPT])
+    if command_name == '/ps':
+        return ('Codex /ps — バックグラウンド端末\n'
+                'この連携は独立した CLI ジョブを実行するため、対話セッションの端末状態は取得できません。\n'
+                '端末が0件とは判断しません。既存セッションの /ps で確認してください。\n'
+                'VM 全体のプロセス一覧で代用しません。')
     if command_name == '/usage':
         return ('Codex /usage — アカウントのトークン使用量\n'
                 '/usage daily: 日別\n/usage weekly: 週別\n/usage cumulative: 累計\n'
@@ -357,7 +457,8 @@ def execute_codex(prompt):
         try:
             return 0, '', codex_control_reply(prompt)
         except (OSError, ValueError, KeyError, TypeError, TimeoutError, subprocess.TimeoutExpired):
-            return 0, '', 'Codex のコマンド情報を取得できませんでした。認証状態・接続を確認して再試行してください（残り枠は不明）。'
+            missing = '残り枠は不明' if canonical_command(prompt) == '/status' else '取得できない情報は不明'
+            return 0, '', f'Codex のコマンド情報を取得できませんでした。認証状態・接続を確認して再試行してください（{missing}）。'
     user = pwd.getpwnam('codex-web')
     with tempfile.TemporaryDirectory(prefix='.llm-answer-', dir=HOME) as directory:
         os.chown(directory, user.pw_uid, user.pw_gid)

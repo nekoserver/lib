@@ -1,4 +1,4 @@
-import { getSession, startSession, clearSession } from './session.mjs?v=controls3';
+import { getSession, startSession, restoreSession, clearSession } from './session.mjs?v=cookie7d';
 import { ChatSocket } from './socket.mjs?v=controls3';
 import { showMarkdown } from './markdown.mjs';
 import { HttpStream } from './http-stream.mjs?v=controls3';
@@ -107,7 +107,8 @@ function setBusy(value) {
 async function watch(request) {
   if (busy) return;
   let secret = $('secret').value;
-  let sessionToken = request.type === 'observe' ? getSession() : null;
+  let sessionToken = request.type === 'observe' ? (getSession() || await restoreSession()) : null;
+  if (busy) return;
   if (!secret && !sessionToken && request.type !== 'demo') { $('status').textContent = 'HMACキーを入力してください。'; return; }
   if (!globalThis.isSecureContext || !globalThis.crypto?.subtle) {
     $('status').textContent = 'HTTPSでページを開いてください。'; return;
@@ -189,4 +190,4 @@ function hideKeyInput(hidden) {
   if (embedded) document.documentElement.dataset.authenticated = String(hidden);
   for (const node of document.querySelectorAll('label[for="secret"], #secret, #key-hint')) node.hidden = hidden;
 }
-if (embedded && getSession()) { hideKeyInput(true); watch({ type: 'observe' }); }
+if (embedded) restoreSession().then(token => { if (token) { hideKeyInput(true); watch({ type: 'observe' }); } });

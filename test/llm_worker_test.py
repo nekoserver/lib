@@ -12,6 +12,28 @@ spec.loader.exec_module(worker)
 
 
 class OutputLimitTest(unittest.TestCase):
+    def test_inventory_commands_use_readonly_sources_not_model(self):
+        def rpc(method, params=None, **kwargs):
+            if method == 'mcpServerStatus/list':
+                return {'data': [{'name': 'example', 'authStatus': 'loggedIn', 'tools': {'find': {'description': 'find things'}}}], 'nextCursor': None}
+            if method == 'app/list':
+                return {'data': [{'name': 'Example App', 'isEnabled': True, 'isAccessible': True}], 'nextCursor': None}
+            if method == 'app/installed':
+                return {'apps': [{'id': 'example', 'runtimeName': 'Example App', 'enabled': True, 'callable': True}]}
+            raise AssertionError(method)
+        with patch.object(worker, 'read_codex_rpc', side_effect=rpc), patch.object(worker, 'run_control', return_value='{"plugins":[{"name":"example","enabled":true}]}'), patch.object(worker, 'run_bounded') as model:
+            self.assertIn('example', worker.execute_codex('/mcp')[2])
+            self.assertIn('find', worker.execute_codex('/mcp verbose')[2])
+            self.assertIn('Example App', worker.execute_codex('/apps')[2])
+            self.assertIn('example', worker.execute_codex('/plugins')[2])
+            self.assertIn('端末', worker.execute_codex('/ps')[2])
+            model.assert_not_called()
+
+    def test_diff_includes_staged_unstaged_untracked_and_is_bounded(self):
+        with patch.object(worker, 'run_control', return_value='diff --git a/example b/example') as control:
+            self.assertIn('diff --git', worker.execute_codex('/diff')[2])
+            self.assertIn('ls-files', control.call_args.args[0][-1])
+
     def test_claude_usage_does_not_read_codex_account_or_start_model(self):
         job = {'ask_id': 'test', 'via': 'claude'}
         with patch.object(worker, 'save'), patch.object(worker, 'run_bounded') as model, patch.object(worker, 'read_codex_limits') as quota:

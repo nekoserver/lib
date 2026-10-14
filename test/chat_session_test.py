@@ -19,6 +19,27 @@ SECRET = b'test-secret'
 ORIGIN = 'https://chat.example'
 
 class SessionTest(unittest.IsolatedAsyncioTestCase):
+    async def test_cookie_restores_after_reload_without_extending_expiry(self):
+        async with TestClient(TestServer(http.create_app(SECRET, {ORIGIN}))) as client:
+            path = http.PREFIX + 'session'; body = b'{"type":"observe"}'; timestamp = str(int(time.time()))
+            signature = hmac.new(SECRET, f'POST\n{path}\n{timestamp}\n{hashlib.sha256(body).hexdigest()}'.encode(), hashlib.sha256).hexdigest()
+            response = await client.post(path, data=body, headers={'Origin': ORIGIN, 'X-Timestamp': timestamp, 'X-Signature': signature})
+            cookie = response.headers['Set-Cookie']
+            for flag in ('Secure', 'HttpOnly', 'SameSite=None', 'Partitioned', 'Max-Age=604800', 'Path=/'):
+                self.assertIn(flag, cookie)
+            token = (await response.json())['token']
+            headers = {'Origin': ORIGIN, 'Cookie': f'{http.SESSION_COOKIE}={token}'}
+            with patch.object(session.time, 'time', return_value=time.time() + 86400):
+                restored = await client.get(path, headers=headers)
+                data = await restored.json()
+                self.assertEqual(restored.status, 200)
+                self.assertEqual(data['token'], token)
+                self.assertLessEqual(data['expires_in'], 6 * 86400)
+            denied = await client.get(path, headers={**headers, 'Origin': 'https://evil.example'})
+            self.assertEqual(denied.status, 403)
+            deleted = await client.delete(path, headers=headers)
+            self.assertIn('Max-Age=0', deleted.headers['Set-Cookie'])
+
     def test_expiry_origin_tampering_and_secret_rotation(self):
         token = session.issue(SECRET, ORIGIN)
         self.assertTrue(session.valid(SECRET, token, ORIGIN))

@@ -27,10 +27,13 @@ let askId = null;
 let busy = false;
 let answer = '';
 const messageNodes = new Map();
+let focusLatestOnNextSnapshot = true;
 
 function renderConversation(data) {
   const container = $('conversation');
-  const follow = container.scrollHeight - container.scrollTop - container.clientHeight < 80;
+  const scroller = embedded ? container.closest('section') : container;
+  const focusLatest = focusLatestOnNextSnapshot;
+  const follow = focusLatest || scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight < 80;
   const fragment = document.createDocumentFragment(), retained = new Set();
   for (const message of data.messages) {
     retained.add(message.id);
@@ -38,6 +41,7 @@ function renderConversation(data) {
     if (!record) {
       const element = document.createElement('article');
       element.className = `message ${message.role === 'user' ? 'user' : 'assistant'}`;
+      element.tabIndex = -1;
       const label = document.createElement('p'); label.className = 'message-label';
       const content = document.createElement('div'); content.className = 'markdown';
       element.append(label, content);
@@ -56,7 +60,13 @@ function renderConversation(data) {
   container.replaceChildren(fragment);
   container.hidden = false;
   $('answer').hidden = true;
-  if (follow) container.scrollTop = container.scrollHeight;
+  if (data.messages.length) {
+    focusLatestOnNextSnapshot = false;
+    requestAnimationFrame(() => {
+      if (follow) scroller.scrollTop = scroller.scrollHeight;
+      if (focusLatest) container.lastElementChild?.focus({ preventScroll: true });
+    });
+  }
   $('status').textContent = data.status === 'active' ? 'この会話を表示中 · AIが作業中' : 'この会話を表示中 · 次の更新を待っています';
   const activities = { commandExecution: 'コマンド', webSearch: '検索', fileChange: 'ファイル変更', mcpToolCall: 'ツール', dynamicToolCall: 'ツール' };
   $('activity').textContent = data.activity.map(item => activities[item.kind] || 'ツール').join(' · ');
@@ -104,6 +114,7 @@ async function watch(request) {
   }
   $('secret').value = '';
   if (request.type !== 'resume') { askId = null; answer = ''; $('job').textContent = ''; $('answer').textContent = ''; $('metadata').textContent = ''; }
+  if (request.type === 'observe') focusLatestOnNextSnapshot = true;
   $('conversation').hidden = true;
   $('answer').hidden = false;
   $('activity').textContent = '';

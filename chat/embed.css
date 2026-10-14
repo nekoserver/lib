@@ -25,3 +25,12 @@ section[aria-label="回答"] { flex: 1; min-height: 0; overflow-y: auto; }
 .actions button { font-size: 9px; padding: 3px 6px; min-height: 24px; }
 
 html[data-parent-controls="true"][data-authenticated="true"] section:first-of-type { display: none; }
+
+body { font-size: 11px; }
+.message { padding: 7px; margin: 6px 0; border-radius: 5px; }
+.message .markdown { font-size: 11px; line-height: 1.5; }
+.message-label, .hint, #metadata, #status, summary { font-size: 9px; }
+.markdown h1 { font-size: 14px; }
+.markdown h2 { font-size: 13px; }
+.markdown h3 { font-size: 12px; }
+.actions button { font-size: 7px; }

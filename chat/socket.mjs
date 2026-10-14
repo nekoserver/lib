@@ -1,3 +1,4 @@
+const streamError = (message, code) => Object.assign(new Error(message), { code });
 export class ChatSocket {
   constructor(url, { WebSocketClass = globalThis.WebSocket, crypto = globalThis.crypto } = {}) {
     this.url = url;
@@ -58,14 +59,14 @@ export class ChatSocket {
               connection_timeout: '接続がタイムアウトしました。結果に再接続してください。',
               invalid_request: '送信内容またはサーバーの応答が不正です。',
             };
-            finish(new Error(messages[data.error] || 'サーバーでエラーが発生しました。'));
+            finish(streamError(messages[data.error] || 'サーバーでエラーが発生しました。', data.error));
           } else {
             finish(new Error('サーバーの応答が不正です。'));
           }
         } catch (error) { finish(error); }
       };
-      ws.onerror = () => finish(new Error('WebSocketに接続できません。サーバーと公開経路を確認してください。'));
-      ws.onclose = event => { if (event.code === 1008) onUpdate({ type: 'session_expired' }); finish(new Error(event.code === 1008 ? '認証に失敗しました。HMACキーを確認してください。' : event.reason === 'stop_watching' ? '受信を停止しました。' : '接続が切れました。再接続して確認してください。')); };
+      ws.onerror = () => finish(streamError('WebSocketに接続できません。サーバーと公開経路を確認してください。', 'websocket_unavailable'));
+      ws.onclose = event => { if (event.code === 1008) onUpdate({ type: 'session_expired' }); finish(streamError(event.code === 1008 ? '認証に失敗しました。HMACキーを確認してください。' : event.reason === 'stop_watching' ? '受信を停止しました。' : '接続が切れました。再接続して確認してください。', event.code === 1008 ? 'auth_rejected' : event.reason === 'stop_watching' ? 'stopped' : 'disconnected')); };
     });
   }
 }

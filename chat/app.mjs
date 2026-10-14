@@ -1,6 +1,7 @@
 import { getSession, startSession, restoreSession, clearSession } from './session.mjs?v=cookie7d';
 import { ChatSocket } from './socket.mjs?v=controls3';
 import { showMarkdown } from './markdown.mjs';
+import { ObserveReconnect } from './reconnect.mjs';
 import { HttpStream } from './http-stream.mjs?v=controls3';
 
 const $ = id => document.getElementById(id);
@@ -16,7 +17,7 @@ if (embedded) {
     parentOrigin = event.origin;
     if (event.data?.type === 'conversation-controls') { document.documentElement.dataset.parentControls = 'true'; notifyParent({ type: 'conversation-state', busy }); }
     if (event.data?.type === 'conversation-start') watch({ type: 'observe' });
-    if (event.data?.type === 'conversation-stop') client?.cancel();
+    if (event.data?.type === 'conversation-stop') stopWatching();
     if (event.data?.type === 'conversation-theme' && ['light', 'dark'].includes(event.data.theme)) document.documentElement.dataset.theme = event.data.theme;
   });
 }
@@ -25,6 +26,8 @@ url.protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
 let client = null;
 let askId = null;
 let busy = false;
+const reconnect = new ObserveReconnect(() => watch({ type: 'observe' }));
+function stopWatching() { reconnect.stop(); client?.cancel(); }
 let answer = '';
 const messageNodes = new Map();
 let focusLatestOnNextSnapshot = true;
@@ -67,7 +70,7 @@ function renderConversation(data) {
       if (focusLatest) container.lastElementChild?.focus({ preventScroll: true });
     });
   }
-  $('status').textContent = data.status === 'active' ? 'この会話を表示中 · AIが作業中' : 'この会話を表示中 · 次の更新を待っています';
+  $('status').textContent = data.status === 'notLoaded' ? '監視対象の会話は終了しています。サーバーの監視先設定を確認してください。' : data.status === 'active' ? 'この会話を表示中 · AIが作業中' : 'この会話を表示中 · 次の更新を待っています';
   const activities = { commandExecution: 'コマンド', webSearch: '検索', fileChange: 'ファイル変更', mcpToolCall: 'ツール', dynamicToolCall: 'ツール' };
   $('activity').textContent = data.activity.map(item => activities[item.kind] || 'ツール').join(' · ');
 }
@@ -96,7 +99,7 @@ function setBusy(value) {
   busy = value;
   $('send').disabled = value;
   $('resume').disabled = value || !askId;
-  $('stop').disabled = !value;
+  $('stop').disabled = !value && reconnect.timer === null;
   $('engine').disabled = value;
   $('protocol').disabled = value;
   $('demo').disabled = value;
@@ -113,6 +116,7 @@ async function watch(request) {
   if (!globalThis.isSecureContext || !globalThis.crypto?.subtle) {
     $('status').textContent = 'HTTPSでページを開いてください。'; return;
   }
+  if (request.type === 'observe') reconnect.begin(); else reconnect.stop();
   $('secret').value = '';
   if (request.type !== 'resume') { askId = null; answer = ''; $('job').textContent = ''; $('answer').textContent = ''; $('metadata').textContent = ''; }
   if (request.type === 'observe') focusLatestOnNextSnapshot = true;
@@ -151,7 +155,7 @@ async function watch(request) {
         $('delivery').textContent = data.source === 'conversation' ? 'この会話の閲覧専用表示です。履歴と状態を約1秒間隔で確認します。Web画面からのメッセージ送信は行いません。' : data.source === 'demo' ? '比較デモ：固定文章を分割配信。AIは実行しません。' : '別のAI実行：状態は随時配信、回答は生成完了時に届きます。文字単位の生成配信ではありません。';
         return;
       }
-      if (data.type === 'conversation') { renderConversation(data); return; }
+      if (data.type === 'conversation') { reconnect.reset(); renderConversation(data); return; }
       if (data.type === 'heartbeat') return;
       if (data.type === 'delta') { answer += data.text; showMarkdown($('answer'), answer); return; }
       if (data.ask_id) { askId = data.ask_id; $('job').textContent = askId; }
@@ -162,11 +166,13 @@ async function watch(request) {
     }, sessionToken);
   } catch (error) {
     $('status').textContent = error.message; if (!getSession()) hideKeyInput(false);
-    if (request.type === 'observe' && protocol === 'websocket' && getSession() && error.message.startsWith('WebSocketに接続できません')) {
-      $('protocol').value = 'sse'; describe();
-      notifyParent({ type: 'conversation-transport', protocol: 'sse' });
-      $('status').textContent = 'WebSocketに接続できないため、SSEで再接続します。';
-      setTimeout(() => watch({ type: 'observe' }), 0);
+    if (request.type === 'observe') {
+      if (protocol === 'websocket' && error.code === 'websocket_unavailable') {
+        $('protocol').value = 'sse'; describe();
+        notifyParent({ type: 'conversation-transport', protocol: 'sse' });
+      }
+      const delay = reconnect.schedule(error, Boolean(getSession()));
+      if (delay !== null) $('status').textContent = `接続が切れました。${delay / 1000}秒後に再接続します。`;
     }
   }
   finally { setBusy(false); }
@@ -182,8 +188,8 @@ $('form').addEventListener('submit', event => {
 });
 $('resume').addEventListener('click', () => { if (askId) watch({ type: 'resume', ask_id: askId }); });
 $('demo').addEventListener('click', () => watch({ type: 'demo' }));
-$('stop').addEventListener('click', () => client?.cancel());
-window.addEventListener('pagehide', () => client?.cancel());
+$('stop').addEventListener('click', () => stopWatching());
+window.addEventListener('pagehide', () => stopWatching());
 setBusy(false);
 
 function hideKeyInput(hidden) {

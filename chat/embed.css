@@ -34,3 +34,5 @@ body { font-size: 11px; }
 .markdown h2 { font-size: 13px; }
 .markdown h3 { font-size: 12px; }
 .actions button { font-size: 7px; }
+
+.markdown a, .markdown a:hover, .markdown a:focus { text-decoration: none; }

@@ -242,3 +242,18 @@ async function signedFetch(url, secret, init = {}) {
 - Never print `ORIGIN_HMAC_SECRET` / file contents in logs or agent chat.
 - Prefer Worker secret binding; origin file is for the CGI process.
 - Clock skew window is 300s; keep Worker/origin NTP sane.
+
+## Claude CLI endpoint
+
+`/lib/api/tunnels-claude.rb` shares the tunnel API's HMAC authentication, filters,
+JSON/HTML responses, and private CLI worker. POST `{"message":"Explain the tunnels"}`
+to submit to Claude without a prefix. `claude_prompt` and `claude_prmpt` also work;
+explicit engine prefixes still select their specified engine. Plain slash commands
+such as `/usage` are sent to Claude, and follow the worker's supported commands.
+The original `tunnels.rb` keeps its existing routing.
+
+Sign the actual `/lib/api/tunnels-claude.rb` request path and exact body. Message
+execution requires a signed POST, even from an allowlisted IP. Use signed
+`GET /lib/api/tunnels-claude.rb?ask_id=claude-<uuid>` to poll without resubmitting.
+Replies include `via`, `ask_status`, `ask_id` when pending, and `reply` when done.
+Claude authentication must already be configured as described in `ops/LLM_SETUP.md`.

@@ -480,20 +480,56 @@ def execute_codex(prompt):
 
 
 def execute_claude_control(prompt):
-    if canonical_command(prompt) != '/cost':
+    name = canonical_command(prompt)
+    if name == '/permission':
+        name = '/permissions'
+    if name not in ('/cost', '/mcp', '/model', '/help', '/permissions', '/status'):
         return 0, '', 'Claude のスラッシュコマンドはこの連携では未対応です。Claude Code の対話画面で実行してください。Codex の情報で代用しません。'
-    code, text = run_bounded(command('claude'), '/cost')
+    if name == '/help':
+        text = run_control(['/opt/claude-web/claude', '--help'])
+        return 0, '', ('Claude /help — 連携対応: /cost /mcp /model /help /permission /permissions /status\n'
+                       '引数なしの情報表示に対応しています。対話画面は開きません。\n\n' + text)
+    # Dialog-only commands use actual initialization data from a local /model.
+    native = '/model' if name in ('/permissions', '/status') else name
+    code, text = run_bounded(command('claude'), native)
     if code != 0:
         return code, '', None
+    init = {}
+    result = None
     for line in text.splitlines():
         try:
             event = json.loads(line)
         except json.JSONDecodeError:
             continue
-        if (event.get('type') == 'result' and event.get('local_command') == 'cost'
+        if event.get('type') == 'system' and event.get('subtype') == 'init':
+            init = event
+        if (event.get('type') == 'result' and event.get('local_command') == native[1:]
                 and event.get('num_turns') == 0 and not event.get('is_error')
                 and isinstance(event.get('result'), str) and event['result'].strip()):
-            return 0, '', 'Claude /cost — 連携用アカウントの CLI 実データ\n' + event['result']
+            result = event['result']
+    if result is not None:
+        if name == '/status':
+            if not init:
+                return 1, '', None
+            lines = ['CLI 起動情報（独立した連携ジョブ）']
+            for key, label in [('claude_code_version', 'CLI バージョン'), ('model', 'モデル'), ('permissionMode', '承認モード'), ('cwd', '作業ディレクトリ')]:
+                lines.append(f'{label}: {init.get(key, "不明")}')
+            lines.append('MCP: ' + json.dumps(init.get('mcp_servers', []), ensure_ascii=False))
+            lines.append('既存の対話セッションの状態・コンテキスト使用量は取得対象外です。')
+            result = '\n'.join(lines)
+        elif name == '/permissions':
+            if not init:
+                return 1, '', None
+            path = Path(HOME) / '.claude/settings.json'
+            settings = json.loads(path.read_text()) if path.is_file() else {}
+            result = (f'実際の承認モード: {init.get("permissionMode", "不明")}\n'
+                      '連携ヘルパー: hooks 無効、ユーザー設定のみ読込、MCP 設定は空に固定。\n'
+                      '許可ツール指定: Read,Grep,Glob,Bash,WebSearch,WebFetch\n'
+                      'ユーザー権限設定:\n' + json.dumps(settings.get('permissions', {}), ensure_ascii=False, indent=2) +
+                      '\nユーザーの sandbox 設定:\n' + json.dumps(settings.get('sandbox', {}), ensure_ascii=False, indent=2) +
+                      '\n承認が必要な未許可操作は dontAsk により拒否されます。OS の読み取り専用マウントも適用されます。\n'
+                      'このコマンドは情報表示のみで、権限を変更しません。')
+        return 0, '', f'Claude {name} — 連携用 CLI 実データ\n' + result
     # Never substitute an assistant response or fabricate a zero-cost total.
     return 1, '', None
 

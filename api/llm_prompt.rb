@@ -15,7 +15,8 @@ module LlmPrompt
     value.to_s
   end
 
-  def route(filters)
+  def route(filters = nil, default_engine: nil, **fields)
+    filters ||= fields
     prompts = {}
     %w[codex claude nemotron].each do |engine|
       ["#{engine}_prompt", "#{engine}_prmpt"].each do |key|
@@ -33,6 +34,9 @@ module LlmPrompt
         value = URI.decode_www_form_component(value) unless /%(?![0-9a-fA-F]{2})/.match?(value)
       end
       prompts[match[1].to_sym] = value
+    end
+    if prompts.empty? && default_engine && !filters['message'].to_s.empty?
+      return [default_engine, filters['message'].to_s]
     end
     if prompts.empty? && %w[/usage /status ./usage].include?(filters['message'].to_s.strip.downcase)
       return [:codex, filters['message'].to_s.strip]

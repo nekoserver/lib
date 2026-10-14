@@ -159,7 +159,8 @@ module TunnelsLib
 
   # Treat filters["message"] as a question to 参謀 (async).
   # Enqueues ask; returns ask_id + pending until resp exists. Poll with ask_id.
-  def attach_message!(payload, filters)
+  def attach_message!(payload, filters = nil, default_engine: nil, **fields)
+    filters ||= fields
     ask_id = filters["ask_id"].to_s.strip
     unless ask_id.empty?
       looked = LlmPrompt::ID.match?(ask_id) ? LlmPrompt.lookup(ask_id) : AskSanbo.lookup(ask_id)
@@ -168,7 +169,7 @@ module TunnelsLib
     end
 
     filters["message"] = LlmPrompt.maybe_percent_decode(filters["message"]) if filters.key?("message")
-    routed = LlmPrompt.route(filters)
+    routed = LlmPrompt.route(filters, default_engine: default_engine)
     if routed
       engine, prompt = routed
       payload["message"] = AskSanbo.truncate(filters["message"].to_s) unless filters["message"].to_s.empty?
@@ -210,7 +211,7 @@ module TunnelsLib
     payload
   end
 
-  def build_payload(raw, auth, err, filters)
+  def build_payload(raw, auth, err, filters, default_engine: nil)
     fetched_at = Time.now.utc.strftime("%Y-%m-%dT%H:%M:%SZ")
     if raw.nil? || raw.empty?
       return attach_message!({
@@ -218,7 +219,7 @@ module TunnelsLib
         "auth" => "error",
         "fetched_at" => fetched_at,
         "error" => redact(err)
-      }, filters)
+      }, filters, default_engine: default_engine)
     end
 
     tunnels = parse_raw(raw)
@@ -228,14 +229,14 @@ module TunnelsLib
         "auth" => auth.to_s,
         "fetched_at" => fetched_at,
         "error" => "json_parse_error"
-      }, filters)
+      }, filters, default_engine: default_engine)
     end
 
     attach_message!({
       "tunnels" => apply_filters(tunnels, filters),
       "auth" => auth.to_s,
       "fetched_at" => fetched_at
-    }, filters)
+    }, filters, default_engine: default_engine)
   end
 
   def render_html(payload)
@@ -298,7 +299,7 @@ module TunnelsLib
 
   # force_format: "json" | "html" | nil
   # Auth: valid HMAC → allow; else allowlisted REMOTE_ADDR → allow; else 401.
-  def run!(default_format: "json", force_format: nil)
+  def run!(default_format: "json", force_format: nil, default_engine: nil)
     method = ENV["REQUEST_METHOD"].to_s.upcase
     if ENV.fetch('CONTENT_LENGTH', '0').to_i > 65_536
       print "Status: 413 Payload Too Large\r\nContent-Type: application/json\r\n\r\n{\"error\":\"body_too_large\"}\n"
@@ -309,7 +310,7 @@ module TunnelsLib
     require_relative 'railway_exec'
     railway_command = RailwayExec.route(filters)
     uptime_command = filters['command'].to_s == 'railway_uptime' || filters['message'].to_s == 'railway_uptime'
-    protected_request = uptime_command || LlmPrompt.route(filters) || !filters['message'].to_s.empty? || !filters['ask_id'].to_s.empty?
+    protected_request = uptime_command || LlmPrompt.route(filters, default_engine: default_engine) || !filters['message'].to_s.empty? || !filters['ask_id'].to_s.empty?
     return unless HmacAuth.enforce!(body, require_hmac: !!protected_request)
     unless railway_command.nil?
       unless %w[GET POST].include?(method)
@@ -341,8 +342,9 @@ module TunnelsLib
       }, force_format || 'json')
       return
     end
-    if LlmPrompt.route(filters) && method != 'POST'
-      print "Status: 405 Method Not Allowed\r\nAllow: POST\r\nContent-Type: application/json\r\n\r\n{\"error\":\"use_post_for_codex\"}\n"
+    if LlmPrompt.route(filters, default_engine: default_engine) && method != 'POST'
+      error = default_engine ? "use_post_for_#{default_engine}" : "use_post_for_codex"
+      print "Status: 405 Method Not Allowed\r\nAllow: POST\r\nContent-Type: application/json\r\n\r\n{\"error\":\"#{error}\"}\n"
       return
     end
     fmt = (force_format || filters["format"] || default_format).to_s.downcase
@@ -357,7 +359,7 @@ module TunnelsLib
     end
 
     raw, auth, err = fetch
-    payload = build_payload(raw, auth, err, filters)
+    payload = build_payload(raw, auth, err, filters, default_engine: default_engine)
     respond!(payload, fmt)
   end
 end

@@ -3,7 +3,7 @@ let current = null;
 const hex = value => [...new Uint8Array(value)].map(b => b.toString(16).padStart(2, '0')).join('');
 export function getSession() {
   if (!current) { try { current = JSON.parse(sessionStorage.getItem(STORAGE)); } catch {} }
-  if (!current || current.expires <= Date.now()) { clearSession(); return null; }
+  if (!current || typeof current.token !== 'string' || !current.token || !Number.isFinite(current.expires) || current.expires <= Date.now()) { clearSession(); return null; }
   return current.token;
 }
 export function clearSession() {
@@ -11,6 +11,7 @@ export function clearSession() {
   try { sessionStorage.removeItem(STORAGE); } catch {}
 }
 export async function startSession(secret) {
+  if (typeof secret !== 'string' || !secret.length) throw new Error('HMACキーを入力してください。');
   const path = '/lib/api/chat/session', body = JSON.stringify({ type: 'observe' });
   const enc = new TextEncoder(), timestamp = String(Math.floor(Date.now() / 1000));
   const key = await crypto.subtle.importKey('raw', enc.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);

@@ -72,3 +72,22 @@ test('stopping an HTTP stream aborts without another request', async () => {
   await assertion;
   assert.equal(calls, 1);
 });
+
+for (const protocol of ['sse', 'ndjson', 'jsonseq']) {
+  test(`${protocol}: observation session reconnects without importing an empty HMAC key`, async () => {
+    let used = false;
+    const client = new HttpStream(protocol, {
+      crypto: { subtle: { importKey() { throw new Error('empty key imported'); } } },
+      fetch: async (path, options) => {
+        used = true;
+        assert.equal(options.headers.Authorization, 'Bearer observer-token');
+        assert.equal(options.headers['X-Signature'], undefined);
+        return new Response(body(wire(protocol, [{ type: 'conversation', messages: [] }])), { headers: { 'Content-Type': ({sse:'text/event-stream',ndjson:'application/x-ndjson',jsonseq:'application/json-seq'})[protocol] } });
+      },
+    });
+    const updates = [];
+    await assert.rejects(client.watch('', { type: 'observe' }, event => updates.push(event), 'observer-token'), /接続が切れ/);
+    assert.equal(used, true);
+    assert.equal(updates[0].type, 'conversation');
+  });
+}

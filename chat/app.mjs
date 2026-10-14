@@ -1,7 +1,7 @@
-import { getSession, startSession, clearSession } from './session.mjs';
-import { ChatSocket } from './socket.mjs';
+import { getSession, startSession, clearSession } from './session.mjs?v=session2';
+import { ChatSocket } from './socket.mjs?v=session2';
 import { showMarkdown } from './markdown.mjs';
-import { HttpStream } from './http-stream.mjs';
+import { HttpStream } from './http-stream.mjs?v=session2';
 
 const $ = id => document.getElementById(id);
 const embedded = document.documentElement.dataset.embed === 'conversation';

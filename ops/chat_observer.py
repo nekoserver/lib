@@ -9,11 +9,14 @@ from pathlib import Path
 import pwd
 import socket
 import struct
+import stat
+import re
 from websockets.asyncio.client import unix_connect
 from websockets.exceptions import ConnectionClosed
 
 SOCKET = '/run/lib-chat-observer/observer.sock'
 INTERVAL = 1
+SOURCE_FILE = Path('/var/lib/lib-chat-observer/source.json')
 READ_METHODS = frozenset({'thread/read', 'thread/turns/list'})
 TOOL_TYPES = frozenset({'commandExecution', 'webSearch', 'fileChange', 'mcpToolCall', 'dynamicToolCall'})
 
@@ -66,7 +69,38 @@ class ReadClient:
                     return result['result']
 
 
-async def snapshots(path, thread_id):
+def configured_source(path, thread_id, source_file=None):
+    """Only the server's private source file can retarget observation."""
+    if source_file is None:
+        return path, thread_id
+    try:
+        fd = os.open(source_file, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+    except FileNotFoundError:
+        return path, thread_id
+    with os.fdopen(fd, 'rb') as source:
+        info = os.fstat(source.fileno())
+        if not stat.S_ISREG(info.st_mode) or info.st_uid != os.geteuid() or info.st_mode & 0o077:
+            raise ValueError('Source configuration must be private')
+        raw = source.read(8193)
+    if len(raw) > 8192:
+        raise ValueError('Source configuration too large')
+    data = json.loads(raw)
+    if not isinstance(data, dict):
+        raise ValueError('Invalid source configuration')
+    path, thread_id = data.get('appSocket'), data.get('threadId')
+    if not isinstance(path, str) or not Path(path).is_absolute() or not isinstance(thread_id, str) or not re.fullmatch(r'[A-Za-z0-9_-]{1,128}', thread_id):
+        raise ValueError('Invalid source configuration')
+    return path, thread_id
+
+
+async def snapshots(path, thread_id, source_file=None):
+    while True:
+        target = configured_source(path, thread_id, source_file)
+        async for event in target_snapshots(*target, source_file=source_file, fallback=(path, thread_id)):
+            yield event
+
+
+async def target_snapshots(path, thread_id, source_file=None, fallback=None):
     # The upstream connection itself is WebSocket over a root-only Unix socket.
     async with unix_connect(path, uri='ws://localhost', max_size=16_777_216) as ws:
         client = ReadClient(ws)
@@ -74,6 +108,8 @@ async def snapshots(path, thread_id):
         await ws.send(json.dumps({'method': 'initialized', 'params': {}}))
         previous = None
         while True:
+            if source_file is not None and configured_source(*fallback, source_file) != (path, thread_id):
+                return
             thread = (await client.request('thread/read', {'threadId': thread_id, 'includeTurns': False}))['thread']
             turns = await client.request('thread/turns/list', {
                 'threadId': thread_id, 'limit': 10, 'sortDirection': 'desc', 'itemsView': 'full',
@@ -102,7 +138,7 @@ async def handle(reader, writer):
         # Closing the browser cancels the adapter's Unix connection as well.
         closed = asyncio.create_task(reader.read(1))
         async def send():
-            async for event in snapshots(path, thread_id):
+            async for event in snapshots(path, thread_id, source_file=SOURCE_FILE):
                 writer.write((json.dumps(event, ensure_ascii=False) + '\n').encode())
                 await writer.drain()
         stream = asyncio.create_task(send())

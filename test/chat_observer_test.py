@@ -12,6 +12,41 @@ import chat_observer as observer
 
 
 class ObserverTest(unittest.IsolatedAsyncioTestCase):
+    async def test_trusted_target_change_refreshes_an_existing_stream(self):
+        calls = []
+        async def app_server(ws):
+            async for raw in ws:
+                message = json.loads(raw)
+                if 'id' not in message: continue
+                calls.append(message)
+                if message['method'] == 'initialize': result = {}
+                elif message['method'] == 'thread/read': result = {'thread': {'name': message['params']['threadId'], 'status': {'type': 'active'}}}
+                else: result = {'data': [{'items': [{'type': 'agentMessage', 'id': '1', 'text': message['params']['threadId']}]}]}
+                await ws.send(json.dumps({'id': message['id'], 'result': result}))
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / 'source.json'
+            path = directory + '/app.sock'
+            source.write_text(json.dumps({'appSocket': path, 'threadId': 'old-thread'})); source.chmod(0o600)
+            async with unix_serve(app_server, path):
+                stream = observer.snapshots(path, 'fallback-thread', source_file=source)
+                first = await anext(stream)
+                source.write_text(json.dumps({'appSocket': path, 'threadId': 'current-thread'}))
+                second = await anext(stream)
+                await stream.aclose()
+        self.assertEqual(first['messages'][0]['text'], 'old-thread')
+        self.assertEqual(second['messages'][0]['text'], 'current-thread')
+        self.assertTrue(all(call['method'] in observer.READ_METHODS | {'initialize'} for call in calls))
+
+    def test_source_configuration_must_be_private_and_valid(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / 'source.json'
+            source.write_text('{"appSocket":"/private/app.sock","threadId":"current-thread"}'); source.chmod(0o600)
+            self.assertEqual(observer.configured_source('/fallback.sock', 'fallback', source), ('/private/app.sock', 'current-thread'))
+            source.chmod(0o666)
+            with self.assertRaises(ValueError): observer.configured_source('/fallback.sock', 'fallback', source)
+            source.chmod(0o600); source.write_text('{}')
+            with self.assertRaises(ValueError): observer.configured_source('/fallback.sock', 'fallback', source)
+
     def test_snapshot_excludes_reasoning_tool_output_and_other_thread_metadata(self):
         turns = [{'items': [
             {'type': 'userMessage', 'id': 'user', 'content': [{'type': 'text', 'text': 'こんにちは'}]},

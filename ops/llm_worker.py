@@ -76,7 +76,7 @@ def submit(engine, prompt):
         return {'ask_error': 'empty_prompt', 'ask_status': 'failed'}
     if len(prompt.encode()) > MAX_PROMPT:
         return {'ask_error': 'prompt_too_large', 'ask_status': 'failed'}
-    if engine == 'claude' and prompt.strip().lower() not in ('/usage', '/status', './usage') and not claude_authenticated():
+    if engine == 'claude' and not canonical_command(prompt).startswith('/') and not claude_authenticated():
         return {'ask_error': 'claude_not_authenticated', 'ask_status': 'failed', 'via': engine}
     job = {'ask_id': engine + '-' + str(uuid.uuid4()), 'ask_status': 'pending',
            'via': engine, 'created_at': time.time()}
@@ -199,7 +199,15 @@ def codex_summary(text):
     return metadata
 
 
-def read_codex_limits():
+COMMAND_ALIASES = {'./usage': '/usage'}
+
+
+def canonical_command(prompt):
+    value = prompt.strip().lower()
+    return COMMAND_ALIASES.get(value, value)
+
+
+def read_codex_rpc(method, params=None):
     """Read account limits without starting a model turn, using the helper identity."""
     args = command('codex')
     args = args[:args.index('/opt/codex-web/bin/codex')] + [
@@ -249,7 +257,10 @@ def read_codex_limits():
             'clientInfo': {'name': 'tunnels_usage', 'version': '1.0.0'}}})
         receive(1)
         send({'method': 'initialized', 'params': {}})
-        send({'id': 2, 'method': 'account/rateLimits/read'})
+        request = {'id': 2, 'method': method}
+        if params is not None:
+            request['params'] = params
+        send(request)
         return receive(2)
     finally:
         if proc.poll() is None:
@@ -261,6 +272,10 @@ def read_codex_limits():
         reader.join(timeout=2)
         proc.stdin.close()
         proc.stdout.close()
+
+
+def read_codex_limits():
+    return read_codex_rpc('account/rateLimits/read')
 
 
 def format_codex_limits(data):
@@ -287,12 +302,62 @@ def format_codex_limits(data):
     return '\n'.join(lines)
 
 
+def codex_control_reply(prompt):
+    command_name = canonical_command(prompt)
+    if command_name == '/usage':
+        return ('Codex /usage — アカウントのトークン使用量\n'
+                '/usage daily: 日別\n/usage weekly: 週別\n/usage cumulative: 累計\n'
+                'TUI の使用量メニューに相当します。利用枠は /status で確認できます。\n'
+                '利用枠リセットの対話操作はこの連携では未対応です。')
+    if command_name.startswith('/usage '):
+        view = command_name.split(maxsplit=1)[1]
+        if view not in ('daily', 'weekly', 'cumulative'):
+            return 'Codex /usage: daily・weekly・cumulative を指定してください。その他の操作は連携未対応です。'
+        data = read_codex_rpc('account/usage/read')
+        lines = [f'Codex /usage {view} — アカウントのトークン使用量']
+        if view == 'cumulative':
+            summary = data.get('summary') or {}
+            for field, label in [('lifetimeTokens', '累計トークン'), ('peakDailyTokens', '最大日別トークン'), ('currentStreakDays', '連続利用日数'), ('longestStreakDays', '最長連続利用日数'), ('longestRunningTurnSec', '最長ターン秒数')]:
+                value = summary.get(field)
+                lines.append(f'{label}: {value if value is not None else "不明"}')
+        else:
+            buckets = data.get('dailyUsageBuckets')
+            if buckets is None:
+                lines.append('トークン使用量は提供されていません（不明）。')
+            elif not buckets:
+                lines.append('返却された日別使用量データはありません。')
+            elif view == 'daily':
+                for bucket in buckets:
+                    lines.append(f'{bucket["startDate"]}: {bucket["tokens"]} tokens')
+            else:
+                totals = {}
+                for bucket in buckets:
+                    date = datetime.fromisoformat(bucket['startDate'])
+                    iso = date.isocalendar()
+                    key = f'{iso.year}-W{iso.week:02d}'
+                    totals[key] = totals.get(key, 0) + bucket['tokens']
+                lines.append('API の日別データを ISO 週で集計（取得できた期間のみ）。')
+                lines.extend(f'{key}: {total} tokens' for key, total in sorted(totals.items()))
+        return '\n'.join(lines)
+    if command_name == '/status':
+        config = read_codex_rpc('config/read', {'includeLayers': False, 'cwd': WORKSPACE}).get('config') or {}
+        lines = ['Codex /status — 連携用 Codex の設定・状態', f'作業ディレクトリ: {WORKSPACE}']
+        for field, label in [('model', 'モデル設定'), ('model_reasoning_effort', '推論設定'), ('model_context_window', 'コンテキスト上限設定')]:
+            value = config.get(field)
+            lines.append(f'{label}: {value if value is not None else "未指定（既定値）"}')
+        lines.extend(['通常実行の承認ポリシー: never', '通常実行のサンドボックス: 読み取り専用マウント内で danger-full-access',
+                      '既存の対話セッションには接続していません。セッションID・使用トークン・残りコンテキストは取得対象外です。'])
+        lines.append(format_codex_limits(read_codex_limits()))
+        return '\n'.join(lines)
+    return 'このスラッシュコマンドは連携未対応です。対話型 Codex CLI で実行してください。通常のAI質問には変換しません。'
+
+
 def execute_codex(prompt):
-    if prompt.strip().lower() in ('/usage', '/status', './usage'):
+    if canonical_command(prompt).startswith('/'):
         try:
-            return 0, '', format_codex_limits(read_codex_limits())
+            return 0, '', codex_control_reply(prompt)
         except (OSError, ValueError, KeyError, TypeError, TimeoutError, subprocess.TimeoutExpired):
-            return 0, '', 'Codex の利用枠を取得できませんでした。認証状態・接続を確認して再試行してください（残り枠は不明）。'
+            return 0, '', 'Codex のコマンド情報を取得できませんでした。認証状態・接続を確認して再試行してください（残り枠は不明）。'
     user = pwd.getpwnam('codex-web')
     with tempfile.TemporaryDirectory(prefix='.llm-answer-', dir=HOME) as directory:
         os.chown(directory, user.pw_uid, user.pw_gid)
@@ -318,8 +383,8 @@ def execute(job, prompt):
     save(job)
     try:
         # The prompt is stdin, never a shell command or CLI option.
-        if job['via'] == 'claude' and prompt.strip().lower() in ('/usage', '/status', './usage'):
-            returncode, text, reply = 0, '', 'Claude の利用枠取得は現在未対応です。Codex の利用枠は代用せず、Claude の残り枠は不明として返します。'
+        if job['via'] == 'claude' and canonical_command(prompt).startswith('/'):
+            returncode, text, reply = 0, '', 'Claude のスラッシュコマンドはこの連携では未対応です。Claude Code の対話画面で実行してください。Codex の情報で代用しません。'
         elif job['via'] == 'codex':
             returncode, text, reply = execute_codex(prompt)
             job.update(codex_summary(text))

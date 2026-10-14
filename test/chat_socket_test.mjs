@@ -57,3 +57,22 @@ test('bad authentication closes and frees the connection', async () => {
   await assertion;
   assert.equal(client.socket, null);
 });
+
+test('observation session reconnects with an empty key without invoking WebCrypto', async () => {
+  const client = new ChatSocket('wss://chat.example/lib/api/chat/ws', {
+    WebSocketClass: FakeSocket,
+    crypto: { subtle: { importKey() { throw new Error('must not import an empty HMAC key'); } } },
+  });
+  const updates = [];
+  const result = client.watch('', { type: 'observe' }, data => updates.push(data), 'observer-token');
+  const assertion = assert.rejects(result, /受信を停止/);
+  const ws = FakeSocket.instance;
+  await ws.message({ type: 'challenge', nonce: 'a'.repeat(64) });
+  assert.deepEqual(ws.sent[0], { type: 'session_auth', token: 'observer-token' });
+  await ws.message({ type: 'authenticated' });
+  assert.deepEqual(ws.sent[1], { type: 'observe' });
+  await ws.message({ type: 'conversation', messages: [] });
+  assert.equal(updates[0].type, 'conversation');
+  ws.onclose({ code: 1000, reason: 'stop_watching' });
+  await assertion;
+});

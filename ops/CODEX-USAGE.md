@@ -55,3 +55,20 @@ not change caller persistence.
 Future Slack delivery remains separate: require a selected destination and
 posting instruction, retain an idempotency key per job, keep tokens server-side.
 No Slack posting is enabled.
+
+## Additional read-only commands
+
+| Command | Source and scope |
+| --- | --- |
+| `/mcp`, `/mcp verbose` | `mcpServerStatus/list`: helper-account server names, tools, auth and runtime status. |
+| `/apps` | `app/installed` plus available `app/list` data. Directory failure is reported; it is not mistaken for zero installed apps. |
+| `/plugins` | Native `codex plugin list --available --json`; selected fields only, no configuration changes. |
+| `/diff` | Staged and unstaged Git diffs and non-ignored untracked files in the helper workspace, as the existing isolated helper identity. |
+| `/ps` | The existing isolated CLI does not expose another session's background-terminal state. This command explicitly reports that limitation, never a fabricated zero count or the VM-wide process list. The user has been asked which session to target. |
+
+Lists show at most the first 100 API rows and disclose further pages. Output is
+bounded by the existing reply limit. Large directory update notification frames
+are drained with a size bound; the requested paginated result is still awaited.
+The app directory can be unavailable in this environment while installed app
+runtime state remains accessible. TUI picker/install/toggle actions are not
+performed by these read-only text commands. No additional aliases are defined.

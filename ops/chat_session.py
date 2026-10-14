@@ -27,3 +27,10 @@ def valid(secret, token, origin):
         return data['scope'] == 'observe' and data['origin'] == origin and now < data['expires'] <= now + TTL
     except (ValueError, KeyError, TypeError):
         return False
+
+def remaining(secret, token, origin):
+    if not valid(secret, token, origin):
+        return 0
+    wire = token.split('.')[0]
+    data = json.loads(base64.urlsafe_b64decode(wire + '=' * (-len(wire) % 4)))
+    return max(0, int(data['expires'] - time.time()))

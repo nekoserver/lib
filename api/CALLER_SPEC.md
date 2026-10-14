@@ -172,6 +172,14 @@ Completed responses contain `ask_status: "done"` and `reply`; failures contain
 `ask_status: "failed"` and `ask_error`. Polls never submit a second CLI run.
 See `ops/LLM_SETUP.md` for limits, installation, and credential setup.
 
+`{"claude_prompt":"/cost"}` executes Claude Code's native `/cost` command
+as `codex-web`, without a model turn. Quoted `message: 'claude_prompt="/cost"'`
+uses the same route. The reply is the CLI's actual output: subscription accounts
+may return plan usage and reset times instead of a dollar cost. Each request
+starts an independent CLI session; it does not report another interactive
+session's accumulated cost. Only a successful local command result with zero
+model turns is accepted. Other Claude slash commands remain unsupported.
+
 | Method | Path | Notes |
 |--------|------|--------|
 | GET/POST | `/lib/api/tunnels` (`.rb` also OK) | JSON tunnel list (default) |

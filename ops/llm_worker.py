@@ -479,13 +479,32 @@ def execute_codex(prompt):
             os.close(directory_fd)
 
 
+def execute_claude_control(prompt):
+    if canonical_command(prompt) != '/cost':
+        return 0, '', 'Claude のスラッシュコマンドはこの連携では未対応です。Claude Code の対話画面で実行してください。Codex の情報で代用しません。'
+    code, text = run_bounded(command('claude'), '/cost')
+    if code != 0:
+        return code, '', None
+    for line in text.splitlines():
+        try:
+            event = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if (event.get('type') == 'result' and event.get('local_command') == 'cost'
+                and event.get('num_turns') == 0 and not event.get('is_error')
+                and isinstance(event.get('result'), str) and event['result'].strip()):
+            return 0, '', 'Claude /cost — 連携用アカウントの CLI 実データ\n' + event['result']
+    # Never substitute an assistant response or fabricate a zero-cost total.
+    return 1, '', None
+
+
 def execute(job, prompt):
     job.update(ask_status='running', started_at=time.time())
     save(job)
     try:
         # The prompt is stdin, never a shell command or CLI option.
         if job['via'] == 'claude' and canonical_command(prompt).startswith('/'):
-            returncode, text, reply = 0, '', 'Claude のスラッシュコマンドはこの連携では未対応です。Claude Code の対話画面で実行してください。Codex の情報で代用しません。'
+            returncode, text, reply = execute_claude_control(prompt)
         elif job['via'] == 'codex':
             returncode, text, reply = execute_codex(prompt)
             job.update(codex_summary(text))

@@ -22,17 +22,33 @@ class OutputLimitTest(unittest.TestCase):
             model.assert_not_called()
             quota.assert_not_called()
 
-    def test_usage_commands_never_start_model_turn(self):
+    def test_commands_preserve_distinct_meanings_without_model_turn(self):
         data = {'rateLimits': {'primary': {'usedPercent': 25, 'windowDurationMins': 300, 'resetsAt': 0}}}
-        with patch.object(worker, 'read_codex_limits', return_value=data), patch.object(worker, 'run_bounded') as model:
-            for prompt in ('/usage', '/status', './usage', ' /USAGE '):
-                self.assertIn('残り 75%', worker.execute_codex(prompt)[2])
+        def rpc(method, params=None):
+            if method == 'config/read':
+                return {'config': {'model': 'configured-model'}}
+            if method == 'account/usage/read':
+                return {'summary': {'lifetimeTokens': 1234}, 'dailyUsageBuckets': [{'startDate': '2026-10-14', 'tokens': 100}]}
+            raise AssertionError(method)
+        with patch.object(worker, 'read_codex_limits', return_value=data), patch.object(worker, 'read_codex_rpc', side_effect=rpc), patch.object(worker, 'run_bounded') as model:
+            status = worker.execute_codex('/status')[2]
+            self.assertIn('configured-model', status)
+            self.assertIn('残り 75%', status)
+            self.assertIn('セッションID', status)
+            menu = worker.execute_codex('/usage')[2]
+            self.assertIn('/usage daily', menu)
+            self.assertNotIn('残り 75%', menu)
+            self.assertEqual(menu, worker.execute_codex('./usage')[2])
+            self.assertIn('1234', worker.execute_codex('/usage cumulative')[2])
+            self.assertIn('2026-10-14: 100', worker.execute_codex('/usage daily')[2])
+            self.assertIn('2026-W42: 100', worker.execute_codex('/usage weekly')[2])
+            self.assertIn('未対応', worker.execute_codex('/model')[2])
             model.assert_not_called()
 
     def test_usage_unavailable_does_not_invent_remaining_quota(self):
         self.assertIn('残り枠は不明', worker.format_codex_limits({}))
         with patch.object(worker, 'read_codex_limits', side_effect=ValueError('secret error')):
-            reply = worker.execute_codex('/usage')[2]
+            reply = worker.execute_codex('/status')[2]
             self.assertIn('残り枠は不明', reply)
             self.assertNotIn('secret error', reply)
 

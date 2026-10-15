@@ -19,13 +19,13 @@ module LlmPrompt
     filters ||= fields
     prompts = {}
     %w[codex claude nemotron].each do |engine|
-      ["#{engine}_prompt", "#{engine}_prmpt"].each do |key|
+      ["#{engine}_prompt", "#{engine}_prmpt", "#{engine}_promt"].each do |key|
         next unless filters.key?(key)
         return [:conflict, nil] if prompts.key?(engine.to_sym) && prompts[engine.to_sym] != filters[key].to_s
         prompts[engine.to_sym] = filters[key].to_s
       end
     end
-    match = filters['message'].to_s.match(/\A(codex|claude|nemotron)_(?:prompt|prmpt)=(.*)\z/m)
+    match = filters['message'].to_s.match(/\A(codex|claude|nemotron)_(?:prompt|prmpt|promt)=(.*)\z/m)
     if match
       value = match[2]
       if value.length >= 2 && [['"', '"'], ['“', '”']].any? { |left, right| value.start_with?(left) && value.end_with?(right) }

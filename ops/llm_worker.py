@@ -479,15 +479,77 @@ def execute_codex(prompt):
             os.close(directory_fd)
 
 
+CLAUDE_RESUME_SCRIPT = r'''
+import json, os, re
+from pathlib import Path
+from datetime import datetime, timezone
+
+root = Path(os.environ['HOME']) / '.claude/projects'
+sessions = []
+scanned = 0
+limited = False
+if root.is_dir():
+    for project_index, project in enumerate(root.iterdir()):
+        if project_index >= 1000:
+            limited = True
+            break
+        if project.is_symlink() or not project.is_dir():
+            continue
+        for path in project.iterdir():
+            if scanned >= 2000:
+                limited = True
+                break
+            scanned += 1
+            if not re.fullmatch(r'[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}\.jsonl', path.name):
+                continue
+            if path.is_symlink() or not path.is_file():
+                continue
+            try:
+                info = path.stat()
+                with path.open('rb') as stream:
+                    # Only inspect bounded metadata, never return message bodies.
+                    prefix = stream.read(65536)
+                cwd = None
+                for line in prefix.splitlines()[:40]:
+                    try:
+                        event = json.loads(line)
+                    except (ValueError, UnicodeDecodeError):
+                        continue
+                    if (event.get('type') == 'user' and not event.get('isSidechain')
+                            and event.get('sessionId') == path.stem
+                            and isinstance(event.get('cwd'), str)):
+                        cwd = event['cwd']
+                        break
+                if cwd:
+                    sessions.append((info.st_mtime, path.stem, cwd))
+            except OSError:
+                continue
+        if limited:
+            break
+print('Claude /resume — codex-web の保存済み再開候補（更新日時順・最大20件）')
+for modified, session, cwd in sorted(sessions, reverse=True)[:20]:
+    date = datetime.fromtimestamp(modified, timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')
+    print(f'{session} | {date} | {json.dumps(cwd, ensure_ascii=False)}')
+if not sessions:
+    print('保存済みの再開候補は見つかりませんでした。')
+if limited or len(sessions) > 20:
+    print('件数上限のため一部のみ表示しています。')
+print('この表示では再開・送信は行いません。再開には対話型 CLI で claude --resume <ID> を使います。')
+print('通常の連携ジョブは --no-session-persistence のため、この一覧には保存されません。')
+'''
+
+
 def execute_claude_control(prompt):
     name = canonical_command(prompt)
     if name == '/permission':
         name = '/permissions'
-    if name not in ('/cost', '/mcp', '/model', '/agents', '/context', '/config', '/hooks', '/help', '/permissions', '/status'):
+    if name not in ('/cost', '/mcp', '/model', '/agents', '/context', '/config', '/hooks', '/resume', '/help', '/permissions', '/status'):
         return 0, '', 'Claude のスラッシュコマンドはこの連携では未対応です。Claude Code の対話画面で実行してください。Codex の情報で代用しません。'
+    if name == '/resume':
+        return 0, '', run_control(['/usr/bin/python3', '-c', CLAUDE_RESUME_SCRIPT])
     if name == '/help':
         text = run_control(['/opt/claude-web/claude', '--help'])
-        return 0, '', ('Claude /help — 連携対応: /cost /mcp /model /agents /hooks /context /config /help /permission /permissions /status\n'
+        return 0, '', ('Claude /help — 連携対応: /cost /mcp /model /agents /hooks /context /config /resume /help /permission /permissions /status\n'
                        '引数なしの情報表示に対応しています。対話画面は開きません。\n\n' + text)
     # Dialog-only commands use actual initialization data from a local /model.
     native = '/model' if name in ('/permissions', '/status', '/hooks') else name

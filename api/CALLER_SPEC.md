@@ -285,3 +285,30 @@ The worker requires a successful `local_command: agents` result with zero model
 turns. It returns the CLI output unchanged apart from the integration heading;
 current CLI versions can report that the interactive agents wizard was removed
 and explain how to manage subagent files. This does not create or run agents.
+
+### Claude /hooks, /context and /config
+
+`claude_prompt="/context"` returns the native context report without a model
+turn. The report covers the newly started integration session, not an existing
+interactive session or accumulated jobs. `claude_prompt="/config"` returns the
+native CLI's configuration usage text; arguments and configuration changes are
+not accepted by this integration.
+
+`claude_prompt="/hooks"` is a read-only text adapter because the hooks dialog is
+unavailable in print mode. It reports the helper's `disableAllHooks=true` and
+counts hook configurations by event in the user settings, without exposing or
+executing hook commands. Project and plugin hooks are not inventoried. This does
+not enable hooks. All three commands are listed in the integration `/help`.
+
+### Claude /resume
+
+`claude_prompt="/resume"` lists up to 20 saved `codex-web` Claude sessions,
+newest modification first, using local session metadata. It prints session IDs,
+UTC modification times and working directories, without returning message
+bodies. The scan is bounded to 1000 project entries and 2000 session entries,
+reads at most 64 KiB / 40 records per file, and skips symbolic links and sidechains.
+This is a read-only adapter: the native session picker is unavailable in print
+mode. It does not select a conversation, send a prompt or change a global active
+session. Resume a selected ID in the interactive CLI with `claude --resume <ID>`.
+Normal integration jobs use `--no-session-persistence` and are not saved as
+resumable sessions. `/resume <ID>` through this API remains unsupported.

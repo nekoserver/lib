@@ -548,9 +548,20 @@ def execute_claude_control(prompt):
     if name == '/resume':
         return 0, '', run_control(['/usr/bin/python3', '-c', CLAUDE_RESUME_SCRIPT])
     if name == '/help':
-        text = run_control(['/opt/claude-web/claude', '--help'])
-        return 0, '', ('Claude /help — 連携対応: /cost /mcp /model /agents /hooks /context /config /resume /help /permission /permissions /status\n'
-                       '引数なしの情報表示に対応しています。対話画面は開きません。\n\n' + text)
+        return 0, '', ('Claude 連携ヘルプ\n\n'
+                       '/cost：利用状況・リセット時刻\n'
+                       '/status：CLIバージョン・モデル・実行環境\n'
+                       '/model：現在のモデル\n'
+                       '/context：今回の連携セッションのコンテキスト使用状況\n'
+                       '/mcp：連携用MCPの接続状況\n'
+                       '/agents：サブエージェントの管理方法\n'
+                       '/hooks：hooksの無効状態・ユーザー登録状況\n'
+                       '/permissions：権限設定（/permission も可）\n'
+                       '/config：設定コマンドの使い方\n'
+                       '/resume：保存済みセッションの再開候補一覧\n'
+                       '/help：この一覧\n\n'
+                       '呼び出し例：claude_prompt="/status"\n'
+                       '引数なしの情報表示のみ対応。設定変更・会話の再開は行いません。')
     # Dialog-only commands use actual initialization data from a local /model.
     native = '/model' if name in ('/permissions', '/status', '/hooks') else name
     code, text = run_bounded(command('claude'), native)

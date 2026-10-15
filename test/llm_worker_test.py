@@ -89,9 +89,17 @@ class OutputLimitTest(unittest.TestCase):
                     self.assertIn('変更しません', reply)
                 else:
                     self.assertIn('native output', reply)
-        with patch.object(worker, 'run_control', return_value='native help') as help_cli:
-            self.assertIn('native help', worker.execute_claude_control('/help')[2])
-            help_cli.assert_called_once_with(['/opt/claude-web/claude', '--help'])
+        with patch.object(worker, 'run_control') as help_cli, patch.object(worker, 'run_bounded') as model:
+            code, _, reply = worker.execute_claude_control('/help')
+            self.assertEqual(code, 0)
+            self.assertIn('Claude 連携ヘルプ', reply)
+            self.assertIn('claude_prompt="/status"', reply)
+            self.assertIn('情報表示のみ', reply)
+            for name in ['/cost', '/status', '/model', '/context', '/mcp', '/agents', '/hooks', '/permissions', '/permission', '/config', '/resume', '/help']:
+                self.assertIn(name, reply)
+            self.assertLess(len(reply), 800)
+            help_cli.assert_not_called()
+            model.assert_not_called()
 
     def test_claude_dialog_adapters_require_init_and_reject_mutating_args(self):
         event = {'type': 'result', 'local_command': 'model', 'num_turns': 0, 'result': 'native output'}

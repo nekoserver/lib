@@ -16,13 +16,19 @@ class LlmPromptTest < Minitest::Test
 
   def test_engine_prefixes_and_prmpt_alias_select_usage_agent
     %w[codex claude nemotron].each do |engine|
-      %w[prompt prmpt].each do |suffix|
+      %w[prompt prmpt promt].each do |suffix|
         assert_equal [engine.to_sym, '/usage'], LlmPrompt.route('message' => "#{engine}_#{suffix}=\"/usage\"")
         assert_equal [engine.to_sym, '/usage'], LlmPrompt.route("#{engine}_#{suffix}" => '/usage')
       end
     end
     assert_equal [:conflict, nil], LlmPrompt.route('codex_prompt' => '/usage', 'codex_prmpt' => 'different')
   end
+  def test_claude_promt_agents_alias
+    assert_equal [:claude, '/agents'], LlmPrompt.route('message' => 'claude_promt="/agents"')
+    assert_equal [:claude, '/agents'], LlmPrompt.route('claude_promt' => '/agents')
+    assert_equal [:conflict, nil], LlmPrompt.route('claude_prompt' => '/model', 'claude_promt' => '/agents')
+  end
+
   def test_routes_both_supported_engines_without_shell_parsing
     prompt = 'echo $(id); a+b%20 & <tag>'
     assert_equal [:codex, prompt], LlmPrompt.route('codex_prompt' => prompt)

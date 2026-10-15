@@ -16,8 +16,8 @@ class OutputLimitTest(unittest.TestCase):
     def test_claude_control_commands_and_permission_alias(self):
         init = {'type': 'system', 'subtype': 'init', 'model': 'actual-model',
                 'permissionMode': 'dontAsk', 'cwd': '/workspace', 'claude_code_version': 'actual-version', 'mcp_servers': []}
-        for name in ['/mcp', '/model', '/status', '/permission', '/permissions']:
-            native = name if name in ('/mcp', '/model') else '/model'
+        for name in ['/mcp', '/model', '/agents', '/status', '/permission', '/permissions']:
+            native = name if name in ('/mcp', '/model', '/agents') else '/model'
             event = {'type': 'result', 'local_command': native[1:], 'num_turns': 0, 'result': 'native output'}
             with self.subTest(name=name), patch.object(worker, 'command', return_value=['helper']), patch.object(worker, 'run_bounded', return_value=(0, json.dumps(init)+'\n'+json.dumps(event))) as run, patch.object(worker.Path, 'is_file', return_value=False):
                 code, _, reply = worker.execute_claude_control(name)

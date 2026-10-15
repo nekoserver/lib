@@ -483,11 +483,11 @@ def execute_claude_control(prompt):
     name = canonical_command(prompt)
     if name == '/permission':
         name = '/permissions'
-    if name not in ('/cost', '/mcp', '/model', '/help', '/permissions', '/status'):
+    if name not in ('/cost', '/mcp', '/model', '/agents', '/help', '/permissions', '/status'):
         return 0, '', 'Claude のスラッシュコマンドはこの連携では未対応です。Claude Code の対話画面で実行してください。Codex の情報で代用しません。'
     if name == '/help':
         text = run_control(['/opt/claude-web/claude', '--help'])
-        return 0, '', ('Claude /help — 連携対応: /cost /mcp /model /help /permission /permissions /status\n'
+        return 0, '', ('Claude /help — 連携対応: /cost /mcp /model /agents /help /permission /permissions /status\n'
                        '引数なしの情報表示に対応しています。対話画面は開きません。\n\n' + text)
     # Dialog-only commands use actual initialization data from a local /model.
     native = '/model' if name in ('/permissions', '/status') else name

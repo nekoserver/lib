@@ -275,3 +275,13 @@ execution requires a signed POST, even from an allowlisted IP. Use signed
 `GET /lib/api/tunnels-claude.rb?ask_id=claude-<uuid>` to poll without resubmitting.
 Replies include `via`, `ask_status`, `ask_id` when pending, and `reply` when done.
 Claude authentication must already be configured as described in `ops/LLM_SETUP.md`.
+
+### Claude /agents and promt spelling
+
+`message: 'claude_promt="/agents"'` routes to Claude's native `/agents`
+local command. `claude_prompt` remains the canonical field. The `promt` spelling,
+like `prmpt`, is accepted for explicit engine fields and message prefixes.
+The worker requires a successful `local_command: agents` result with zero model
+turns. It returns the CLI output unchanged apart from the integration heading;
+current CLI versions can report that the interactive agents wizard was removed
+and explain how to manage subagent files. This does not create or run agents.

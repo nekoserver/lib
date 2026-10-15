@@ -181,7 +181,9 @@ session's accumulated cost. Only a successful local command result with zero
 model turns is accepted.
 
 Claude also supports `/mcp` and `/model` as native read-only local commands.
-`/help` returns the supported integration commands and native CLI `--help`.
+`/help` returns a compact Japanese list of supported integration commands, a
+calling example and the read-only limitation. It does not invoke the CLI or
+append the English CLI `--help` output.
 `/status` displays the actual CLI initialization model, permission mode, version,
 working directory and MCP servers. `/permissions` (alias `/permission`) displays
 the actual permission mode, integration helper restrictions and user permission

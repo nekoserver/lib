@@ -13,6 +13,37 @@ spec.loader.exec_module(worker)
 
 
 class OutputLimitTest(unittest.TestCase):
+    def test_claude_context_and_config_use_native_commands_without_model_turns(self):
+        for name, note in [('/context', '新規起動'), ('/config', '設定変更は行いません')]:
+            event = {'type': 'result', 'local_command': name[1:], 'num_turns': 0, 'result': 'actual CLI output'}
+            with self.subTest(name=name), patch.object(worker, 'command', return_value=['helper']), patch.object(worker, 'run_bounded', return_value=(0, json.dumps(event))) as run:
+                code, _, reply = worker.execute_claude_control(name)
+                self.assertEqual(code, 0)
+                self.assertIn('actual CLI output', reply)
+                self.assertIn(note, reply)
+                run.assert_called_once_with(['helper'], name)
+
+    def test_claude_hooks_reports_disabled_state_without_exposing_commands(self):
+        init = {'type': 'system', 'subtype': 'init'}
+        event = {'type': 'result', 'local_command': 'model', 'num_turns': 0, 'result': 'native output'}
+        settings = {'hooks': {'PreToolUse': [{'hooks': [{'command': 'secret command'}]}]}}
+        with patch.object(worker, 'command', return_value=['helper']), patch.object(worker, 'run_bounded', return_value=(0, json.dumps(init)+'\n'+json.dumps(event))), patch.object(worker.Path, 'is_file', return_value=True), patch.object(worker.Path, 'read_text', return_value=json.dumps(settings)):
+            code, _, reply = worker.execute_claude_control('/hooks')
+            self.assertEqual(code, 0)
+            self.assertIn('disableAllHooks=true', reply)
+            self.assertIn('PreToolUse: 1', reply)
+            self.assertNotIn('secret command', reply)
+
+    def test_new_claude_commands_reject_model_results_and_mutating_arguments(self):
+        event = {'type': 'result', 'local_command': 'context', 'num_turns': 1, 'result': 'invented output'}
+        with patch.object(worker, 'command', return_value=['helper']), patch.object(worker, 'run_bounded', return_value=(0, json.dumps(event))):
+            self.assertEqual(worker.execute_claude_control('/context'), (1, '', None))
+            self.assertEqual(worker.execute_claude_control('/hooks'), (1, '', None))
+        with patch.object(worker, 'run_bounded') as run:
+            for name in ['/config model=opus', '/hooks enable', '/context extra']:
+                self.assertIn('未対応', worker.execute_claude_control(name)[2])
+            run.assert_not_called()
+
     def test_claude_control_commands_and_permission_alias(self):
         init = {'type': 'system', 'subtype': 'init', 'model': 'actual-model',
                 'permissionMode': 'dontAsk', 'cwd': '/workspace', 'claude_code_version': 'actual-version', 'mcp_servers': []}

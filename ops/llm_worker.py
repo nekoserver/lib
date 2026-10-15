@@ -483,14 +483,14 @@ def execute_claude_control(prompt):
     name = canonical_command(prompt)
     if name == '/permission':
         name = '/permissions'
-    if name not in ('/cost', '/mcp', '/model', '/agents', '/help', '/permissions', '/status'):
+    if name not in ('/cost', '/mcp', '/model', '/agents', '/context', '/config', '/hooks', '/help', '/permissions', '/status'):
         return 0, '', 'Claude のスラッシュコマンドはこの連携では未対応です。Claude Code の対話画面で実行してください。Codex の情報で代用しません。'
     if name == '/help':
         text = run_control(['/opt/claude-web/claude', '--help'])
-        return 0, '', ('Claude /help — 連携対応: /cost /mcp /model /agents /help /permission /permissions /status\n'
+        return 0, '', ('Claude /help — 連携対応: /cost /mcp /model /agents /hooks /context /config /help /permission /permissions /status\n'
                        '引数なしの情報表示に対応しています。対話画面は開きません。\n\n' + text)
     # Dialog-only commands use actual initialization data from a local /model.
-    native = '/model' if name in ('/permissions', '/status') else name
+    native = '/model' if name in ('/permissions', '/status', '/hooks') else name
     code, text = run_bounded(command('claude'), native)
     if code != 0:
         return code, '', None
@@ -508,7 +508,31 @@ def execute_claude_control(prompt):
                 and isinstance(event.get('result'), str) and event['result'].strip()):
             result = event['result']
     if result is not None:
-        if name == '/status':
+        if name == '/context':
+            result = ('このリクエストで新規起動した連携セッションのコンテキストです。'
+                      '既存の対話セッションや過去ジョブの累積使用量ではありません。\n\n' + result)
+        elif name == '/config':
+            result = ('CLI の設定コマンドの使い方（引数なし）。'
+                      'この連携では設定変更は行いません。\n\n' + result)
+        elif name == '/hooks':
+            if not init:
+                return 1, '', None
+            path = Path(HOME) / '.claude/settings.json'
+            settings = json.loads(path.read_text()) if path.is_file() else {}
+            hooks = settings.get('hooks', {})
+            if not isinstance(hooks, dict):
+                raise ValueError('Invalid hooks settings')
+            lines = ['連携ヘルパーの実効設定: disableAllHooks=true（hooks は無効）',
+                     'ユーザー設定に登録されたイベント別の設定数（実行しません）:']
+            for event_name, entries in sorted(hooks.items()):
+                count = len(entries) if isinstance(entries, list) else '不明'
+                lines.append(f'{event_name}: {count}')
+            if not hooks:
+                lines.append('ユーザー設定に hooks の登録はありません。')
+            lines.append('ユーザー設定のみを対象とし、プロジェクト・プラグイン等の hooks 一覧ではありません。')
+            lines.append('このコマンドは情報表示のみで、hooks の登録・有効化・実行は行いません。')
+            result = '\n'.join(lines)
+        elif name == '/status':
             if not init:
                 return 1, '', None
             lines = ['CLI 起動情報（独立した連携ジョブ）']

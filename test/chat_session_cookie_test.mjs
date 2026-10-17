@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { webcrypto } from 'node:crypto';
+import { webcrypto, createHmac, createHash } from 'node:crypto';
 
 test('a reopened tab restores the cookie session without keeping the HMAC key', async () => {
   const previous = { fetch: globalThis.fetch, crypto: globalThis.crypto, sessionStorage: globalThis.sessionStorage };
@@ -13,7 +13,14 @@ test('a reopened tab restores the cookie session without keeping the HMAC key', 
   };
   try {
     const first = await import('../chat/session.mjs?cookie-test-first');
-    await first.startSession('test-hmac-secret');
+    await first.startSession('  test-hmac-secret \n');
+    const options = calls[0].options;
+    const canonical = `POST\n/lib/api/chat/session\n${options.headers['X-Timestamp']}\n${createHash('sha256').update(options.body).digest('hex')}`;
+    assert.equal(options.headers['X-Signature'], createHmac('sha256', 'test-hmac-secret').update(canonical).digest('hex'));
+    assert.equal(await first.sessionForKey(''), 'readonly-cookie-session');
+    assert.equal(await first.sessionForKey('replacement-key'), null);
+    assert.equal(first.getSession(), null);
+    assert.equal(calls.length, 1);
     assert.equal(calls[0].options.credentials, 'same-origin');
     assert.ok(calls[0].options.headers['X-Signature']);
     assert.ok(!JSON.stringify([...storage]).includes('test-hmac-secret'));

@@ -1,10 +1,6 @@
 # frozen_string_literal: true
 # HMAC-SHA256 request authentication for /lib/api CGI.
-# Secret sources (first non-empty wins):
-#   1. /etc/apache2/secrets/origin-hmac  (mode 640 root:www-data)
-#   2. ENV ORIGIN_HMAC_SECRET or HMAC_SECRET
-#   3. sudo -u box /usr/local/libexec/origin-hmac-secret-read
-#      → /home/box/.config/origin-hmac-secret
+# Secret sources: ORIGIN_HMAC_SECRET, then HMAC_SECRET (environment only).
 #
 # Headers:
 #   X-Timestamp  Unix seconds
@@ -20,8 +16,6 @@ require "json"
 
 module HmacAuth
   SKEW_SECONDS = 300
-  APACHE_SECRET = "/etc/apache2/secrets/origin-hmac"
-  BOX_SECRET_HELPER = "/usr/local/libexec/origin-hmac-secret-read"
 
   # Mirror conf-available/ip-allowlist.conf (+ loopback).
   ALLOWLIST_CIDRS = [
@@ -38,22 +32,11 @@ module HmacAuth
   def load_secret
     return @secret if defined?(@secret) && @secret
 
-    s = read_file_secret(APACHE_SECRET)
-    s = ENV["ORIGIN_HMAC_SECRET"].to_s.strip if s.nil? || s.empty?
-    s = ENV["HMAC_SECRET"].to_s.strip if s.nil? || s.empty?
-    if s.nil? || s.empty?
-      out, status = Open3.capture2("sudo", "-n", "-u", "box", BOX_SECRET_HELPER)
-      s = status.success? ? out.to_s.strip : ""
-    end
+    s = ENV["ORIGIN_HMAC_SECRET"].to_s.strip
+    s = ENV["HMAC_SECRET"].to_s.strip if s.empty?
     @secret = s.to_s.strip
     @secret = nil if @secret.empty?
     @secret
-  end
-
-  def read_file_secret(path)
-    File.read(path).to_s.strip
-  rescue Errno::ENOENT, Errno::EACCES
-    nil
   end
 
   def request_path

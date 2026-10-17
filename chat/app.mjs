@@ -1,4 +1,4 @@
-import { getSession, startSession, restoreSession, clearSession } from './session.mjs?v=cookie7d';
+import { getSession, startSession, restoreSession, clearSession, sessionForKey } from './session.mjs?v=cookie7d';
 import { ChatSocket } from './socket.mjs?v=controls3';
 import { showMarkdown } from './markdown.mjs';
 import { ObserveReconnect } from './reconnect.mjs';
@@ -109,8 +109,8 @@ function setBusy(value) {
 
 async function watch(request) {
   if (busy) return;
-  let secret = $('secret').value;
-  let sessionToken = request.type === 'observe' ? (getSession() || await restoreSession()) : null;
+  let secret = $('secret').value.trim();
+  let sessionToken = request.type === 'observe' ? await sessionForKey(secret) : null;
   if (busy) return;
   if (!secret && !sessionToken && request.type !== 'demo') { $('status').textContent = 'HMACキーを入力してください。'; return; }
   if (!globalThis.isSecureContext || !globalThis.crypto?.subtle) {

@@ -33,7 +33,7 @@ for (const protocol of ['sse', 'ndjson', 'jsonseq']) {
       assert.equal(options.headers['X-Signature'], createHmac('sha256', 'key').update(canonical).digest('hex'));
       return new Response(body(wire(protocol)), { headers: { 'content-type': { sse: 'text/event-stream', ndjson: 'application/x-ndjson', jsonseq: 'application/json-seq' }[protocol] } });
     } });
-    await client.watch('key', { type: 'resume', ask_id: 'existing' }, event => updates.push(event));
+    await client.watch('  key \n', { type: 'resume', ask_id: 'existing' }, event => updates.push(event));
     assert.equal(calls.length, 1);
     assert.equal(JSON.parse(calls[0].body).type, 'resume');
     assert.deepEqual(updates, events);

@@ -36,7 +36,13 @@ export async function restoreSession() {
   })();
   try { return await restoring; } finally { restoring = null; }
 }
+// An explicitly entered key must be checked even when a remembered token exists.
+export async function sessionForKey(secret) {
+  if (secret.trim()) { clearLocalSession(); return null; }
+  return getSession() || await restoreSession();
+}
 export async function startSession(secret) {
+  if (typeof secret === 'string') secret = secret.trim();
   if (typeof secret !== 'string' || !secret.length) throw new Error('HMACキーを入力してください。');
   const path = '/lib/api/chat/session', body = JSON.stringify({ type: 'observe' });
   const enc = new TextEncoder(), timestamp = String(Math.floor(Date.now() / 1000));

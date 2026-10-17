@@ -69,6 +69,7 @@ export class HttpStream {
   cancel() { this.controller?.abort(); }
 
   async watch(secret, request, onUpdate, sessionToken = null) {
+    secret = secret.trim();
     if (this.controller) throw new Error('すでに接続中です。');
     const controller = new AbortController();
     this.controller = controller;

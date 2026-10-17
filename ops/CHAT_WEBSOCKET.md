@@ -30,10 +30,10 @@ before using the new chat screen. The existing private queue must be running.
    Add the exact Railway HTTPS preview origin separated by a comma if needed.
    Wildcards and origins without a scheme are not supported.
 4. The bridge runs as `www-data`, which can read the existing
-   `/etc/apache2/secrets/origin-hmac` (0640 root:www-data) and connect to
+   `ORIGIN_HMAC_SECRET` environment variable (or `HMAC_SECRET`) and connect to
    `/run/lib-codex/worker.sock`. Do not copy the secret into the checkout.
-   `LIB_CHAT_SECRET_FILE`, `LIB_CODEX_SOCKET`, and `LIB_CHAT_PORT` may override
-   defaults. The bind address remains loopback-only.
+   Set the same secret for Ruby CGI and both stream services. File-based secret
+   fallback is disabled. `LIB_CODEX_SOCKET` and `LIB_CHAT_PORT` may override defaults. The bind address remains loopback-only.
 5. Install `ops/chat-websocket.service` into `/etc/systemd/system/`, run
    `systemctl daemon-reload`, and enable/start `chat-websocket`.
    For a VM without systemd, have its existing bootstrap supervisor start the

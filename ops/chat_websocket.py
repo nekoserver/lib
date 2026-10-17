@@ -5,7 +5,6 @@ import hashlib
 import hmac
 import json
 import os
-from pathlib import Path
 import re
 import secrets
 import time
@@ -23,11 +22,7 @@ DEMO_TEXT = '# ストリーム比較デモ\n\nこれはAIを呼ばずに配信�
 
 
 def load_secret():
-    try:
-        secret = Path(os.environ.get('LIB_CHAT_SECRET_FILE', '/etc/apache2/secrets/origin-hmac')).read_text().strip()
-    except (FileNotFoundError, PermissionError):
-        secret = ''
-    secret = secret or os.environ.get('ORIGIN_HMAC_SECRET', '').strip() or os.environ.get('HMAC_SECRET', '').strip()
+    secret = os.environ.get('ORIGIN_HMAC_SECRET', '').strip() or os.environ.get('HMAC_SECRET', '').strip()
     if not secret:
         raise RuntimeError('Configure the existing origin HMAC secret before starting.')
     return secret.encode()

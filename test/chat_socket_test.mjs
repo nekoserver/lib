@@ -53,7 +53,7 @@ test('bad authentication closes and frees the connection', async () => {
   const client = setup();
   const result = client.watch('wrong', { type: 'submit' }, () => {});
   const assertion = assert.rejects(result, /認証に失敗/);
-  FakeSocket.instance.onclose({ code: 1008 });
+  FakeSocket.instance.onclose({ code: 1008, reason: 'authentication_failed' });
   await assertion;
   assert.equal(client.socket, null);
 });
@@ -75,4 +75,30 @@ test('observation session reconnects with an empty key without invoking WebCrypt
   assert.equal(updates[0].type, 'conversation');
   ws.onclose({ code: 1000, reason: 'stop_watching' });
   await assertion;
+});
+
+for (const withErrorFrame of [true, false]) {
+  test(`observer outage preserves authentication (error frame: ${withErrorFrame})`, async () => {
+    const client = setup(), updates = [];
+    const result = client.watch('', { type: 'observe' }, data => updates.push(data), 'valid-token');
+    const rejected = assert.rejects(result, error => error.code === (withErrorFrame ? 'worker_unavailable' : 'disconnected'));
+    const ws = FakeSocket.instance;
+    await ws.message({ type: 'challenge', nonce: 'a'.repeat(64) });
+    await ws.message({ type: 'authenticated' });
+    if (withErrorFrame) await ws.message({ type: 'error', error: 'worker_unavailable' });
+    ws.onclose({ code: 1008, reason: 'worker_unavailable' });
+    await rejected;
+    assert.equal(updates.some(data => data.type === 'session_expired'), false);
+  });
+}
+
+test('pasted key whitespace matches the server normalization', async () => {
+  const client = setup();
+  const result = client.watch('  test-secret \n', { type: 'submit' }, () => {});
+  const ws = FakeSocket.instance, nonce = 'a'.repeat(64);
+  await ws.message({ type: 'challenge', nonce });
+  assert.equal(ws.sent[0].signature, createHmac('sha256', 'test-secret').update(`WS\n/lib/api/chat/ws\n${nonce}`).digest('hex'));
+  await ws.message({ type: 'authenticated' });
+  await ws.message({ type: 'job', ask_status: 'done' });
+  await result;
 });

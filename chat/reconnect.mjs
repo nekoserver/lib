@@ -1,5 +1,9 @@
 const transient = new Set(['observer_unavailable', 'worker_unavailable', 'connection_timeout', 'websocket_unavailable', 'disconnected']);
 
+export function reconnectStatus(error, delay) {
+  return `${error.message} ${delay / 1000}秒後に再接続します。`;
+}
+
 export class ObserveReconnect {
   constructor(callback, { setTimer = (fn, delay) => globalThis.setTimeout(fn, delay), clearTimer = id => globalThis.clearTimeout(id) } = {}) {
     Object.assign(this, { callback, setTimer, clearTimer, enabled: false, attempts: 0, timer: null });

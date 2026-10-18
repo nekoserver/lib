@@ -92,7 +92,7 @@ export class HttpStream {
       if (!response.headers.get('content-type')?.startsWith(CONTENT_TYPES[this.protocol])) throw new Error('ストリームの種類が不正です。');
       let terminal = false;
       for await (const event of parseStream(response.body, this.protocol)) {
-        if (event.type === 'error') throw streamError(({ worker_unavailable: 'AI実行サーバーに接続できません。', connection_timeout: '接続がタイムアウトしました。結果に再接続してください。' })[event.error] || 'サーバーでエラーが発生しました。', event.error);
+        if (event.type === 'error') throw streamError(({ observer_unavailable: '会話の配信サーバーに接続できません。', conversation_waiting: '表示対象の会話がまだ読み込まれていません。', conversation_ambiguous: '表示対象の会話を特定できません。サーバーの監視先設定を確認してください。', worker_unavailable: 'AI実行サーバーに接続できません。', connection_timeout: '接続がタイムアウトしました。結果に再接続してください。' })[event.error] || 'サーバーでエラーが発生しました。', event.error);
         if (!['job', 'delta', 'info', 'heartbeat', 'conversation'].includes(event.type)) throw new Error('応答が不正です。');
         onUpdate(event);
         if (event.type === 'job' && !['pending', 'running'].includes(event.ask_status)) { terminal = true; break; }

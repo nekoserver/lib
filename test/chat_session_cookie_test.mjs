@@ -2,6 +2,23 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { webcrypto, createHmac, createHash } from 'node:crypto';
 
+test('session creation distinguishes rejected keys from unavailable servers', async () => {
+  const previous = { fetch: globalThis.fetch, crypto: globalThis.crypto };
+  Object.defineProperty(globalThis, 'crypto', { value: webcrypto, configurable: true });
+  try {
+    const session = await import('../chat/session.mjs?service-errors');
+    for (const status of [401, 502, 503, 504, 500]) {
+      globalThis.fetch = async () => new Response('', { status });
+      await assert.rejects(session.startSession('test-key'), status === 401
+        ? /HMACキーを確認/
+        : status === 500 ? /HTTP 500/ : /ストリームサーバーに接続できません/);
+    }
+  } finally {
+    globalThis.fetch = previous.fetch;
+    Object.defineProperty(globalThis, 'crypto', { value: previous.crypto, configurable: true });
+  }
+});
+
 test('a reopened tab restores the cookie session without keeping the HMAC key', async () => {
   const previous = { fetch: globalThis.fetch, crypto: globalThis.crypto, sessionStorage: globalThis.sessionStorage };
   const storage = new Map(), calls = [];

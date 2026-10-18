@@ -27,6 +27,16 @@ def decode(protocol, wire):
 
 
 class StreamIntegrationTest(unittest.IsolatedAsyncioTestCase):
+    async def test_missing_observer_reports_observer_failure_for_all_protocols(self):
+        for protocol in http.TYPES:
+            path = http.PREFIX + protocol
+            body = b'{"type":"observe"}'
+            with patch.object(backend.asyncio, 'open_unix_connection', new_callable=AsyncMock,
+                              side_effect=FileNotFoundError):
+                response = await self.client.post(path, data=body, headers=self.signed(path, body))
+                events = decode(protocol, await response.text())
+                self.assertEqual(events[-1], {'type': 'error', 'error': 'observer_unavailable'})
+
     async def asyncSetUp(self):
         self.client = TestClient(TestServer(http.create_app(SECRET, {ORIGIN})))
         await self.client.start_server()

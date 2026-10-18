@@ -102,3 +102,16 @@ test('pasted key whitespace matches the server normalization', async () => {
   await ws.message({ type: 'job', ask_status: 'done' });
   await result;
 });
+
+test('observer failure reports its cause without clearing the authenticated session', async () => {
+  const client = setup(), updates = [];
+  const result = client.watch('', { type: 'observe' }, data => updates.push(data), 'valid-token');
+  const rejected = assert.rejects(result, error => error.code === 'observer_unavailable' && /会話の配信サーバー/.test(error.message));
+  const ws = FakeSocket.instance;
+  await ws.message({ type: 'challenge', nonce: 'a'.repeat(64) });
+  await ws.message({ type: 'authenticated' });
+  await ws.message({ type: 'error', error: 'observer_unavailable' });
+  ws.onclose({ code: 1000 });
+  await rejected;
+  assert.equal(updates.some(data => data.type === 'session_expired'), false);
+});

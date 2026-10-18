@@ -1,6 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { ObserveReconnect } from '../chat/reconnect.mjs';
+import { ObserveReconnect, reconnectStatus } from '../chat/reconnect.mjs';
+
+test('retry status preserves the observer failure instead of reporting a generic disconnect', () => {
+  const error = new Error('会話の配信サーバーに接続できません。');
+  assert.equal(reconnectStatus(error, 2000), '会話の配信サーバーに接続できません。 2秒後に再接続します。');
+});
 
 test('read-only observation reconnects with bounded backoff and resets after data', () => {
   const timers = [], calls = [];

@@ -1,7 +1,7 @@
 import { getSession, startSession, restoreSession, clearSession, sessionForKey } from './session.mjs?v=cookie7d';
 import { ChatSocket } from './socket.mjs?v=controls3';
 import { showMarkdown } from './markdown.mjs';
-import { ObserveReconnect } from './reconnect.mjs';
+import { ObserveReconnect, reconnectStatus } from './reconnect.mjs';
 import { HttpStream } from './http-stream.mjs?v=controls3';
 
 const $ = id => document.getElementById(id);
@@ -172,7 +172,7 @@ async function watch(request) {
         notifyParent({ type: 'conversation-transport', protocol: 'sse' });
       }
       const delay = reconnect.schedule(error, Boolean(getSession()));
-      if (delay !== null) $('status').textContent = `接続が切れました。${delay / 1000}秒後に再接続します。`;
+      if (delay !== null) $('status').textContent = reconnectStatus(error, delay);
     }
   }
   finally { setBusy(false); }

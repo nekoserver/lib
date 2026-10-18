@@ -56,6 +56,9 @@ export class ChatSocket {
             if (data.type === 'job' && !['pending', 'running'].includes(data.ask_status)) finish();
           } else if (data.type === 'error') {
             const messages = {
+              observer_unavailable: '会話の配信サーバーに接続できません。',
+              conversation_waiting: '表示対象の会話がまだ読み込まれていません。',
+              conversation_ambiguous: '表示対象の会話を特定できません。サーバーの監視先設定を確認してください。',
               worker_unavailable: 'AI実行サーバーに接続できません。',
               connection_timeout: '接続がタイムアウトしました。結果に再接続してください。',
               invalid_request: '送信内容またはサーバーの応答が不正です。',

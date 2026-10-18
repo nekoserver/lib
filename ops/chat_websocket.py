@@ -82,8 +82,12 @@ async def event_stream(payload, disconnected=lambda: False):
     """One event model for all transports; demo never touches the private queue."""
     if payload.get('op') == 'observe':
         yield {'type': 'info', 'source': 'conversation', 'delivery': 'readonly_snapshots'}
-        async with asyncio.timeout(5):
-            reader, writer = await asyncio.open_unix_connection('/run/lib-chat-observer/observer.sock', limit=262144)
+        try:
+            async with asyncio.timeout(5):
+                reader, writer = await asyncio.open_unix_connection('/run/lib-chat-observer/observer.sock', limit=262144)
+        except OSError:
+            yield {'type': 'error', 'error': 'observer_unavailable'}
+            return
         try:
             writer.write(b'{"op":"watch"}\n')
             await writer.drain()

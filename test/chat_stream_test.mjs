@@ -91,3 +91,12 @@ for (const protocol of ['sse', 'ndjson', 'jsonseq']) {
     assert.equal(updates[0].type, 'conversation');
   });
 }
+
+for (const protocol of ['sse', 'ndjson', 'jsonseq']) {
+  test(`${protocol}: observer failure preserves the cause and the session`, async () => {
+    const updates = [];
+    const client = new HttpStream(protocol, { fetch: async () => new Response(body(wire(protocol, [{ type: 'error', error: 'observer_unavailable' }])), { headers: { 'content-type': { sse: 'text/event-stream', ndjson: 'application/x-ndjson', jsonseq: 'application/json-seq' }[protocol] } }) });
+    await assert.rejects(client.watch('', { type: 'observe' }, event => updates.push(event), 'valid-token'), error => error.code === 'observer_unavailable' && /会話の配信サーバー/.test(error.message));
+    assert.equal(updates.some(event => event.type === 'session_expired'), false);
+  });
+}

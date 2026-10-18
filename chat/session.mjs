@@ -51,7 +51,11 @@ export async function startSession(secret) {
   const hash = hex(await crypto.subtle.digest('SHA-256', enc.encode(body)));
   const signature = hex(await crypto.subtle.sign('HMAC', key, enc.encode(`POST\n${path}\n${timestamp}\n${hash}`)));
   const response = await fetch(path, { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json', 'X-Timestamp': timestamp, 'X-Signature': signature }, body, cache: 'no-store' });
-  if (!response.ok) throw new Error(response.status === 401 ? 'HMACキーを確認してください。' : '認証できませんでした。');
+  if (!response.ok) {
+    if (response.status === 401) throw new Error('HMACキーを確認してください。');
+    if ([502, 503, 504].includes(response.status)) throw new Error('ストリームサーバーに接続できません。管理者にサーバーの起動状態とHMAC環境変数の設定確認を依頼してください。');
+    throw new Error(`認証サービスでエラーが発生しました（HTTP ${response.status}）。`);
+  }
   const data = await response.json();
   if (typeof data.token !== 'string' || typeof data.expires_in !== 'number') throw new Error('認証応答が不正です。');
   current = { token: data.token, expires: Date.now() + data.expires_in * 1000 };

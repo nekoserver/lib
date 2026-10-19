@@ -5,6 +5,7 @@ import hmac
 import json
 import secrets
 import time
+from chat_hmac import matches
 
 TTL = 7 * 24 * 60 * 60
 
@@ -19,8 +20,7 @@ def valid(secret, token, origin):
         return False
     try:
         wire, signature = token.split('.')
-        expected = hmac.new(secret, ('chat-session-v1:' + wire).encode(), hashlib.sha256).hexdigest()
-        if not hmac.compare_digest(expected, signature):
+        if not matches(secret, ('chat-session-v1:' + wire).encode(), signature):
             return False
         data = json.loads(base64.urlsafe_b64decode(wire + '=' * (-len(wire) % 4)))
         now = time.time()

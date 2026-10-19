@@ -2,13 +2,13 @@
 """SSE, NDJSON and RFC 7464 streams sharing the WebSocket job event model."""
 import asyncio
 import hashlib
-import hmac
 import json
 import os
 import re
 import time
 from aiohttp import web
 from chat_session import issue, valid, remaining, TTL
+from chat_hmac import matches
 from chat_websocket import event_stream, load_secret, worker_payload
 
 PREFIX = '/lib/api/chat/'
@@ -37,7 +37,7 @@ def authenticated(secret, request, body):
     if not re.fullmatch(r'[0-9a-f]{64}', signature):
         return False
     canonical = f'POST\n{request.raw_path}\n{timestamp}\n{hashlib.sha256(body).hexdigest()}'
-    return hmac.compare_digest(hmac.new(secret, canonical.encode(), hashlib.sha256).hexdigest(), signature)
+    return matches(secret, canonical.encode(), signature)
 
 
 def create_app(secret, origins):

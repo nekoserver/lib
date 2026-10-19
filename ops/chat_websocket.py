@@ -1,14 +1,13 @@
 #!/usr/bin/env python3
 """Authenticated WebSocket bridge to the existing private LLM queue."""
 import asyncio
-import hashlib
-import hmac
 import json
 import os
 import re
 import secrets
 import time
 from chat_session import valid
+from chat_hmac import load_secret, matches
 from websockets.asyncio.server import serve
 from websockets.exceptions import ConnectionClosed
 
@@ -19,13 +18,6 @@ POLL_INTERVAL = 0.5
 HEARTBEAT_INTERVAL = 5
 DEMO_INTERVAL = 0.1
 DEMO_TEXT = '# ストリーム比較デモ\n\nこれはAIを呼ばずに配信するサンプルです。選んだ通信方式で、文章が少しずつ届きます。\n\n## 比べるポイント\n\n- 最初のイベントが届く時間\n- 更新の回数と間隔\n- 受信を停止したときの動き\n\n```python\nfor chunk in stream:\n    print(chunk, end="", flush=True)\n```\n\n| 通信方式 | データの区切り |\n| --- | --- |\n| SSE | event / data と空行 |\n| WebSocket | メッセージ |\n| NDJSON | 改行 |\n| JSON Text Sequence | RS文字と改行 |\n\n**どの方式も同じ文章を配信します。** AIの生成速度と、通信方式の違いを分けて試せます。\n'
-
-
-def load_secret():
-    secret = os.environ.get('ORIGIN_HMAC_SECRET', '').strip() or os.environ.get('HMAC_SECRET', '').strip()
-    if not secret:
-        raise RuntimeError('Configure the existing origin HMAC secret before starting.')
-    return secret.encode()
 
 
 def worker_payload(data):
@@ -145,14 +137,14 @@ def handler(secret):
             await ws.send(json.dumps({'type': 'challenge', 'nonce': nonce}))
             async with asyncio.timeout(10):
                 auth = await receive(ws)
-            expected = hmac.new(secret, f'WS\n{ENDPOINT}\n{nonce}'.encode(), hashlib.sha256).hexdigest()
+            canonical = f'WS\n{ENDPOINT}\n{nonce}'.encode()
             signature = auth.get('signature') if isinstance(auth, dict) else None
             demo_only = isinstance(auth, dict) and auth.get('type') == 'demo_auth'
             session_only = isinstance(auth, dict) and auth.get('type') == 'session_auth'
             if session_only and not valid(secret, auth.get('token'), ws.request.headers.get('Origin')):
                 await ws.close(1008, 'session_expired')
                 return
-            if not demo_only and not session_only and (not isinstance(signature, str) or not re.fullmatch(r'[0-9a-f]{64}', signature) or not hmac.compare_digest(expected, signature)):
+            if not demo_only and not session_only and (not isinstance(signature, str) or not re.fullmatch(r'[0-9a-f]{64}', signature) or not matches(secret, canonical, signature)):
                 await ws.close(1008, 'authentication_failed')
                 return
             await ws.send(json.dumps({'type': 'authenticated'}))

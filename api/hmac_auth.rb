@@ -13,6 +13,7 @@ require "openssl"
 require "ipaddr"
 require "open3"
 require "json"
+require "shellwords"
 
 module HmacAuth
   SKEW_SECONDS = 300
@@ -37,6 +38,37 @@ module HmacAuth
     @secret = s.to_s.strip
     @secret = nil if @secret.empty?
     @secret
+  end
+
+  # Fixed root-managed configuration files; parse assignments without executing shell.
+  def secret_files
+    ['/etc/lib-hmac.env', '/etc/lib-chat.env']
+  end
+
+  def load_secrets
+    values = [load_secret, ENV['HMAC_SECRET'].to_s.strip]
+    secret_files.each do |path|
+      begin
+        File.foreach(path) do |line|
+          match = line.match(/\A\s*(?:export\s+)?(?:ORIGIN_HMAC_SECRET|HMAC_SECRET)=(.*)$/)
+          next unless match
+          begin
+            parts = Shellwords.shellsplit(match[1])
+            values << parts.first.to_s.strip if parts.length == 1
+          rescue ArgumentError
+            next
+          end
+        end
+      rescue Errno::ENOENT, Errno::EACCES
+        next
+      end
+    end
+    keys = values.compact.reject(&:empty?).uniq
+    if keys.length > 1 && !@mismatch_reported
+      warn 'HMAC: configured keys differ; accepting either configured key'
+      @mismatch_reported = true
+    end
+    keys
   end
 
   def request_path
@@ -100,15 +132,14 @@ module HmacAuth
     sig = ENV["HTTP_X_SIGNATURE"].to_s.strip
     method = ENV["REQUEST_METHOD"].to_s.upcase
     path = request_path
-    secret = load_secret
+    secrets = load_secrets
 
     hmac_attempt = !ts.empty? && !sig.empty?
     if hmac_attempt
-      return :missing_secret if secret.nil? || secret.empty?
+      return :missing_secret if secrets.empty?
       return :bad_timestamp unless timestamp_ok?(ts)
 
-      expected = sign(secret, method, path, ts, body)
-      return :hmac_ok if secure_eq_hex(expected, sig)
+      return :hmac_ok if secrets.any? { |key| secure_eq_hex(sign(key, method, path, ts, body), sig) }
 
       return :bad_signature
     end

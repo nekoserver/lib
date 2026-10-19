@@ -1,4 +1,5 @@
 require 'minitest/autorun'
+require 'tmpdir'
 require_relative '../api/hmac_auth'
 
 class HmacAuthEnvTest < Minitest::Test
@@ -44,4 +45,28 @@ class HmacAuthEnvTest < Minitest::Test
     ENV['HTTP_X_SIGNATURE'] = HmacAuth.sign('other-key', 'POST', ENV['REQUEST_URI'], ENV['HTTP_X_TIMESTAMP'], body)
     assert_equal :bad_signature, HmacAuth.authorize(body)
   end
+  def test_both_config_keys_authenticate_and_missing_primary_falls_back
+    Dir.mktmpdir do |dir|
+      primary = File.join(dir, 'primary.env')
+      fallback = File.join(dir, 'fallback.env')
+      File.write(primary, "ORIGIN_HMAC_SECRET='primary key'\n")
+      File.write(fallback, "ORIGIN_HMAC_SECRET='fallback key'\n")
+      HmacAuth.stub(:secret_files, [primary, fallback]) do
+        ENV['REMOTE_ADDR'] = '203.0.113.1'
+        ENV['REQUEST_METHOD'] = 'POST'
+        ENV['REQUEST_URI'] = '/lib/api/tunnels'
+        ENV['HTTP_X_TIMESTAMP'] = Time.now.to_i.to_s
+        ['primary key', 'fallback key'].each do |key|
+          ENV['HTTP_X_SIGNATURE'] = HmacAuth.sign(key, 'POST', ENV['REQUEST_URI'], ENV['HTTP_X_TIMESTAMP'], '{}')
+          assert_equal :hmac_ok, HmacAuth.authorize('{}')
+          assert_equal :bad_signature, HmacAuth.authorize('changed')
+        end
+        File.delete(primary)
+        assert_equal :hmac_ok, HmacAuth.authorize('{}')
+        File.write(fallback, "ORIGIN_HMAC_SECRET=\n")
+        assert_equal :missing_secret, HmacAuth.authorize('{}')
+      end
+    end
+  end
+
 end

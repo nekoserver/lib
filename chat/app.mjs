@@ -135,11 +135,9 @@ async function watch(request) {
   $('activity').textContent = '';
   const protocol = $('protocol').value;
   client = protocol === 'websocket' ? new ChatSocket(url.href) : new HttpStream(protocol);
-  $('events').textContent = '';
   $('stats').textContent = '受信を待っています…';
   const started = performance.now();
   let count = 0, first = null, previous = started;
-  const log = [];
   setBusy(true);
   $('status').textContent = '接続・認証中…';
   try {
@@ -156,12 +154,6 @@ async function watch(request) {
       count++;
       $('stats').textContent = `受信 ${count} 件 / 最初のイベント ${Math.round(first)} ms / 直近の間隔 ${Math.round(now - previous)} ms / 経過 ${((now - started) / 1000).toFixed(1)} 秒`;
       previous = now;
-      const preview = { ...data };
-      if (preview.messages) preview.messages = `${preview.messages.length}件の会話メッセージ（本文は上に表示）`;
-      if (preview.reply) preview.reply = preview.reply.slice(0, 120) + (preview.reply.length > 120 ? '…' : '');
-      log.push(`${((now - started) / 1000).toFixed(2)}s ${JSON.stringify(preview)}`);
-      if (log.length > 60) log.shift();
-      $('events').textContent = log.join('\n');
       if (data.type === 'info') {
         $('delivery').textContent = data.source === 'conversation' ? 'このコンソールの会話を表示します。下の入力欄から、この会話へ直接メッセージを送れます。' : data.source === 'demo' ? '比較デモ：固定文章を分割配信。AIは実行しません。' : '別のAI実行：状態は随時配信、回答は生成完了時に届きます。文字単位の生成配信ではありません。';
         return;

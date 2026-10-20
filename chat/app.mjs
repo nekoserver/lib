@@ -236,7 +236,7 @@ $('console-form').addEventListener('submit', async event => {
     if (!consoleAuthorized) {
       const secret = $('console-key').value;
       if (!secret.trim()) throw new Error('既存のHMACキーを入力してください。');
-      const auth = await signedJsonPost('/lib/api/chat/session', { type: 'console' }, secret.trim());
+      const auth = await signedJsonPost('/lib/api/chat/console-session', { type: 'console' }, secret.trim());
       $('console-key').value = '';
       if (!auth.ok) throw new Error(auth.status === 401 ? 'HMACキーを確認してください。' : `認証に失敗しました（HTTP ${auth.status}）。`);
       consoleAuthorized = true;

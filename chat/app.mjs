@@ -7,7 +7,7 @@ import { HttpStream } from './http-stream.mjs?v=controls3';
 
 const $ = id => document.getElementById(id);
 const embedded = document.documentElement.dataset.embed === 'conversation';
-const parentOrigins = new Set([location.origin, 'https://1.cfw1.nekomaneki.work', 'https://cloudflare-workers-github-oauth-1.nekoflare.workers.dev']);
+const parentOrigins = new Set([location.origin, 'https://1.cfw1.nekomaneki.work', 'https://cloudflare-workers-github-oauth-1.nekoflare.workers.dev', 'https://dynamicneko.nekoflare.workers.dev']);
 let parentOrigin = null;
 if (embedded) {
   const parameters = new URLSearchParams(location.search);
@@ -22,7 +22,7 @@ if (embedded) {
     }
     if (!parentOrigins.has(event.origin)) return;
     parentOrigin = event.origin;
-    if (event.data?.type === 'conversation-controls') { document.documentElement.dataset.parentControls = 'true'; notifyParent({ type: 'conversation-state', busy }); }
+    if (event.data?.type === 'conversation-controls') { document.documentElement.dataset.parentControls = 'true'; updateConsoleSection(); notifyParent({ type: 'conversation-state', busy }); }
     if (event.data?.type === 'conversation-start') watch({ type: 'observe' });
     if (event.data?.type === 'conversation-stop') stopWatching();
     if (event.data?.type === 'conversation-theme' && ['light', 'dark'].includes(event.data.theme)) document.documentElement.dataset.theme = event.data.theme;
@@ -34,6 +34,8 @@ url.protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
 let client = null;
 let askId = null;
 let busy = false;
+let consoleAuthorized = false;
+let consoleBusy = false;
 const reconnect = new ObserveReconnect(() => watch({ type: 'observe' }));
 function stopWatching() { reconnect.stop(); client?.cancel(); }
 let answer = '';
@@ -133,11 +135,9 @@ async function watch(request) {
   $('activity').textContent = '';
   const protocol = $('protocol').value;
   client = protocol === 'websocket' ? new ChatSocket(url.href) : new HttpStream(protocol);
-  $('events').textContent = '';
   $('stats').textContent = '受信を待っています…';
   const started = performance.now();
   let count = 0, first = null, previous = started;
-  const log = [];
   setBusy(true);
   $('status').textContent = '接続・認証中…';
   try {
@@ -145,6 +145,7 @@ async function watch(request) {
       if (!sessionToken) sessionToken = await startSession(secret);
       secret = '';
       hideKeyInput(true);
+      restoreConsoleAuthorization();
     }
     await client.watch(secret, request, data => {
       if (data.type === 'session_expired') { clearSession(); hideKeyInput(false); return; }
@@ -153,14 +154,8 @@ async function watch(request) {
       count++;
       $('stats').textContent = `受信 ${count} 件 / 最初のイベント ${Math.round(first)} ms / 直近の間隔 ${Math.round(now - previous)} ms / 経過 ${((now - started) / 1000).toFixed(1)} 秒`;
       previous = now;
-      const preview = { ...data };
-      if (preview.messages) preview.messages = `${preview.messages.length}件の会話メッセージ（本文は上に表示）`;
-      if (preview.reply) preview.reply = preview.reply.slice(0, 120) + (preview.reply.length > 120 ? '…' : '');
-      log.push(`${((now - started) / 1000).toFixed(2)}s ${JSON.stringify(preview)}`);
-      if (log.length > 60) log.shift();
-      $('events').textContent = log.join('\n');
       if (data.type === 'info') {
-        $('delivery').textContent = data.source === 'conversation' ? 'この会話の閲覧専用表示です。履歴と状態を約1秒間隔で確認します。Web画面からのメッセージ送信は行いません。' : data.source === 'demo' ? '比較デモ：固定文章を分割配信。AIは実行しません。' : '別のAI実行：状態は随時配信、回答は生成完了時に届きます。文字単位の生成配信ではありません。';
+        $('delivery').textContent = data.source === 'conversation' ? 'このコンソールの会話を表示します。下の入力欄から、この会話へ直接メッセージを送れます。' : data.source === 'demo' ? '比較デモ：固定文章を分割配信。AIは実行しません。' : '別のAI実行：状態は随時配信、回答は生成完了時に届きます。文字単位の生成配信ではありません。';
         return;
       }
       if (data.type === 'conversation') { reconnect.reset(); renderConversation(data); return; }
@@ -203,5 +198,60 @@ setBusy(false);
 function hideKeyInput(hidden) {
   if (embedded) document.documentElement.dataset.authenticated = String(hidden);
   for (const node of document.querySelectorAll('label[for="secret"], #secret, #key-hint')) node.hidden = hidden;
+  updateConsoleSection();
 }
-if (embedded) restoreSession().then(token => { if (token) { hideKeyInput(true); watch({ type: 'observe' }); } });
+function updateConsoleSection() {
+  if (!$('console-section')) return;
+  const parentReady = embedded && document.documentElement.dataset.parentControls === 'true';
+  const observerReady = document.documentElement.dataset.authenticated === 'true';
+  $('console-section').hidden = !(parentReady && observerReady);
+  $('console-prompt').disabled = consoleBusy;
+  $('console-send').disabled = consoleBusy;
+  $('console-key-row').hidden = consoleAuthorized;
+  $('console-revoke').hidden = !consoleAuthorized;
+}
+async function signedJsonPost(path, value, secret) {
+  const body = JSON.stringify(value), timestamp = String(Math.floor(Date.now() / 1000));
+  const enc = new TextEncoder(), key = await crypto.subtle.importKey('raw', enc.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  const hash = hex(await crypto.subtle.digest('SHA-256', enc.encode(body)));
+  const signature = hex(await crypto.subtle.sign('HMAC', key, enc.encode(`POST\n${path}\n${timestamp}\n${hash}`)));
+  return fetch(path, { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json', 'X-Timestamp': timestamp, 'X-Signature': signature }, body, cache: 'no-store' });
+}
+async function restoreConsoleAuthorization() {
+  try {
+    const response = await fetch('/lib/api/chat/console-session', { credentials: 'same-origin', cache: 'no-store' });
+    if (response.ok) consoleAuthorized = (await response.json()).enabled === true;
+  } catch {}
+  updateConsoleSection();
+}
+$('console-form').addEventListener('submit', async event => {
+  event.preventDefault();
+  if (consoleBusy) return;
+  const prompt = $('console-prompt').value;
+  if (!prompt.trim()) { $('console-status').textContent = 'メッセージを入力してください。'; return; }
+  if (new TextEncoder().encode(prompt).length > 16_384) { $('console-status').textContent = 'メッセージは16 KiB以内にしてください。'; return; }
+  consoleBusy = true; updateConsoleSection(); $('console-status').textContent = consoleAuthorized ? 'コンソールへ送信中…' : '送信を許可しています…';
+  try {
+    if (!consoleAuthorized) {
+      const secret = $('console-key').value;
+      if (!secret.trim()) throw new Error('既存のHMACキーを入力してください。');
+      const auth = await signedJsonPost('/lib/api/chat/session', { type: 'console' }, secret.trim());
+      $('console-key').value = '';
+      if (!auth.ok) throw new Error(auth.status === 401 ? 'HMACキーを確認してください。' : `認証に失敗しました（HTTP ${auth.status}）。`);
+      consoleAuthorized = true;
+    }
+    const response = await fetch('/lib/api/chat/console', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt }), cache: 'no-store' });
+    if (response.status === 401) { consoleAuthorized = false; throw new Error('送信許可の期限が切れました。HMACキーを再入力してください。'); }
+    if (!response.ok) throw new Error(response.status === 503 ? 'Codexコンソールに接続できません。' : `送信に失敗しました（HTTP ${response.status}）。`);
+    $('console-prompt').value = '';
+    $('console-status').textContent = '送信しました。この会話に応答が届きます。';
+  } catch (error) {
+    $('console-status').textContent = error instanceof Error ? error.message : '送信に失敗しました。';
+  } finally { consoleBusy = false; updateConsoleSection(); }
+});
+$('console-revoke').addEventListener('click', async () => {
+  await fetch('/lib/api/chat/console-session', { method: 'DELETE', credentials: 'same-origin', cache: 'no-store' }).catch(() => {});
+  consoleAuthorized = false; $('console-status').textContent = '送信許可を解除しました。'; updateConsoleSection();
+});
+updateConsoleSection();
+if (embedded) restoreSession().then(token => { if (token) { hideKeyInput(true); watch({ type: 'observe' }); restoreConsoleAuthorization(); } });

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Read-only, fixed-thread observer. Never accepts app-server RPC from clients."""
+"""Fixed-thread observer plus a narrowly scoped, authenticated Codex input socket."""
 import asyncio
 import fcntl
 import grp
@@ -67,6 +67,36 @@ class ReadClient:
                     if 'error' in result:
                         raise ValueError('App-server read failed')
                     return result['result']
+
+
+class ConsoleClient(ReadClient):
+    async def request(self, method, params):
+        if method not in ('initialize', 'turn/start'):
+            raise ValueError('Console input method required')
+        self.sequence += 1
+        sequence = self.sequence
+        await self.ws.send(json.dumps({'id': sequence, 'method': method, 'params': params}))
+        async with asyncio.timeout(10):
+            while True:
+                result = json.loads(await self.ws.recv())
+                if result.get('id') != sequence:
+                    continue
+                if 'error' in result:
+                    raise ValueError('App-server rejected console input')
+                return result['result']
+
+
+async def send_to_console(path, thread_id, text):
+    if thread_id.startswith('workspace:') or not re.fullmatch(r'[A-Za-z0-9_-]{1,128}', thread_id):
+        raise ValueError('A fixed conversation is required')
+    async with unix_connect(path, uri='ws://localhost', max_size=16_777_216) as ws:
+        client = ConsoleClient(ws)
+        await client.request('initialize', {'clientInfo': {'name': 'direct_console_input', 'version': '0.1.0'}})
+        await ws.send(json.dumps({'method': 'initialized', 'params': {}}))
+        await client.request('turn/start', {
+            'threadId': thread_id,
+            'input': [{'type': 'text', 'text': text, 'text_elements': []}],
+        })
 
 
 def configured_source(path, thread_id, source_file=None):
@@ -161,7 +191,28 @@ async def handle(reader, writer):
             return
         async with asyncio.timeout(5):
             line = await reader.readline()
-        if line != b'{"op":"watch"}\n':
+        try:
+            operation = json.loads(line)
+        except (ValueError, UnicodeError):
+            return
+        if isinstance(operation, dict) and set(operation) == {'op', 'text'} and operation.get('op') == 'send' and isinstance(operation.get('text'), str):
+            text = operation['text']
+            if not text.strip() or len(text.encode()) > 16_384:
+                writer.write(b'{"type":"error","error":"invalid_prompt"}\n')
+                await writer.drain()
+                return
+            path = os.environ['LIB_CHAT_APP_SOCKET']
+            thread_id = os.environ['LIB_CHAT_THREAD_ID']
+            path, thread_id = configured_source(path, thread_id, SOURCE_FILE)
+            try:
+                async with asyncio.timeout(15):
+                    await send_to_console(path, thread_id, text)
+                writer.write(b'{"type":"accepted"}\n')
+            except (OSError, ValueError, TimeoutError, ConnectionClosed):
+                writer.write(b'{"type":"error","error":"console_unavailable"}\n')
+            await writer.drain()
+            return
+        if operation != {'op': 'watch'}:
             return
         path = os.environ['LIB_CHAT_APP_SOCKET']
         thread_id = os.environ['LIB_CHAT_THREAD_ID']
@@ -210,7 +261,7 @@ async def main():
     except BlockingIOError:
         raise SystemExit('Observer already running')
     path.unlink(missing_ok=True)
-    server = await asyncio.start_unix_server(handle, path=path, limit=4096)
+    server = await asyncio.start_unix_server(handle, path=path, limit=32_768)
     os.chown(path, 0, grp.getgrnam('www-data').gr_gid)
     path.chmod(0o660)
     async with server:

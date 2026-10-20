@@ -16,7 +16,10 @@ if (embedded) {
   window.addEventListener('message', event => {
     if (event.source !== window.parent) return;
     // Cosmetic updates have no authentication or stream-control authority.
-    if (applyEmbedTheme(document.documentElement, event.data)) return;
+    if (applyEmbedTheme(document.documentElement, event.data)) {
+      window.parent.postMessage({ type: 'conversation-theme-applied', themeId: event.data.themeId }, event.origin);
+      return;
+    }
     if (!parentOrigins.has(event.origin)) return;
     parentOrigin = event.origin;
     if (event.data?.type === 'conversation-controls') { document.documentElement.dataset.parentControls = 'true'; notifyParent({ type: 'conversation-state', busy }); }
@@ -24,6 +27,7 @@ if (embedded) {
     if (event.data?.type === 'conversation-stop') stopWatching();
     if (event.data?.type === 'conversation-theme' && ['light', 'dark'].includes(event.data.theme)) document.documentElement.dataset.theme = event.data.theme;
   });
+  window.parent.postMessage({ type: 'conversation-theme-ready' }, '*');
 }
 const url = new URL('/lib/api/chat/ws', location.href);
 url.protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';

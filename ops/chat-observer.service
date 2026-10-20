@@ -1,5 +1,5 @@
 [Unit]
-Description=Read-only observer of the configured Codex conversation
+Description=Observer and authenticated input bridge for the configured Codex conversation
 After=network.target
 
 [Service]

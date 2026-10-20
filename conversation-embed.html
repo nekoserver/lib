@@ -3,10 +3,10 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>この会話（閲覧のみ）</title>
+  <title>このCodex会話</title>
   <link rel="stylesheet" href="chat/style-streams-6a4c2f3c.css">
-  <link rel="stylesheet" href="chat/embed-da65ac3e4e83.css">
-  <script type="module" src="chat/app-198628c02616.mjs"></script>
+  <link rel="stylesheet" href="chat/embed-73704ae1c7cf.css">
+  <script type="module" src="chat/app-ba2150f4daed.mjs"></script>
 </head>
 <body>
 <main>
@@ -57,6 +57,22 @@
       <summary>受信イベントを見る（最新60件）</summary>
       <pre id="events" class="event-log"></pre>
     </details>
+  </section>
+  <section id="console-section" hidden aria-label="このコンソールに入力">
+    <form id="console-form">
+      <label for="console-prompt">このCodexコンソールにメッセージを送信</label>
+      <textarea id="console-prompt" maxlength="16384" rows="3" placeholder="この会話に直接入力"></textarea>
+      <div id="console-key-row">
+        <label for="console-key">送信を許可する既存HMACキー</label>
+        <input id="console-key" type="password" autocomplete="off" spellcheck="false">
+        <p class="hint">キーは送信を許可する時だけ使い、保存しません。</p>
+      </div>
+      <div class="actions">
+        <button id="console-send" type="submit">このコンソールに送信</button>
+        <button id="console-revoke" class="secondary" type="button" hidden>送信許可を解除</button>
+      </div>
+      <p id="console-status" role="status" aria-live="polite"></p>
+    </form>
   </section>
 </main>
 </body>

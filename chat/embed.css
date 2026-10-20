@@ -5,6 +5,7 @@ main { padding: 8px; max-width: none; }
 main > h1, .subtitle, #source, label[for="source"], #protocol, label[for="protocol"], #protocol-hint, #demo, #resume, #ai-fields { display: none; }
 section { padding: 12px; margin-top: 8px; border-color: var(--embed-border); }
 input, button.secondary, .message.user { background: var(--embed-input); color: var(--embed-fg); border-color: var(--embed-border); }
+textarea { width: 100%; resize: vertical; background: var(--embed-input); color: var(--embed-fg); border: 1px solid var(--embed-border); border-radius: 6px; padding: 6px; }
 .hint, #metadata, summary, .message-label { color: var(--embed-muted); }
 .message, details { border-color: var(--embed-border); }
 .markdown pre, .markdown code, .markdown th { background: var(--embed-input); }
@@ -21,6 +22,12 @@ main { height: 100%; display: flex; flex-direction: column; padding: 4px; }
 section { margin-top: 4px; padding: 6px; border-radius: 6px; }
 section:first-of-type { flex-shrink: 0; }
 section[aria-label="回答"] { flex: 1; min-height: 0; overflow-y: auto; }
+#console-section { flex: 0 0 auto; }
+#console-form { display: grid; gap: 4px; }
+#console-key-row { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+#console-key-row .hint { flex-basis: 100%; margin: 0; }
+#console-key { max-width: 20rem; }
+#console-status { margin: 0; }
 .actions { gap: 4px; margin-top: 4px; }
 .actions button { font-size: 9px; padding: 3px 6px; min-height: 24px; }
 

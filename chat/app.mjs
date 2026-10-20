@@ -1,3 +1,4 @@
+import { applyEmbedTheme } from './theme.mjs';
 import { getSession, startSession, restoreSession, clearSession, sessionForKey } from './session.mjs?v=cookie7d';
 import { ChatSocket } from './socket.mjs?v=controls3';
 import { showMarkdown } from './markdown.mjs';
@@ -13,13 +14,20 @@ if (embedded) {
   if (['sse', 'websocket', 'ndjson', 'jsonseq'].includes(parameters.get('protocol'))) $('protocol').value = parameters.get('protocol');
   document.documentElement.dataset.theme = parameters.get('theme') === 'light' ? 'light' : 'dark';
   window.addEventListener('message', event => {
-    if (event.source !== window.parent || !parentOrigins.has(event.origin)) return;
+    if (event.source !== window.parent) return;
+    // Cosmetic updates have no authentication or stream-control authority.
+    if (applyEmbedTheme(document.documentElement, event.data)) {
+      window.parent.postMessage({ type: 'conversation-theme-applied', themeId: event.data.themeId }, event.origin);
+      return;
+    }
+    if (!parentOrigins.has(event.origin)) return;
     parentOrigin = event.origin;
     if (event.data?.type === 'conversation-controls') { document.documentElement.dataset.parentControls = 'true'; notifyParent({ type: 'conversation-state', busy }); }
     if (event.data?.type === 'conversation-start') watch({ type: 'observe' });
     if (event.data?.type === 'conversation-stop') stopWatching();
     if (event.data?.type === 'conversation-theme' && ['light', 'dark'].includes(event.data.theme)) document.documentElement.dataset.theme = event.data.theme;
   });
+  window.parent.postMessage({ type: 'conversation-theme-ready' }, '*');
 }
 const url = new URL('/lib/api/chat/ws', location.href);
 url.protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';

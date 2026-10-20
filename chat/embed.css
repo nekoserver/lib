@@ -36,3 +36,9 @@ body { font-size: 11px; }
 .actions button { font-size: 7px; }
 
 .markdown a, .markdown a:hover, .markdown a:focus { text-decoration: none; }
+
+/* Parent palette is cosmetic and preserves the current authenticated connection. */
+html, body { background-image: var(--embed-background-image, none); }
+button, button.secondary, select, .message, .message.user { background: var(--embed-input); color: var(--embed-fg); border-color: var(--embed-border); }
+button:disabled { opacity: .5; }
+input:focus, button:focus-visible, select:focus { outline-color: var(--embed-accent); }

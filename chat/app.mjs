@@ -6,6 +6,7 @@ import { ObserveReconnect, reconnectStatus } from './reconnect.mjs';
 import { HttpStream } from './http-stream.mjs?v=controls3';
 
 const $ = id => document.getElementById(id);
+const hex = value => [...new Uint8Array(value)].map(byte => byte.toString(16).padStart(2, '0')).join('');
 const embedded = document.documentElement.dataset.embed === 'conversation';
 const parentOrigins = new Set([location.origin, 'https://1.cfw1.nekomaneki.work', 'https://cloudflare-workers-github-oauth-1.nekoflare.workers.dev', 'https://dynamicneko.nekoflare.workers.dev']);
 let parentOrigin = null;

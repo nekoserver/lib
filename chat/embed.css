@@ -16,7 +16,8 @@ textarea { width: 100%; resize: vertical; background: var(--embed-input); color:
 
 [hidden] { display: none !important; }
 
-html[data-parent-controls="true"] .actions { display: none; }
+/* Only the parent toolbar replaces observation controls, never console submission. */
+html[data-parent-controls="true"] #form .actions { display: none; }
 html, body { height: 100%; overflow: hidden; }
 main { height: 100%; display: flex; flex-direction: column; padding: 4px; }
 section { margin-top: 4px; padding: 6px; border-radius: 6px; }

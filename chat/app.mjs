@@ -8,6 +8,8 @@ import { HttpStream } from './http-stream.mjs?v=controls3';
 const $ = id => document.getElementById(id);
 const hex = value => [...new Uint8Array(value)].map(byte => byte.toString(16).padStart(2, '0')).join('');
 const embedded = document.documentElement.dataset.embed === 'conversation';
+const CONSOLE_TTL_OPTIONS = new Set([900, 3600, 28800, 86400, 604800]);
+let consoleTtlSeconds = 3600;
 const parentOrigins = new Set([location.origin, 'https://1.cfw1.nekomaneki.work', 'https://cloudflare-workers-github-oauth-1.nekoflare.workers.dev', 'https://dynamicneko.nekoflare.workers.dev']);
 let parentOrigin = null;
 if (embedded) {
@@ -23,7 +25,11 @@ if (embedded) {
     }
     if (!parentOrigins.has(event.origin)) return;
     parentOrigin = event.origin;
-    if (event.data?.type === 'conversation-controls') { document.documentElement.dataset.parentControls = 'true'; updateConsoleSection(); notifyParent({ type: 'conversation-state', busy }); }
+    if (event.data?.type === 'conversation-controls') {
+      document.documentElement.dataset.parentControls = 'true';
+      if (CONSOLE_TTL_OPTIONS.has(event.data.consoleTtlSeconds)) consoleTtlSeconds = event.data.consoleTtlSeconds;
+      updateConsoleSection(); notifyParent({ type: 'conversation-state', busy });
+    }
     if (event.data?.type === 'conversation-start') watch({ type: 'observe' });
     if (event.data?.type === 'conversation-stop') stopWatching();
     if (event.data?.type === 'conversation-theme' && ['light', 'dark'].includes(event.data.theme)) document.documentElement.dataset.theme = event.data.theme;
@@ -37,6 +43,7 @@ let askId = null;
 let busy = false;
 let consoleAuthorized = false;
 let consoleBusy = false;
+let consoleExpiresAt = 0;
 const reconnect = new ObserveReconnect(() => watch({ type: 'observe' }));
 function stopWatching() { reconnect.stop(); client?.cancel(); }
 let answer = '';
@@ -205,11 +212,24 @@ function updateConsoleSection() {
   if (!$('console-section')) return;
   const parentReady = embedded && document.documentElement.dataset.parentControls === 'true';
   const observerReady = document.documentElement.dataset.authenticated === 'true';
+  let secondsLeft = consoleAuthorized && consoleExpiresAt ? Math.max(0, Math.ceil((consoleExpiresAt - Date.now()) / 1000)) : 0;
+  if (consoleAuthorized && secondsLeft === 0) {
+    consoleAuthorized = false;
+    consoleExpiresAt = 0;
+    $('console-status').textContent = '送信許可の期限が切れました。HMACキーを再入力してください。';
+  }
   $('console-section').hidden = !(parentReady && observerReady);
   $('console-prompt').disabled = consoleBusy;
   $('console-send').disabled = consoleBusy;
-  $('console-key-row').hidden = consoleAuthorized;
+  $('console-key-entry').hidden = consoleAuthorized;
+  $('console-countdown').hidden = !consoleAuthorized;
+  if (consoleAuthorized) $('console-countdown').textContent = `残り ${formatRemaining(secondsLeft)}`;
   $('console-revoke').hidden = !consoleAuthorized;
+}
+function formatRemaining(seconds) {
+  const days = Math.floor(seconds / 86400), hours = Math.floor(seconds % 86400 / 3600);
+  const minutes = Math.floor(seconds % 3600 / 60), secs = seconds % 60;
+  return days ? `${days}日 ${hours}時間` : hours ? `${hours}時間 ${minutes}分` : minutes ? `${minutes}分 ${secs}秒` : `${secs}秒`;
 }
 async function signedJsonPost(path, value, secret) {
   const body = JSON.stringify(value), timestamp = String(Math.floor(Date.now() / 1000));
@@ -221,7 +241,11 @@ async function signedJsonPost(path, value, secret) {
 async function restoreConsoleAuthorization() {
   try {
     const response = await fetch('/lib/api/chat/console-session', { credentials: 'same-origin', cache: 'no-store' });
-    if (response.ok) consoleAuthorized = (await response.json()).enabled === true;
+    if (response.ok) {
+      const data = await response.json();
+      consoleAuthorized = data.enabled === true && Number.isFinite(data.expires_in) && data.expires_in > 0;
+      consoleExpiresAt = consoleAuthorized ? Date.now() + data.expires_in * 1000 : 0;
+    }
   } catch {}
   updateConsoleSection();
 }
@@ -236,13 +260,15 @@ $('console-form').addEventListener('submit', async event => {
     if (!consoleAuthorized) {
       const secret = $('console-key').value;
       if (!secret.trim()) throw new Error('既存のHMACキーを入力してください。');
-      const auth = await signedJsonPost('/lib/api/chat/console-session', { type: 'console' }, secret.trim());
+      const auth = await signedJsonPost('/lib/api/chat/console-session', { type: 'console', ttl_seconds: consoleTtlSeconds }, secret.trim());
       $('console-key').value = '';
       if (!auth.ok) throw new Error(auth.status === 401 ? 'HMACキーを確認してください。' : `認証に失敗しました（HTTP ${auth.status}）。`);
+      const data = await auth.json();
       consoleAuthorized = true;
+      consoleExpiresAt = Date.now() + data.expires_in * 1000;
     }
     const response = await fetch('/lib/api/chat/console', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt }), cache: 'no-store' });
-    if (response.status === 401) { consoleAuthorized = false; throw new Error('送信許可の期限が切れました。HMACキーを再入力してください。'); }
+    if (response.status === 401) { consoleAuthorized = false; consoleExpiresAt = 0; throw new Error('送信許可の期限が切れました。HMACキーを再入力してください。'); }
     if (!response.ok) throw new Error(response.status === 503 ? 'Codexコンソールに接続できません。' : `送信に失敗しました（HTTP ${response.status}）。`);
     $('console-prompt').value = '';
     $('console-status').textContent = '送信しました。この会話に応答が届きます。';
@@ -252,7 +278,8 @@ $('console-form').addEventListener('submit', async event => {
 });
 $('console-revoke').addEventListener('click', async () => {
   await fetch('/lib/api/chat/console-session', { method: 'DELETE', credentials: 'same-origin', cache: 'no-store' }).catch(() => {});
-  consoleAuthorized = false; $('console-status').textContent = '送信許可を解除しました。'; updateConsoleSection();
+  consoleAuthorized = false; consoleExpiresAt = 0; $('console-status').textContent = '送信許可を解除しました。'; updateConsoleSection();
 });
 updateConsoleSection();
+setInterval(updateConsoleSection, 1000);
 if (embedded) restoreSession().then(token => { if (token) { hideKeyInput(true); watch({ type: 'observe' }); restoreConsoleAuthorization(); } });

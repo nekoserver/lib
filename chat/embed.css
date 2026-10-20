@@ -25,9 +25,11 @@ section[aria-label="回答"] { flex: 1; min-height: 0; overflow-y: auto; }
 #console-section { flex: 0 0 auto; }
 #console-form { display: grid; gap: 4px; }
 #console-prompt { box-sizing: border-box; height: 3.5rem; min-height: 3.5rem; max-height: 6rem; resize: vertical; }
-#console-key-row { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
-#console-key-row .hint { flex-basis: 100%; margin: 0; }
+#console-key-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+#console-key-entry { display: grid; grid-template-columns: auto minmax(8rem, 20rem); align-items: center; gap: 4px 8px; flex: 1; }
+#console-key-entry .hint { grid-column: 1 / -1; margin: 0; }
 #console-key { max-width: 20rem; }
+#console-countdown { color: #dc2626; font-weight: 700; white-space: nowrap; }
 #console-status { margin: 0; }
 .actions { gap: 4px; margin-top: 4px; }
 .actions button { font-size: 9px; padding: 3px 6px; min-height: 24px; }

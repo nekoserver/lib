@@ -24,6 +24,7 @@ section:first-of-type { flex-shrink: 0; }
 section[aria-label="回答"] { flex: 1; min-height: 0; overflow-y: auto; }
 #console-section { flex: 0 0 auto; }
 #console-form { display: grid; gap: 4px; }
+#console-prompt { box-sizing: border-box; height: 3.5rem; min-height: 3.5rem; max-height: 6rem; resize: vertical; }
 #console-key-row { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
 #console-key-row .hint { flex-basis: 100%; margin: 0; }
 #console-key { max-width: 20rem; }

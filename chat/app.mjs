@@ -9,6 +9,7 @@ const $ = id => document.getElementById(id);
 const hex = value => [...new Uint8Array(value)].map(byte => byte.toString(16).padStart(2, '0')).join('');
 const embedded = document.documentElement.dataset.embed === 'conversation';
 const CONSOLE_TTL_OPTIONS = new Set([900, 3600, 28800, 86400, 604800]);
+const CONSOLE_STORAGE = 'conversation-console-session-v1';
 let consoleTtlSeconds = 3600;
 const parentOrigins = new Set([location.origin, 'https://1.cfw1.nekomaneki.work', 'https://cloudflare-workers-github-oauth-1.nekoflare.workers.dev', 'https://dynamicneko.nekoflare.workers.dev']);
 let parentOrigin = null;
@@ -44,6 +45,7 @@ let busy = false;
 let consoleAuthorized = false;
 let consoleBusy = false;
 let consoleExpiresAt = 0;
+let consoleToken = null;
 const reconnect = new ObserveReconnect(() => watch({ type: 'observe' }));
 function stopWatching() { reconnect.stop(); client?.cancel(); }
 let answer = '';
@@ -216,6 +218,7 @@ function updateConsoleSection() {
   if (consoleAuthorized && secondsLeft === 0) {
     consoleAuthorized = false;
     consoleExpiresAt = 0;
+    void revokeConsoleCapability();
     $('console-status').textContent = '送信許可の期限が切れました。HMACキーを再入力してください。';
   }
   $('console-section').hidden = !(parentReady && observerReady);
@@ -231,6 +234,31 @@ function formatRemaining(seconds) {
   const minutes = Math.floor(seconds % 3600 / 60), secs = seconds % 60;
   return days ? `${days}日 ${hours}時間` : hours ? `${hours}時間 ${minutes}分` : minutes ? `${minutes}分 ${secs}秒` : `${secs}秒`;
 }
+function cachedConsoleSession() {
+  try {
+    const value = JSON.parse(sessionStorage.getItem(CONSOLE_STORAGE));
+    if (typeof value?.token === 'string' && Number.isFinite(value.expires) && value.expires > Date.now()) return value;
+  } catch {}
+  return null;
+}
+function storeConsoleSession(token, expiresAt) {
+  consoleToken = token;
+  try { sessionStorage.setItem(CONSOLE_STORAGE, JSON.stringify({ token, expires: expiresAt })); } catch {}
+}
+function dropConsoleToken() {
+  consoleToken = null;
+  try { sessionStorage.removeItem(CONSOLE_STORAGE); } catch {}
+}
+async function revokeConsoleCapability() {
+  const cached = consoleToken || cachedConsoleSession()?.token;
+  await fetch('/lib/api/chat/console-session', {
+    method: 'DELETE', credentials: 'same-origin', cache: 'no-store',
+    headers: cached ? { Authorization: `Bearer ${cached}` } : {}
+  }).catch(() => {});
+  dropConsoleToken();
+  consoleAuthorized = false;
+  consoleExpiresAt = 0;
+}
 async function signedJsonPost(path, value, secret) {
   const body = JSON.stringify(value), timestamp = String(Math.floor(Date.now() / 1000));
   const enc = new TextEncoder(), key = await crypto.subtle.importKey('raw', enc.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
@@ -240,11 +268,17 @@ async function signedJsonPost(path, value, secret) {
 }
 async function restoreConsoleAuthorization() {
   try {
-    const response = await fetch('/lib/api/chat/console-session', { credentials: 'same-origin', cache: 'no-store' });
+    const cached = cachedConsoleSession();
+    const response = await fetch('/lib/api/chat/console-session', {
+      credentials: 'same-origin', cache: 'no-store',
+      ...(cached ? { headers: { Authorization: `Bearer ${cached.token}` } } : {})
+    });
     if (response.ok) {
       const data = await response.json();
       consoleAuthorized = data.enabled === true && Number.isFinite(data.expires_in) && data.expires_in > 0;
       consoleExpiresAt = consoleAuthorized ? Date.now() + data.expires_in * 1000 : 0;
+      if (consoleAuthorized && typeof data.token === 'string') storeConsoleSession(data.token, consoleExpiresAt);
+      else dropConsoleToken();
     }
   } catch {}
   updateConsoleSection();
@@ -264,11 +298,16 @@ $('console-form').addEventListener('submit', async event => {
       $('console-key').value = '';
       if (!auth.ok) throw new Error(auth.status === 401 ? 'HMACキーを確認してください。' : `認証に失敗しました（HTTP ${auth.status}）。`);
       const data = await auth.json();
+      if (typeof data.token !== 'string' || !Number.isFinite(data.expires_in) || data.expires_in <= 0) throw new Error('送信許可の応答が不正です。');
       consoleAuthorized = true;
       consoleExpiresAt = Date.now() + data.expires_in * 1000;
+      storeConsoleSession(data.token, consoleExpiresAt);
     }
-    const response = await fetch('/lib/api/chat/console', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt }), cache: 'no-store' });
-    if (response.status === 401) { consoleAuthorized = false; consoleExpiresAt = 0; throw new Error('送信許可の期限が切れました。HMACキーを再入力してください。'); }
+    const response = await fetch('/lib/api/chat/console', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${consoleToken}` }, body: JSON.stringify({ prompt }), cache: 'no-store' });
+    if (response.status === 401) {
+      await revokeConsoleCapability();
+      throw new Error('送信許可を確認できませんでした。キーを再入力して許可し直してください。');
+    }
     if (!response.ok) throw new Error(response.status === 503 ? 'Codexコンソールに接続できません。' : `送信に失敗しました（HTTP ${response.status}）。`);
     $('console-prompt').value = '';
     $('console-status').textContent = '送信しました。この会話に応答が届きます。';
@@ -277,8 +316,8 @@ $('console-form').addEventListener('submit', async event => {
   } finally { consoleBusy = false; updateConsoleSection(); }
 });
 $('console-revoke').addEventListener('click', async () => {
-  await fetch('/lib/api/chat/console-session', { method: 'DELETE', credentials: 'same-origin', cache: 'no-store' }).catch(() => {});
-  consoleAuthorized = false; consoleExpiresAt = 0; $('console-status').textContent = '送信許可を解除しました。'; updateConsoleSection();
+  await revokeConsoleCapability();
+  $('console-status').textContent = '送信許可を解除しました。'; updateConsoleSection();
 });
 updateConsoleSection();
 setInterval(updateConsoleSection, 1000);

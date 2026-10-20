@@ -45,24 +45,44 @@ def authenticated(secret, request, body):
 def create_app(secret, origins):
     app = web.Application(client_max_size=32_768)
     active = set()
+    console_sessions = {}
+
+    def console_token(request):
+        return request.headers.get('Authorization', '').removeprefix('Bearer ') or request.cookies.get(CONSOLE_COOKIE)
+
+    def prune_console_sessions():
+        now = int(time.time())
+        for old_token, expires in list(console_sessions.items()):
+            if expires <= now:
+                console_sessions.pop(old_token, None)
+
+    def console_remaining(token, origin):
+        prune_console_sessions()
+        if token not in console_sessions:
+            return 0
+        return remaining(secret, token, origin, 'console')
 
     async def session(request, console=False):
         origin = request.headers.get('Origin') or f'https://{request.host}'
         if origin not in origins or request.query_string:
             return web.json_response({'error': 'origin_rejected'}, status=403)
         if request.method == 'DELETE':
+            if console:
+                console_sessions.pop(console_token(request), None)
             return web.json_response({'cleared': True}, headers={'Cache-Control': 'no-store', 'Set-Cookie': session_cookie('', 0, console)})
         if request.method == 'GET':
             token = request.cookies.get(CONSOLE_COOKIE if console else SESSION_COOKIE)
-            if not console:
+            if console:
+                token = request.headers.get('Authorization', '').removeprefix('Bearer ') or token
+            else:
                 token = token or request.headers.get('Authorization', '').removeprefix('Bearer ')
-            seconds = remaining(secret, token, origin, 'console' if console else 'observe')
+            seconds = console_remaining(token, origin) if console else remaining(secret, token, origin)
             if seconds <= 0:
                 if console:
                     return web.json_response({'enabled': False}, headers={'Cache-Control': 'no-store', 'Set-Cookie': session_cookie('', 0, True)})
                 return web.json_response({'error': 'session_expired'}, status=401, headers={'Cache-Control': 'no-store', 'Set-Cookie': session_cookie('', 0)})
             if console:
-                return web.json_response({'enabled': True, 'expires_in': seconds}, headers={'Cache-Control': 'no-store', 'Set-Cookie': session_cookie(token, seconds, True)})
+                return web.json_response({'enabled': True, 'expires_in': seconds, 'token': token}, headers={'Cache-Control': 'no-store', 'Set-Cookie': session_cookie(token, seconds, True)})
             return web.json_response({'token': token, 'expires_in': seconds}, headers={'Cache-Control': 'no-store', 'Set-Cookie': session_cookie(token, seconds)})
         body = await request.read()
         if not authenticated(secret, request, body):
@@ -80,7 +100,9 @@ def create_app(secret, origins):
             return web.json_response({'error': 'invalid_request'}, status=400)
         token = issue(secret, origin, 'console' if console else 'observe', ttl)
         if console:
-            return web.json_response({'enabled': True, 'expires_in': ttl}, headers={'Cache-Control': 'no-store', 'Set-Cookie': session_cookie(token, ttl, True)})
+            prune_console_sessions()
+            console_sessions[token] = int(time.time()) + ttl
+            return web.json_response({'enabled': True, 'expires_in': ttl, 'token': token}, headers={'Cache-Control': 'no-store', 'Set-Cookie': session_cookie(token, ttl, True)})
         return web.json_response({'token': token, 'expires_in': TTL}, headers={'Cache-Control': 'no-store', 'Set-Cookie': session_cookie(token, TTL)})
 
     async def send_to_console(request):
@@ -95,7 +117,8 @@ def create_app(secret, origins):
         prompt = data.get('prompt') if isinstance(data, dict) and set(data) == {'prompt'} else None
         if not isinstance(prompt, str) or not prompt.strip() or len(prompt.encode()) > 16_384:
             return web.json_response({'error': 'invalid_prompt'}, status=400)
-        if not valid(secret, request.cookies.get(CONSOLE_COOKIE), origin, 'console'):
+        token = console_token(request)
+        if token not in console_sessions or not valid(secret, token, origin, 'console'):
             return web.json_response({'error': 'console_session_required'}, status=401, headers={'Cache-Control': 'no-store'})
         try:
             async with asyncio.timeout(20):

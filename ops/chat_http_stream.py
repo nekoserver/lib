@@ -80,7 +80,7 @@ def create_app(secret, origins):
             return web.json_response({'error': 'invalid_request'}, status=400)
         token = issue(secret, origin, 'console' if console else 'observe', ttl)
         if console:
-            return web.json_response({'enabled': True, 'expires_in': TTL}, headers={'Cache-Control': 'no-store', 'Set-Cookie': session_cookie(token, TTL, True)})
+            return web.json_response({'enabled': True, 'expires_in': ttl}, headers={'Cache-Control': 'no-store', 'Set-Cookie': session_cookie(token, ttl, True)})
         return web.json_response({'token': token, 'expires_in': TTL}, headers={'Cache-Control': 'no-store', 'Set-Cookie': session_cookie(token, TTL)})
 
     async def send_to_console(request):

@@ -28,6 +28,9 @@ if (embedded) {
     parentOrigin = event.origin;
     if (event.data?.type === 'conversation-controls') {
       document.documentElement.dataset.parentControls = 'true';
+      // Older tree-view embeds have no parent start/stop toolbar.
+      const ownObservationControls = event.data.observationControls === 'embed' || (event.data.observationControls !== 'parent' && event.origin === 'https://dynamicneko.nekoflare.workers.dev');
+      document.documentElement.dataset.observationControls = ownObservationControls ? 'embed' : 'parent';
       if (CONSOLE_TTL_OPTIONS.has(event.data.consoleTtlSeconds)) consoleTtlSeconds = event.data.consoleTtlSeconds;
       updateConsoleSection(); notifyParent({ type: 'conversation-state', busy });
     }

@@ -14,10 +14,12 @@ from chat_websocket import event_stream, load_secret, worker_payload
 PREFIX = '/lib/api/chat/'
 TYPES = {'sse': 'text/event-stream', 'ndjson': 'application/x-ndjson', 'jsonseq': 'application/json-seq'}
 SESSION_COOKIE = '__Host-conversation-observer'
+CONSOLE_COOKIE = '__Host-conversation-console'
 
-def session_cookie(token, max_age):
+def session_cookie(token, max_age, console=False):
     # Partitioned supports the stream iframe without broad third-party cookies.
-    return f'{SESSION_COOKIE}={token}; Path=/; Max-Age={max_age}; Secure; HttpOnly; SameSite=None; Partitioned'
+    name = CONSOLE_COOKIE if console else SESSION_COOKIE
+    return f'{name}={token}; Path=/; Max-Age={max_age}; Secure; HttpOnly; SameSite=None; Partitioned'
 
 
 def encode_event(protocol, event, sequence):
@@ -44,25 +46,67 @@ def create_app(secret, origins):
     app = web.Application(client_max_size=32_768)
     active = set()
 
-    async def session(request):
+    async def session(request, console=False):
         origin = request.headers.get('Origin') or f'https://{request.host}'
         if origin not in origins or request.query_string:
             return web.json_response({'error': 'origin_rejected'}, status=403)
         if request.method == 'DELETE':
-            return web.json_response({'cleared': True}, headers={'Cache-Control': 'no-store', 'Set-Cookie': session_cookie('', 0)})
+            return web.json_response({'cleared': True}, headers={'Cache-Control': 'no-store', 'Set-Cookie': session_cookie('', 0, console)})
         if request.method == 'GET':
-            token = request.cookies.get(SESSION_COOKIE) or request.headers.get('Authorization', '').removeprefix('Bearer ')
-            seconds = remaining(secret, token, origin)
+            token = request.cookies.get(CONSOLE_COOKIE if console else SESSION_COOKIE)
+            if not console:
+                token = token or request.headers.get('Authorization', '').removeprefix('Bearer ')
+            seconds = remaining(secret, token, origin, 'console' if console else 'observe')
             if seconds <= 0:
+                if console:
+                    return web.json_response({'enabled': False}, headers={'Cache-Control': 'no-store', 'Set-Cookie': session_cookie('', 0, True)})
                 return web.json_response({'error': 'session_expired'}, status=401, headers={'Cache-Control': 'no-store', 'Set-Cookie': session_cookie('', 0)})
+            if console:
+                return web.json_response({'enabled': True, 'expires_in': seconds}, headers={'Cache-Control': 'no-store', 'Set-Cookie': session_cookie(token, seconds, True)})
             return web.json_response({'token': token, 'expires_in': seconds}, headers={'Cache-Control': 'no-store', 'Set-Cookie': session_cookie(token, seconds)})
         body = await request.read()
         if not authenticated(secret, request, body):
             return web.json_response({'error': 'authentication_failed'}, status=401)
-        if body != b'{"type":"observe"}':
+        expected_body = b'{"type":"console"}' if console else b'{"type":"observe"}'
+        if body != expected_body:
             return web.json_response({'error': 'invalid_request'}, status=400)
-        token = issue(secret, origin)
+        token = issue(secret, origin, 'console' if console else 'observe')
+        if console:
+            return web.json_response({'enabled': True, 'expires_in': TTL}, headers={'Cache-Control': 'no-store', 'Set-Cookie': session_cookie(token, TTL, True)})
         return web.json_response({'token': token, 'expires_in': TTL}, headers={'Cache-Control': 'no-store', 'Set-Cookie': session_cookie(token, TTL)})
+
+    async def send_to_console(request):
+        origin = request.headers.get('Origin') or f'https://{request.host}'
+        if origin not in origins or request.query_string:
+            return web.json_response({'error': 'origin_rejected'}, status=403)
+        body = await request.read()
+        try:
+            data = json.loads(body)
+        except (ValueError, UnicodeError):
+            return web.json_response({'error': 'invalid_request'}, status=400)
+        prompt = data.get('prompt') if isinstance(data, dict) and set(data) == {'prompt'} else None
+        if not isinstance(prompt, str) or not prompt.strip() or len(prompt.encode()) > 16_384:
+            return web.json_response({'error': 'invalid_prompt'}, status=400)
+        if not valid(secret, request.cookies.get(CONSOLE_COOKIE), origin, 'console'):
+            return web.json_response({'error': 'console_session_required'}, status=401, headers={'Cache-Control': 'no-store'})
+        try:
+            async with asyncio.timeout(20):
+                reader, writer = await asyncio.open_unix_connection('/run/lib-chat-observer/observer.sock', limit=262144)
+                try:
+                    writer.write((json.dumps({'op': 'send', 'text': prompt}, ensure_ascii=False) + '\n').encode())
+                    await writer.drain()
+                    line = await reader.readline()
+                    if not line:
+                        raise OSError('Observer disconnected')
+                    result = json.loads(line)
+                finally:
+                    writer.close()
+                    await writer.wait_closed()
+        except (OSError, TimeoutError, ValueError):
+            return web.json_response({'error': 'console_unavailable'}, status=503, headers={'Cache-Control': 'no-store'})
+        if not isinstance(result, dict) or result.get('type') != 'accepted':
+            return web.json_response({'error': 'console_unavailable'}, status=503, headers={'Cache-Control': 'no-store'})
+        return web.json_response({'accepted': True}, headers={'Cache-Control': 'no-store'})
 
     async def stream(request):
         protocol = request.match_info['protocol']
@@ -112,6 +156,10 @@ def create_app(secret, origins):
     app.router.add_post(PREFIX + 'session', session)
     app.router.add_get(PREFIX + 'session', session)
     app.router.add_delete(PREFIX + 'session', session)
+    app.router.add_post(PREFIX + 'console-session', lambda request: session(request, console=True))
+    app.router.add_get(PREFIX + 'console-session', lambda request: session(request, console=True))
+    app.router.add_delete(PREFIX + 'console-session', lambda request: session(request, console=True))
+    app.router.add_post(PREFIX + 'console', send_to_console)
     app.router.add_post(PREFIX + '{protocol}', stream)
     return app
 

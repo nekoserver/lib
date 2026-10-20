@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>このCodex会話</title>
   <link rel="stylesheet" href="chat/style-streams-6a4c2f3c.css">
-  <link rel="stylesheet" href="chat/embed-94d11b86d5fb.css">
-  <script type="module" src="chat/app-2d769ed2816a.mjs"></script>
+  <link rel="stylesheet" href="chat/embed-e0bc805452a6.css">
+  <script type="module" src="chat/app-0da1a360efdc.mjs"></script>
 </head>
 <body>
 <main>
@@ -59,9 +59,12 @@
       <label for="console-prompt">このCodexコンソールにメッセージを送信</label>
       <textarea id="console-prompt" maxlength="16384" rows="2" placeholder="この会話に直接入力"></textarea>
       <div id="console-key-row">
-        <label for="console-key">送信を許可する既存HMACキー</label>
-        <input id="console-key" type="password" autocomplete="off" spellcheck="false">
-        <p class="hint">既存キーを使います。保存しません。</p>
+        <div id="console-key-entry">
+          <label for="console-key">送信を許可する既存HMACキー</label>
+          <input id="console-key" type="password" autocomplete="off" spellcheck="false">
+          <p class="hint">既存キーを使います。保存しません。</p>
+        </div>
+        <span id="console-countdown" role="timer" aria-live="off" hidden></span>
       </div>
       <div class="actions">
         <button id="console-send" type="submit">このコンソールに送信</button>

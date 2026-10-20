@@ -8,7 +8,7 @@ import os
 import re
 import time
 from aiohttp import web
-from chat_session import issue, valid, remaining, TTL
+from chat_session import issue, valid, remaining, TTL, CONSOLE_TTL_OPTIONS
 from chat_websocket import event_stream, load_secret, worker_payload
 
 PREFIX = '/lib/api/chat/'
@@ -67,12 +67,20 @@ def create_app(secret, origins):
         body = await request.read()
         if not authenticated(secret, request, body):
             return web.json_response({'error': 'authentication_failed'}, status=401)
-        expected_body = b'{"type":"console"}' if console else b'{"type":"observe"}'
-        if body != expected_body:
-            return web.json_response({'error': 'invalid_request'}, status=400)
-        token = issue(secret, origin, 'console' if console else 'observe')
+        ttl = TTL
         if console:
-            return web.json_response({'enabled': True, 'expires_in': TTL}, headers={'Cache-Control': 'no-store', 'Set-Cookie': session_cookie(token, TTL, True)})
+            try:
+                data = json.loads(body)
+            except (ValueError, UnicodeError):
+                return web.json_response({'error': 'invalid_request'}, status=400)
+            ttl = data.get('ttl_seconds') if isinstance(data, dict) and set(data) == {'type', 'ttl_seconds'} and data.get('type') == 'console' else None
+            if type(ttl) is not int or ttl not in CONSOLE_TTL_OPTIONS:
+                return web.json_response({'error': 'invalid_request'}, status=400)
+        elif body != b'{"type":"observe"}':
+            return web.json_response({'error': 'invalid_request'}, status=400)
+        token = issue(secret, origin, 'console' if console else 'observe', ttl)
+        if console:
+            return web.json_response({'enabled': True, 'expires_in': ttl}, headers={'Cache-Control': 'no-store', 'Set-Cookie': session_cookie(token, ttl, True)})
         return web.json_response({'token': token, 'expires_in': TTL}, headers={'Cache-Control': 'no-store', 'Set-Cookie': session_cookie(token, TTL)})
 
     async def send_to_console(request):

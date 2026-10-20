@@ -7,11 +7,14 @@ import secrets
 import time
 
 TTL = 7 * 24 * 60 * 60
+CONSOLE_TTL_OPTIONS = (15 * 60, 60 * 60, 8 * 60 * 60, 24 * 60 * 60, TTL)
 
-def issue(secret, origin, scope='observe'):
+def issue(secret, origin, scope='observe', ttl=TTL):
     if scope not in ('observe', 'console'):
         raise ValueError('invalid_scope')
-    payload = json.dumps({'scope': scope, 'origin': origin, 'expires': int(time.time()) + TTL, 'nonce': secrets.token_hex(16)}, separators=(',', ':')).encode()
+    if type(ttl) is not int or not 0 < ttl <= TTL:
+        raise ValueError('invalid_ttl')
+    payload = json.dumps({'scope': scope, 'origin': origin, 'expires': int(time.time()) + ttl, 'nonce': secrets.token_hex(16)}, separators=(',', ':')).encode()
     wire = base64.urlsafe_b64encode(payload).rstrip(b'=').decode()
     signature = hmac.new(secret, ('chat-session-v1:' + wire).encode(), hashlib.sha256).hexdigest()
     return wire + '.' + signature

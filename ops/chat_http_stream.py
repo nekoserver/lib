@@ -10,6 +10,7 @@ import time
 from aiohttp import web
 from chat_session import issue, valid, remaining, TTL, CONSOLE_TTL_OPTIONS
 from chat_websocket import event_stream, load_secret, worker_payload
+from chat_site import register_site
 
 PREFIX = '/lib/api/chat/'
 TYPES = {'sse': 'text/event-stream', 'ndjson': 'application/x-ndjson', 'jsonseq': 'application/json-seq'}
@@ -42,7 +43,7 @@ def authenticated(secret, request, body):
     return hmac.compare_digest(hmac.new(secret, canonical.encode(), hashlib.sha256).hexdigest(), signature)
 
 
-def create_app(secret, origins):
+def create_app(secret, origins, *, frame_origins=None):
     app = web.Application(client_max_size=32_768)
     active = set()
     console_sessions = {}
@@ -192,6 +193,7 @@ def create_app(secret, origins):
     app.router.add_delete(PREFIX + 'console-session', lambda request: session(request, console=True))
     app.router.add_post(PREFIX + 'console', send_to_console)
     app.router.add_post(PREFIX + '{protocol}', stream)
+    register_site(app, secret, origins, frame_origins=frame_origins)
     return app
 
 
@@ -199,6 +201,7 @@ if __name__ == '__main__':
     origins = {value.strip() for value in os.environ.get('LIB_CHAT_ORIGINS', '').split(',') if value.strip()}
     if not origins:
         raise SystemExit('Set LIB_CHAT_ORIGINS to exact page origins.')
-    web.run_app(create_app(load_secret(), origins), host='127.0.0.1',
+    frame_origins = {value.strip() for value in os.environ.get('LIB_CHAT_FRAME_ORIGINS', '').split(',') if value.strip()} or origins
+    web.run_app(create_app(load_secret(), origins, frame_origins=frame_origins), host='127.0.0.1',
                 port=int(os.environ.get('LIB_CHAT_HTTP_PORT', '8092')),
                 access_log=None, handler_cancellation=True)

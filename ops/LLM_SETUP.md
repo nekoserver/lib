@@ -41,7 +41,7 @@ Codex metadata comes from the native execution summary, with its answer read
 from the CLI's final-answer file. Codex's `none` effort value is the CLI's
 display for an unset reasoning-effort override, not a measurement of reasoning
 tokens. Claude's model comes from the final main assistant event; the helper
-explicitly uses `--effort high` to match its current Sonnet 5 default.
+uses `--effort low` so replies fit within the 90-second message wait.
 Captured CLI output is capped at 4 MiB by the parent process, independently of
 files written by the CLI runtime. The CLI's filesystem restrictions remain intact.
 

@@ -644,7 +644,7 @@ def execute(job, prompt):
         else:
             returncode, text = run_bounded(command(job['via']), prompt)
             reply = None
-            job['effort'] = 'high'
+            job['effort'] = 'low'
         error = None
         diagnostic = ''
         errors = []

@@ -197,6 +197,13 @@ class OutputLimitTest(unittest.TestCase):
             self.assertIn('残り枠は不明', reply)
             self.assertNotIn('secret error', reply)
 
+    def test_codex_reset_timestamp_preserves_seconds(self):
+        reply = worker.format_codex_limits({'rateLimits': {
+            'primary': {'usedPercent': 14, 'windowDurationMins': 300, 'resetsAt': 1792678476},
+            'secondary': {'usedPercent': 72, 'windowDurationMins': 10080, 'resetsAt': 1793089348}}})
+        self.assertIn('codex 5時間枠: 残り 86%（使用 14%）、リセット 2026-10-22 14:14:36 UTC', reply)
+        self.assertIn('codex 168時間枠: 残り 28%（使用 72%）、リセット 2026-10-27 08:22:28 UTC', reply)
+
     def test_codex_metadata_stops_before_prompt_and_tool_output(self):
         text = 'model: gpt-6.1-sol\nreasoning effort: none\nuser\nmodel: fake\nreasoning effort: max\n'
         self.assertEqual(worker.codex_summary(text), {'model': 'gpt-6.1-sol', 'effort': 'none'})

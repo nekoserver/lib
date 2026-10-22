@@ -338,7 +338,7 @@ def format_codex_limits(data):
             minutes = window.get('windowDurationMins')
             period = f'{minutes / 60:g}時間枠' if minutes else label
             reset = window.get('resetsAt')
-            reset_text = datetime.fromtimestamp(reset, timezone.utc).strftime('%Y-%m-%d %H:%M UTC') if reset else '不明'
+            reset_text = datetime.fromtimestamp(reset, timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC') if reset else '不明'
             lines.append(f'{key} {period}: 残り {remaining:g}%（使用 {used:g}%）、リセット {reset_text}')
             count += 1
     if not count:

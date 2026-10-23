@@ -6,17 +6,21 @@ allowlist. Do **not** log or echo the secret.
 
 ## Secret
 
-Environment only (provision the existing value through Worker secrets and the
-CGI/stream service launch environment):
+Env (prefer in Worker secrets / Apache env):
 
 - `ORIGIN_HMAC_SECRET` (preferred)
 - or `HMAC_SECRET`
 
-`ORIGIN_HMAC_SECRET` takes precedence over `HMAC_SECRET`. File and sudo-read
-fallbacks are disabled. Keep the same existing value in CGI, WebSocket and HTTP
-stream services; never generate a replacement to work around missing ENV.
-Never commit or print the secret. After a deliberate rotation, update each
-launch environment and restart the affected services before checking signatures.
+Origin file (www-data readable):
+
+- `/etc/apache2/secrets/origin-hmac` (mode `640`, owner `root:www-data`)
+
+Fallback (box only; CGI may sudo-read):
+
+- `/home/box/.config/origin-hmac-secret`
+
+Fill the Apache file (or set env) before production Worker traffic. Never commit
+the secret; rotate by rewriting the file / secret store.
 
 ## Headers (required for non-allowlisted clients)
 

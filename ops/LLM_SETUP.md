@@ -45,10 +45,9 @@ uses `--effort low` so replies fit within the 90-second message wait.
 Captured CLI output is capped at 4 MiB by the parent process, independently of
 files written by the CLI runtime. The CLI's filesystem restrictions remain intact.
 
-The caller's shared secret must match the CGI and stream service environment:
-`ORIGIN_HMAC_SECRET` takes precedence over `HMAC_SECRET`. File-based fallback is
-disabled. Preserve the existing value and never commit or print it. CLI
-credentials remain in the dedicated helper home, inaccessible to Apache.
+The caller's shared secret must match `/etc/apache2/secrets/origin-hmac`,
+mode 640 root:www-data. Never commit or print the secret. CLI credentials remain
+in the dedicated helper home, inaccessible to Apache.
 
 ## VM runtime
 

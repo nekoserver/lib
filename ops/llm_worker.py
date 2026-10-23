@@ -748,9 +748,6 @@ def main():
             save(job)
     path = Path(SOCKET)
     path.parent.mkdir(parents=True, exist_ok=True)
-    # Supervisors may use umask 077; the CGI user still needs directory traversal.
-    os.chown(path.parent, 0, grp.getgrnam('www-data').gr_gid)
-    path.parent.chmod(0o750)
     if path.exists():
         probe = socket.socket(socket.AF_UNIX)
         try:

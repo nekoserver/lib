@@ -254,6 +254,7 @@ async def main():
     path = Path(SOCKET)
     path.parent.mkdir(mode=0o750, parents=True, exist_ok=True)
     os.chown(path.parent, 0, grp.getgrnam('www-data').gr_gid)
+    path.parent.chmod(0o750)
     # Retain the lock for the process lifetime; never unlink a live observer socket.
     lock = open(path.parent / 'observer.lock', 'a')
     try:

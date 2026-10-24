@@ -6,6 +6,7 @@ import hmac
 import json
 import os
 import re
+import secrets
 import time
 from aiohttp import web
 from chat_session import issue, valid, remaining, TTL, CONSOLE_TTL_OPTIONS
@@ -47,6 +48,21 @@ def create_app(secret, origins, *, frame_origins=None):
     app = web.Application(client_max_size=32_768)
     active = set()
     console_sessions = {}
+    asset_tickets = {}
+
+    def issue_asset_ticket():
+        now = time.monotonic()
+        for old, expires in list(asset_tickets.items()):
+            if expires <= now:
+                asset_tickets.pop(old, None)
+        if len(asset_tickets) >= 1024:
+            asset_tickets.pop(next(iter(asset_tickets)))
+        ticket = secrets.token_urlsafe(24)
+        asset_tickets[ticket] = now + 120
+        return ticket
+
+    def valid_asset_ticket(ticket):
+        return isinstance(ticket, str) and asset_tickets.get(ticket, 0) > time.monotonic()
 
     def console_token(request):
         return request.headers.get('Authorization', '').removeprefix('Bearer ') or request.cookies.get(CONSOLE_COOKIE)
@@ -84,7 +100,7 @@ def create_app(secret, origins, *, frame_origins=None):
                 return web.json_response({'error': 'session_expired'}, status=401, headers={'Cache-Control': 'no-store', 'Set-Cookie': session_cookie('', 0)})
             if console:
                 return web.json_response({'enabled': True, 'expires_in': seconds, 'token': token}, headers={'Cache-Control': 'no-store', 'Set-Cookie': session_cookie(token, seconds, True)})
-            return web.json_response({'token': token, 'expires_in': seconds}, headers={'Cache-Control': 'no-store', 'Set-Cookie': session_cookie(token, seconds)})
+            return web.json_response({'token': token, 'expires_in': seconds, 'asset_ticket': issue_asset_ticket()}, headers={'Cache-Control': 'no-store', 'Set-Cookie': session_cookie(token, seconds)})
         body = await request.read()
         if not authenticated(secret, request, body):
             return web.json_response({'error': 'authentication_failed'}, status=401)
@@ -104,7 +120,7 @@ def create_app(secret, origins, *, frame_origins=None):
             prune_console_sessions()
             console_sessions[token] = int(time.time()) + ttl
             return web.json_response({'enabled': True, 'expires_in': ttl, 'token': token}, headers={'Cache-Control': 'no-store', 'Set-Cookie': session_cookie(token, ttl, True)})
-        return web.json_response({'token': token, 'expires_in': TTL}, headers={'Cache-Control': 'no-store', 'Set-Cookie': session_cookie(token, TTL)})
+        return web.json_response({'token': token, 'expires_in': TTL, 'asset_ticket': issue_asset_ticket()}, headers={'Cache-Control': 'no-store', 'Set-Cookie': session_cookie(token, TTL)})
 
     async def send_to_console(request):
         origin = request.headers.get('Origin') or f'https://{request.host}'
@@ -193,7 +209,7 @@ def create_app(secret, origins, *, frame_origins=None):
     app.router.add_delete(PREFIX + 'console-session', lambda request: session(request, console=True))
     app.router.add_post(PREFIX + 'console', send_to_console)
     app.router.add_post(PREFIX + '{protocol}', stream)
-    register_site(app, secret, origins, frame_origins=frame_origins)
+    register_site(app, secret, origins, frame_origins=frame_origins, valid_asset_ticket=valid_asset_ticket)
     return app
 
 

@@ -56,6 +56,7 @@ before generic proxies and the static asset alias:
 RewriteCond %{HTTP_HOST} ^stream\.test\.cfc\.nekomaneki\.work(?::443)?$ [NC]
 RewriteRule ^/$ http://127.0.0.1:8092/ [P,L]
 RewriteRule ^/lib/(conversation-embed\.html|chat/.*)$ http://127.0.0.1:8092/lib/$1 [P,L]
+RewriteRule ^/lib/t/([A-Za-z0-9_-]+)/((?:conversation-embed\.html|chat/.*))$ http://127.0.0.1:8092/lib/t/$1/$2 [P,L]
 ```
 
 The page/assets rule deliberately applies on all aliases of this origin so an
@@ -74,6 +75,16 @@ responses use `private, no-store`; this cannot revoke already downloaded copies.
 
 The current cookie lifetime is the existing seven days. New clients need the
 key; a browser retaining a valid cookie can return without entering it again.
+
+If an installed PWA rejects the partitioned iframe cookie, the login page uses
+the authenticated session response to open `/lib/t/<ticket>/conversation-embed.html`.
+The ticket lasts two minutes and grants only the HTML/CSS/JS files. It cannot
+authorize conversation or console APIs. The observation token travels to the
+new page in the URL fragment, which is never sent to the server, and is removed
+from the address bar when the app starts. A still valid token in sessionStorage
+can obtain a new asset ticket after the PWA reloads. In the current Apache
+`ProxyPass` configuration, route `/lib/t/` to HTTP stream port 8092 before the
+static `/lib/` alias.
 
 ## Verification
 

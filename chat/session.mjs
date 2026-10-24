@@ -3,6 +3,15 @@ let current = null;
 let restoring = null;
 const hex = value => [...new Uint8Array(value)].map(b => b.toString(16).padStart(2, '0')).join('');
 export function getSession() {
+  if (!current && location.hash.startsWith('#session=')) {
+    const fragment = new URLSearchParams(location.hash.slice(1));
+    const token = fragment.get('session'), expires = Number(fragment.get('expires'));
+    try { history.replaceState(history.state, '', location.pathname + location.search); } catch {}
+    if (token && token.length <= 1024 && Number.isFinite(expires) && expires > Date.now()) {
+      current = { token, expires };
+      try { sessionStorage.setItem(STORAGE, JSON.stringify(current)); } catch {}
+    }
+  }
   if (!current) { try { current = JSON.parse(sessionStorage.getItem(STORAGE)); } catch {} }
   if (!current) return null;
   if (typeof current.token !== 'string' || !current.token || !Number.isFinite(current.expires) || current.expires <= Date.now()) { clearLocalSession(); return null; }

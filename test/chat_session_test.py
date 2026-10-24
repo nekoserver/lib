@@ -19,6 +19,24 @@ SECRET = b'test-secret'
 ORIGIN = 'https://chat.example'
 
 class SessionTest(unittest.IsolatedAsyncioTestCase):
+    async def test_asset_ticket_opens_embed_without_cookie_but_never_authorizes_api(self):
+        async with TestClient(TestServer(http.create_app(SECRET, {ORIGIN}))) as client:
+            path = http.PREFIX + 'session'; body = b'{"type":"observe"}'; timestamp = str(int(time.time()))
+            signature = hmac.new(SECRET, f'POST\n{path}\n{timestamp}\n{hashlib.sha256(body).hexdigest()}'.encode(), hashlib.sha256).hexdigest()
+            response = await client.post(path, data=body, headers={'Origin': ORIGIN, 'X-Timestamp': timestamp, 'X-Signature': signature})
+            self.assertEqual(response.status, 200)
+            ticket = (await response.json())['asset_ticket']
+            embed = await client.get(f'/lib/t/{ticket}/conversation-embed.html', headers={'Accept': 'text/html'})
+            self.assertEqual(embed.status, 200)
+            self.assertIn('data-embed="conversation"', await embed.text())
+            asset = await client.get(f'/lib/t/{ticket}/chat/session.mjs')
+            self.assertEqual(asset.status, 200)
+            denied = await client.get(path, headers={'Origin': ORIGIN})
+            self.assertEqual(denied.status, 401)
+            unknown = await client.get('/lib/t/unknown/conversation-embed.html', allow_redirects=False)
+            self.assertEqual(unknown.status, 302)
+            self.assertEqual(unknown.headers['Location'], '/lib/conversation-embed.html')
+
     async def test_cookie_restores_after_reload_without_extending_expiry(self):
         async with TestClient(TestServer(http.create_app(SECRET, {ORIGIN}))) as client:
             path = http.PREFIX + 'session'; body = b'{"type":"observe"}'; timestamp = str(int(time.time()))

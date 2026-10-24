@@ -1,0 +1,470 @@
+
+Start-Date: 2026-10-06  21:24:27
+Commandline: apt-get install --reinstall apt
+Reinstall: apt:amd64 (3.2.0)
+End-Date: 2026-10-06  21:24:28
+
+Start-Date: 2026-10-06  21:24:28
+Commandline: apt-get install --reinstall base-files
+Reinstall: base-files:amd64 (14ubuntu6)
+End-Date: 2026-10-06  21:24:29
+
+Start-Date: 2026-10-06  21:24:29
+Commandline: apt-get install --reinstall base-passwd
+Reinstall: base-passwd:amd64 (3.6.8)
+End-Date: 2026-10-06  21:24:29
+
+Start-Date: 2026-10-06  21:24:29
+Commandline: apt-get install --reinstall bash
+Reinstall: bash:amd64 (5.3-2ubuntu1)
+End-Date: 2026-10-06  21:24:30
+
+Start-Date: 2026-10-06  21:24:30
+Commandline: apt-get install --reinstall bsdutils
+Reinstall: bsdutils:amd64 (1:2.41.3-3ubuntu2)
+End-Date: 2026-10-06  21:24:30
+
+Start-Date: 2026-10-06  21:24:30
+Commandline: apt-get install --reinstall coreutils
+Reinstall: coreutils:amd64 (9.5-1ubuntu2+0.0.0~ubuntu25)
+End-Date: 2026-10-06  21:24:30
+
+Start-Date: 2026-10-06  21:24:30
+Commandline: apt-get install --reinstall coreutils-from-uutils
+Reinstall: coreutils-from-uutils:amd64 (0.0.0~ubuntu25)
+End-Date: 2026-10-06  21:24:31
+
+Start-Date: 2026-10-06  21:24:31
+Commandline: apt-get install --reinstall dash
+Reinstall: dash:amd64 (0.5.12-12ubuntu3)
+End-Date: 2026-10-06  21:24:31
+
+Start-Date: 2026-10-06  21:24:31
+Commandline: apt-get install --reinstall debconf
+Reinstall: debconf:amd64 (1.5.92)
+End-Date: 2026-10-06  21:24:32
+
+Start-Date: 2026-10-06  21:24:32
+Commandline: apt-get install --reinstall debianutils
+Reinstall: debianutils:amd64 (5.23.2build1)
+End-Date: 2026-10-06  21:24:32
+
+Start-Date: 2026-10-06  21:24:32
+Commandline: apt-get install --reinstall diffutils
+Reinstall: diffutils:amd64 (1:3.12-1)
+End-Date: 2026-10-06  21:24:33
+
+Start-Date: 2026-10-06  21:24:33
+Commandline: apt-get install --reinstall dpkg
+Reinstall: dpkg:amd64 (1.23.7ubuntu1)
+End-Date: 2026-10-06  21:24:33
+
+Start-Date: 2026-10-06  21:24:33
+Commandline: apt-get install --reinstall e2fsprogs
+Reinstall: e2fsprogs:amd64 (1.47.2-3ubuntu4)
+End-Date: 2026-10-06  21:24:34
+
+Start-Date: 2026-10-06  21:24:34
+Commandline: apt-get install --reinstall findutils
+Reinstall: findutils:amd64 (4.10.0-3build2)
+End-Date: 2026-10-06  21:24:34
+
+Start-Date: 2026-10-06  21:24:34
+Commandline: apt-get install --reinstall gcc-16-base:amd64
+Reinstall: gcc-16-base:amd64 (16-20260322-1ubuntu1)
+End-Date: 2026-10-06  21:24:35
+
+Start-Date: 2026-10-06  21:24:35
+Commandline: apt-get install --reinstall gnu-coreutils
+Reinstall: gnu-coreutils:amd64 (9.7-3ubuntu2)
+End-Date: 2026-10-06  21:24:35
+
+Start-Date: 2026-10-06  21:24:35
+Commandline: apt-get install --reinstall gpgv
+Reinstall: gpgv:amd64 (2.4.8-4ubuntu3)
+End-Date: 2026-10-06  21:24:35
+
+Start-Date: 2026-10-06  21:24:35
+Commandline: apt-get install --reinstall grep
+Reinstall: grep:amd64 (3.12-1)
+End-Date: 2026-10-06  21:24:36
+
+Start-Date: 2026-10-06  21:24:36
+Commandline: apt-get install --reinstall gzip
+Reinstall: gzip:amd64 (1.14-1~exp2ubuntu1)
+End-Date: 2026-10-06  21:24:36
+
+Start-Date: 2026-10-06  21:24:36
+Commandline: apt-get install --reinstall hostname
+Reinstall: hostname:amd64 (3.25build1)
+End-Date: 2026-10-06  21:24:36
+
+Start-Date: 2026-10-06  21:24:37
+Commandline: apt-get install --reinstall init-system-helpers
+Reinstall: init-system-helpers:amd64 (1.69)
+End-Date: 2026-10-06  21:24:37
+
+Start-Date: 2026-10-06  21:24:37
+Commandline: apt-get install --reinstall libacl1:amd64
+Reinstall: libacl1:amd64 (2.3.2-2)
+End-Date: 2026-10-06  21:24:37
+
+Start-Date: 2026-10-06  21:24:37
+Commandline: apt-get install --reinstall libapt-pkg7.0:amd64
+Reinstall: libapt-pkg7.0:amd64 (3.2.0)
+End-Date: 2026-10-06  21:24:37
+
+Start-Date: 2026-10-06  21:24:38
+Commandline: apt-get install --reinstall libattr1:amd64
+Reinstall: libattr1:amd64 (1:2.5.2-4)
+End-Date: 2026-10-06  21:24:38
+
+Start-Date: 2026-10-06  21:24:38
+Commandline: apt-get install --reinstall libaudit-common
+Reinstall: libaudit-common:amd64 (1:4.1.2-1build1)
+End-Date: 2026-10-06  21:24:38
+
+Start-Date: 2026-10-06  21:24:38
+Commandline: apt-get install --reinstall libaudit1:amd64
+Reinstall: libaudit1:amd64 (1:4.1.2-1build1)
+End-Date: 2026-10-06  21:24:38
+
+Start-Date: 2026-10-06  21:24:39
+Commandline: apt-get install --reinstall libblkid1:amd64
+Reinstall: libblkid1:amd64 (2.41.3-3ubuntu2)
+End-Date: 2026-10-06  21:24:39
+
+Start-Date: 2026-10-06  21:24:39
+Commandline: apt-get install --reinstall libbsd0:amd64
+Reinstall: libbsd0:amd64 (0.12.2-2build2)
+End-Date: 2026-10-06  21:24:39
+
+Start-Date: 2026-10-06  21:24:39
+Commandline: apt-get install --reinstall libbz2-1.0:amd64
+Reinstall: libbz2-1.0:amd64 (1.0.8-6build2)
+End-Date: 2026-10-06  21:24:39
+
+Start-Date: 2026-10-06  21:24:40
+Commandline: apt-get install --reinstall libc-bin
+Reinstall: libc-bin:amd64 (2.43-2ubuntu2)
+End-Date: 2026-10-06  21:24:40
+
+Start-Date: 2026-10-06  21:24:40
+Commandline: apt-get install --reinstall libc-gconv-modules-extra:amd64
+Reinstall: libc-gconv-modules-extra:amd64 (2.43-2ubuntu2)
+End-Date: 2026-10-06  21:24:40
+
+Start-Date: 2026-10-06  21:24:41
+Commandline: apt-get install --reinstall libc6:amd64
+Reinstall: libc6:amd64 (2.43-2ubuntu2)
+End-Date: 2026-10-06  21:24:41
+
+Start-Date: 2026-10-06  21:24:41
+Commandline: apt-get install --reinstall libcap-ng0:amd64
+Reinstall: libcap-ng0:amd64 (0.8.5-4build5)
+End-Date: 2026-10-06  21:24:41
+
+Start-Date: 2026-10-06  21:24:42
+Commandline: apt-get install --reinstall libcom-err2:amd64
+Reinstall: libcom-err2:amd64 (1.47.2-3ubuntu4)
+End-Date: 2026-10-06  21:24:42
+
+Start-Date: 2026-10-06  21:24:42
+Commandline: apt-get install --reinstall libcrypt1:amd64
+Reinstall: libcrypt1:amd64 (1:4.5.1-1)
+End-Date: 2026-10-06  21:24:42
+
+Start-Date: 2026-10-06  21:24:42
+Commandline: apt-get install --reinstall libdb5.3t64:amd64
+Reinstall: libdb5.3t64:amd64 (5.3.28+dfsg2-10ubuntu1)
+End-Date: 2026-10-06  21:24:42
+
+Start-Date: 2026-10-06  21:24:43
+Commandline: apt-get install --reinstall libdebconfclient0:amd64
+Reinstall: libdebconfclient0:amd64 (0.280ubuntu1)
+End-Date: 2026-10-06  21:24:43
+
+Start-Date: 2026-10-06  21:24:43
+Commandline: apt-get install --reinstall libext2fs2t64:amd64
+Reinstall: libext2fs2t64:amd64 (1.47.2-3ubuntu4)
+End-Date: 2026-10-06  21:24:43
+
+Start-Date: 2026-10-06  21:24:43
+Commandline: apt-get install --reinstall libgcc-s1:amd64
+Reinstall: libgcc-s1:amd64 (16-20260322-1ubuntu1)
+End-Date: 2026-10-06  21:24:43
+
+Start-Date: 2026-10-06  21:24:44
+Commandline: apt-get install --reinstall libgcrypt20:amd64
+Reinstall: libgcrypt20:amd64 (1.12.0-2)
+End-Date: 2026-10-06  21:24:44
+
+Start-Date: 2026-10-06  21:24:44
+Commandline: apt-get install --reinstall libgmp10:amd64
+Reinstall: libgmp10:amd64 (2:6.3.0+dfsg-5ubuntu2)
+End-Date: 2026-10-06  21:24:44
+
+Start-Date: 2026-10-06  21:24:44
+Commandline: apt-get install --reinstall libgpg-error0:amd64
+Reinstall: libgpg-error0:amd64 (1.58-2)
+End-Date: 2026-10-06  21:24:44
+
+Start-Date: 2026-10-06  21:24:45
+Commandline: apt-get install --reinstall liblz4-1:amd64
+Reinstall: liblz4-1:amd64 (1.10.0-8)
+End-Date: 2026-10-06  21:24:45
+
+Start-Date: 2026-10-06  21:24:45
+Commandline: apt-get install --reinstall liblzma5:amd64
+Reinstall: liblzma5:amd64 (5.8.3-1)
+End-Date: 2026-10-06  21:24:45
+
+Start-Date: 2026-10-06  21:24:45
+Commandline: apt-get install --reinstall libmd0:amd64
+Reinstall: libmd0:amd64 (1.1.0-2build4)
+End-Date: 2026-10-06  21:24:46
+
+Start-Date: 2026-10-06  21:24:46
+Commandline: apt-get install --reinstall libmount1:amd64
+Reinstall: libmount1:amd64 (2.41.3-3ubuntu2)
+End-Date: 2026-10-06  21:24:46
+
+Start-Date: 2026-10-06  21:24:46
+Commandline: apt-get install --reinstall libncursesw6:amd64
+Reinstall: libncursesw6:amd64 (6.6+20251231-1)
+End-Date: 2026-10-06  21:24:46
+
+Start-Date: 2026-10-06  21:24:46
+Commandline: apt-get install --reinstall libpam-modules:amd64
+Reinstall: libpam-modules:amd64 (1.7.0-5ubuntu3)
+End-Date: 2026-10-06  21:24:47
+
+Start-Date: 2026-10-06  21:24:47
+Commandline: apt-get install --reinstall libpam-modules-bin
+Reinstall: libpam-modules-bin:amd64 (1.7.0-5ubuntu3)
+End-Date: 2026-10-06  21:24:47
+
+Start-Date: 2026-10-06  21:24:47
+Commandline: apt-get install --reinstall libpam-runtime
+Reinstall: libpam-runtime:amd64 (1.7.0-5ubuntu3)
+End-Date: 2026-10-06  21:24:48
+
+Start-Date: 2026-10-06  21:24:48
+Commandline: apt-get install --reinstall libpam0g:amd64
+Reinstall: libpam0g:amd64 (1.7.0-5ubuntu3)
+End-Date: 2026-10-06  21:24:48
+
+Start-Date: 2026-10-06  21:24:48
+Commandline: apt-get install --reinstall libpcre2-8-0:amd64
+Reinstall: libpcre2-8-0:amd64 (10.46-1build1)
+End-Date: 2026-10-06  21:24:48
+
+Start-Date: 2026-10-06  21:24:49
+Commandline: apt-get install --reinstall libproc2-0:amd64
+Reinstall: libproc2-0:amd64 (2:4.0.4-9ubuntu1)
+End-Date: 2026-10-06  21:24:49
+
+Start-Date: 2026-10-06  21:24:49
+Commandline: apt-get install --reinstall libseccomp2:amd64
+Reinstall: libseccomp2:amd64 (2.6.0-2ubuntu5)
+End-Date: 2026-10-06  21:24:49
+
+Start-Date: 2026-10-06  21:24:49
+Commandline: apt-get install --reinstall libselinux1:amd64
+Reinstall: libselinux1:amd64 (3.9-4build1)
+End-Date: 2026-10-06  21:24:50
+
+Start-Date: 2026-10-06  21:24:50
+Commandline: apt-get install --reinstall libsemanage-common
+Reinstall: libsemanage-common:amd64 (3.9-1build1)
+End-Date: 2026-10-06  21:24:50
+
+Start-Date: 2026-10-06  21:24:50
+Commandline: apt-get install --reinstall libsemanage2:amd64
+Reinstall: libsemanage2:amd64 (3.9-1build1)
+End-Date: 2026-10-06  21:24:50
+
+Start-Date: 2026-10-06  21:24:50
+Commandline: apt-get install --reinstall libsepol2:amd64
+Reinstall: libsepol2:amd64 (3.9-2)
+End-Date: 2026-10-06  21:24:50
+
+Start-Date: 2026-10-06  21:24:51
+Commandline: apt-get install --reinstall libsmartcols1:amd64
+Reinstall: libsmartcols1:amd64 (2.41.3-3ubuntu2)
+End-Date: 2026-10-06  21:24:51
+
+Start-Date: 2026-10-06  21:24:51
+Commandline: apt-get install --reinstall libss2:amd64
+Reinstall: libss2:amd64 (1.47.2-3ubuntu4)
+End-Date: 2026-10-06  21:24:51
+
+Start-Date: 2026-10-06  21:24:51
+Commandline: apt-get install --reinstall libssl3t64:amd64
+Reinstall: libssl3t64:amd64 (3.5.5-1ubuntu3)
+End-Date: 2026-10-06  21:24:51
+
+Start-Date: 2026-10-06  21:24:52
+Commandline: apt-get install --reinstall libstdc++6:amd64
+Reinstall: libstdc++6:amd64 (16-20260322-1ubuntu1)
+End-Date: 2026-10-06  21:24:52
+
+Start-Date: 2026-10-06  21:24:52
+Commandline: apt-get install --reinstall libsystemd0:amd64
+Reinstall: libsystemd0:amd64 (259.5-0ubuntu3)
+End-Date: 2026-10-06  21:24:52
+
+Start-Date: 2026-10-06  21:24:52
+Commandline: apt-get install --reinstall libtinfo6:amd64
+Reinstall: libtinfo6:amd64 (6.6+20251231-1)
+End-Date: 2026-10-06  21:24:53
+
+Start-Date: 2026-10-06  21:24:53
+Commandline: apt-get install --reinstall libudev1:amd64
+Reinstall: libudev1:amd64 (259.5-0ubuntu3)
+End-Date: 2026-10-06  21:24:53
+
+Start-Date: 2026-10-06  21:24:53
+Commandline: apt-get install --reinstall libuuid1:amd64
+Reinstall: libuuid1:amd64 (2.41.3-3ubuntu2)
+End-Date: 2026-10-06  21:24:53
+
+Start-Date: 2026-10-06  21:24:53
+Commandline: apt-get install --reinstall libxxhash0:amd64
+Reinstall: libxxhash0:amd64 (0.8.3-2build1)
+End-Date: 2026-10-06  21:24:54
+
+Start-Date: 2026-10-06  21:24:54
+Commandline: apt-get install --reinstall libzstd1:amd64
+Reinstall: libzstd1:amd64 (1.5.7+dfsg-3)
+End-Date: 2026-10-06  21:24:54
+
+Start-Date: 2026-10-06  21:24:54
+Commandline: apt-get install --reinstall login
+Reinstall: login:amd64 (1:4.16.0-2+really2.41.3-3ubuntu2)
+End-Date: 2026-10-06  21:24:54
+
+Start-Date: 2026-10-06  21:24:55
+Commandline: apt-get install --reinstall login.defs
+Reinstall: login.defs:amd64 (1:4.17.4-2ubuntu3)
+End-Date: 2026-10-06  21:24:55
+
+Start-Date: 2026-10-06  21:24:55
+Commandline: apt-get install --reinstall logsave
+Reinstall: logsave:amd64 (1.47.2-3ubuntu4)
+End-Date: 2026-10-06  21:24:55
+
+Start-Date: 2026-10-06  21:24:55
+Commandline: apt-get install --reinstall mawk
+Reinstall: mawk:amd64 (1.3.4.20260129-1)
+End-Date: 2026-10-06  21:24:55
+
+Start-Date: 2026-10-06  21:24:56
+Commandline: apt-get install --reinstall mount
+Reinstall: mount:amd64 (2.41.3-3ubuntu2)
+End-Date: 2026-10-06  21:24:56
+
+Start-Date: 2026-10-06  21:24:56
+Commandline: apt-get install --reinstall ncurses-base
+Reinstall: ncurses-base:amd64 (6.6+20251231-1)
+End-Date: 2026-10-06  21:24:56
+
+Start-Date: 2026-10-06  21:24:56
+Commandline: apt-get install --reinstall ncurses-bin
+Reinstall: ncurses-bin:amd64 (6.6+20251231-1)
+End-Date: 2026-10-06  21:24:56
+
+Start-Date: 2026-10-06  21:24:56
+Commandline: apt-get install --reinstall openssl-provider-legacy
+Reinstall: openssl-provider-legacy:amd64 (3.5.5-1ubuntu3)
+End-Date: 2026-10-06  21:24:57
+
+Start-Date: 2026-10-06  21:24:57
+Commandline: apt-get install --reinstall passwd
+Reinstall: passwd:amd64 (1:4.17.4-2ubuntu3)
+End-Date: 2026-10-06  21:24:57
+
+Start-Date: 2026-10-06  21:24:57
+Commandline: apt-get install --reinstall perl-base
+Reinstall: perl-base:amd64 (5.40.1-7build1)
+End-Date: 2026-10-06  21:24:58
+
+Start-Date: 2026-10-06  21:24:58
+Commandline: apt-get install --reinstall procps
+Reinstall: procps:amd64 (2:4.0.4-9ubuntu1)
+End-Date: 2026-10-06  21:24:58
+
+Start-Date: 2026-10-06  21:24:59
+Commandline: apt-get install --reinstall rust-coreutils
+Reinstall: rust-coreutils:amd64 (0.8.0-0ubuntu3)
+End-Date: 2026-10-06  21:25:00
+
+Start-Date: 2026-10-06  21:25:00
+Commandline: apt-get install --reinstall sed
+Reinstall: sed:amd64 (4.9-2build3)
+End-Date: 2026-10-06  21:25:00
+
+Start-Date: 2026-10-06  21:25:00
+Commandline: apt-get install --reinstall sensible-utils
+Reinstall: sensible-utils:amd64 (0.0.26build1)
+End-Date: 2026-10-06  21:25:00
+
+Start-Date: 2026-10-06  21:25:01
+Commandline: apt-get install --reinstall sysvinit-utils
+Reinstall: sysvinit-utils:amd64 (3.15-5ubuntu1)
+End-Date: 2026-10-06  21:25:01
+
+Start-Date: 2026-10-06  21:25:01
+Commandline: apt-get install --reinstall tar
+Reinstall: tar:amd64 (1.35+dfsg-4)
+End-Date: 2026-10-06  21:25:01
+
+Start-Date: 2026-10-06  21:25:01
+Commandline: apt-get install --reinstall ubuntu-keyring
+Reinstall: ubuntu-keyring:amd64 (2023.11.28.1build1)
+End-Date: 2026-10-06  21:25:01
+
+Start-Date: 2026-10-06  21:25:02
+Commandline: apt-get install --reinstall util-linux
+Reinstall: util-linux:amd64 (2.41.3-3ubuntu2)
+End-Date: 2026-10-06  21:25:02
+
+Start-Date: 2026-10-06  21:25:02
+Commandline: apt-get install --reinstall zlib1g:amd64
+Reinstall: zlib1g:amd64 (1:1.3.dfsg+really1.3.1-1ubuntu3)
+End-Date: 2026-10-06  21:25:02
+
+Start-Date: 2026-10-06  21:25:08
+Commandline: apt-get --yes -oDebug::pkgDepCache::AutoInstall=yes --no-install-recommends --force-yes upgrade
+Upgrade: libsmartcols1:amd64 (2.41.3-3ubuntu2, 2.41.3-3ubuntu2.2), libpam-runtime:amd64 (1.7.0-5ubuntu3, 1.7.0-5ubuntu3.2), libaudit-common:amd64 (1:4.1.2-1build1, 1:4.1.2-1ubuntu0.1), sed:amd64 (4.9-2build3, 4.9-2ubuntu1), tar:amd64 (1.35+dfsg-4, 1.35+dfsg-4ubuntu0.4), openssl-provider-legacy:amd64 (3.5.5-1ubuntu3, 3.5.5-1ubuntu3.7), libsystemd0:amd64 (259.5-0ubuntu3, 259.5-0ubuntu3.4), libmount1:amd64 (2.41.3-3ubuntu2, 2.41.3-3ubuntu2.2), libc-gconv-modules-extra:amd64 (2.43-2ubuntu2, 2.43-2ubuntu2.4), gnu-coreutils:amd64 (9.7-3ubuntu2, 9.7-3ubuntu2.1), util-linux:amd64 (2.41.3-3ubuntu2, 2.41.3-3ubuntu2.2), libudev1:amd64 (259.5-0ubuntu3, 259.5-0ubuntu3.4), rust-coreutils:amd64 (0.8.0-0ubuntu3, 0.10.0-1ubuntu2~26.04.1), diffutils:amd64 (1:3.12-1, 1:3.12-1ubuntu0.1), libc6:amd64 (2.43-2ubuntu2, 2.43-2ubuntu2.4), libpam-modules:amd64 (1.7.0-5ubuntu3, 1.7.0-5ubuntu3.2), libuuid1:amd64 (2.41.3-3ubuntu2, 2.41.3-3ubuntu2.2), gpgv:amd64 (2.4.8-4ubuntu3, 2.4.8-4ubuntu3.1), libgcrypt20:amd64 (1.12.0-2, 1.12.0-2ubuntu1.1), base-files:amd64 (14ubuntu6, 14ubuntu6.2), gzip:amd64 (1.14-1~exp2ubuntu1, 1.14-1~exp2ubuntu1.1), login:amd64 (1:4.16.0-2+really2.41.3-3ubuntu2, 1:4.16.0-2+really2.41.3-3ubuntu2.2), libpam-modules-bin:amd64 (1.7.0-5ubuntu3, 1.7.0-5ubuntu3.2), mount:amd64 (2.41.3-3ubuntu2, 2.41.3-3ubuntu2.2), perl-base:amd64 (5.40.1-7build1, 5.40.1-7ubuntu0.3), libpam0g:amd64 (1.7.0-5ubuntu3, 1.7.0-5ubuntu3.2), libc-bin:amd64 (2.43-2ubuntu2, 2.43-2ubuntu2.4), libattr1:amd64 (1:2.5.2-4, 1:2.5.2-4ubuntu0.1), libaudit1:amd64 (1:4.1.2-1build1, 1:4.1.2-1ubuntu0.1), libssl3t64:amd64 (3.5.5-1ubuntu3, 3.5.5-1ubuntu3.7), libblkid1:amd64 (2.41.3-3ubuntu2, 2.41.3-3ubuntu2.2), libbz2-1.0:amd64 (1.0.8-6build2, 1.0.8-6ubuntu0.1), zlib1g:amd64 (1:1.3.dfsg+really1.3.1-1ubuntu3, 1:1.3.dfsg+really1.3.1-1ubuntu3.1), bsdutils:amd64 (1:2.41.3-3ubuntu2, 1:2.41.3-3ubuntu2.2)
+End-Date: 2026-10-06  21:25:13
+
+Start-Date: 2026-10-24  09:56:21
+Commandline: apt-get upgrade -y
+Upgrade: liblzma5:amd64 (5.8.3-1, 5.8.3-1ubuntu0.1), libsystemd0:amd64 (259.5-0ubuntu3.4, 259.9-0ubuntu0.1), libudev1:amd64 (259.5-0ubuntu3.4, 259.9-0ubuntu0.1), zlib1g:amd64 (1:1.3.dfsg+really1.3.1-1ubuntu3.1, 1:1.3.dfsg+really1.3.1-1ubuntu3.2)
+End-Date: 2026-10-24  09:56:22
+
+Start-Date: 2026-10-24  09:56:37
+Commandline: apt-get install -y --no-install-recommends ca-certificates tmux expect gnupg libatomic1 apache2 openssl openssh-server nftables curl util-linux wtmpdb libpam-wtmpdb python3 python3-venv cron sudo bubblewrap libyaml-0-2 libffi8 libgmp10 iproute2 iputils-ping net-tools bind9-dnsutils traceroute netcat-openbsd tcpdump mtr-tiny whois procps xz-utils git locales sshguard silversearcher-ag ripgrep
+Install: libpam-wtmpdb:amd64 (0.75.0-5ubuntu1), tcpdump:amd64 (4.99.6-1), libperl5.40:amd64 (5.40.1-7ubuntu0.3, automatic), libwrap0:amd64 (7.6.q-36build2, automatic), libkeyutils1:amd64 (1.6.3-6ubuntu3, automatic), libxtables12:amd64 (1.8.11-2ubuntu3, automatic), sshguard:amd64 (2.5.1-2), python3.14:amd64 (3.14.4-1ubuntu0.2, automatic), bind9-host:amd64 (1:9.20.24-1ubuntu0.4, automatic), libffi8:amd64 (3.5.2-4), libnftnl11:amd64 (1.3.1-1, automatic), libgssapi-krb5-2:amd64 (1.22.1-2ubuntu4.1, automatic), python3-setuptools-whl:amd64 (78.1.1-0.1build1, automatic), netbase:amd64 (6.5build1, automatic), readline-common:amd64 (8.3-4, automatic), libnghttp2-14:amd64 (1.68.0-2ubuntu0.2, automatic), openssh-client:amd64 (1:10.2p1-2ubuntu3.8, automatic), iputils-ping:amd64 (3:20250605-1ubuntu1), libnl-3-200:amd64 (3.12.0-2, automatic), bubblewrap:amd64 (0.11.1-1ubuntu0.3), libpcap0.8t64:amd64 (1.10.6-1ubuntu1.1, automatic), libldap2:amd64 (2.6.10+dfsg-1ubuntu5, automatic), libnftables1:amd64 (1.1.6-1, automatic), libgdbm-compat4t64:amd64 (1.26-1build1, automatic), libtirpc3t64:amd64 (1.3.7-0.1, automatic), git:amd64 (1:2.53.0-1ubuntu1.1), gpg:amd64 (2.4.8-4ubuntu3.1, automatic), perl:amd64 (5.40.1-7ubuntu0.3, automatic), libtirpc-common:amd64 (1.3.7-0.1, automatic), tzdata:amd64 (2026e-0ubuntu0.26.04.1, automatic), libunistring5:amd64 (1.3-2build1, automatic), libidn2-0:amd64 (2.3.8-4build1, automatic), libldap-common:amd64 (2.6.10+dfsg-1ubuntu5, automatic), libtasn1-6:amd64 (4.21.0-2, automatic), libaprutil1t64:amd64 (1.6.3-3ubuntu3.1, automatic), python3-minimal:amd64 (3.14.3-0ubuntu2, automatic), sudo-common:amd64 (1.2ubuntu, automatic), libaprutil1-dbd-sqlite3:amd64 (1.6.3-3ubuntu3.1, automatic), libnl-route-3-200:amd64 (3.12.0-2, automatic), libhogweed6t64:amd64 (3.10.2-1, automatic), ucf:amd64 (3.0052ubuntu1, automatic), libcap2-bin:amd64 (1:2.75-10ubuntu2, automatic), python3-venv:amd64 (3.14.3-0ubuntu2), libpsl5t64:amd64 (0.21.2-1.1build2, automatic), libsasl2-2:amd64 (2.1.28+dfsg1-9ubuntu3, automatic), libibverbs1:amd64 (61.0-2ubuntu3, automatic), libexpat1:amd64 (2.7.4-1ubuntu0.2, automatic), libp11-kit0:amd64 (0.26.2-2, automatic), libcbor0.10:amd64 (0.10.2-2ubuntu3, automatic), libpython3.14-minimal:amd64 (3.14.4-1ubuntu0.2, automatic), libfido2-1:amd64 (1.16.0-2build1, automatic), python3-pip-whl:amd64 (25.1.1+dfsg-1ubuntu2, automatic), libxml2-16:amd64 (2.15.2+dfsg-0.1ubuntu0.3, automatic), libjansson4:amd64 (2.14-2build4, automatic), librtmp1:amd64 (2.4+20151223.gitfa8646d.1-3, automatic), liblua5.4-0:amd64 (5.4.8-1build1, automatic), liburcu8t64:amd64 (0.15.6-1, automatic), libtcl8.6:amd64 (8.6.17+dfsg-1build1, automatic), libapparmor1:amd64 (5.0.2-0ubuntu1~26.04.1, automatic), libreadline8t64:amd64 (8.3-4, automatic), expect:amd64 (5.45.4-4build1), python3:amd64 (3.14.3-0ubuntu2), openssh-server:amd64 (1:10.2p1-2ubuntu3.8), libdbus-1-3:amd64 (1.16.2-2ubuntu4, automatic), tcl-expect:amd64 (5.45.4-4build1, automatic), gnupg:amd64 (2.4.8-4ubuntu3.1), libsasl2-modules-db:amd64 (2.1.28+dfsg1-9ubuntu3, automatic), libkrb5support0:amd64 (1.22.1-2ubuntu4.1, automatic), libbpf1:amd64 (1:1.6.3-1ubuntu1, automatic), libmnl0:amd64 (1.0.5-3build1, automatic), libgdbm6t64:amd64 (1.26-1build1, automatic), xz-utils:amd64 (5.8.3-1ubuntu0.1), systemd:amd64 (259.9-0ubuntu0.1, automatic), mtr-tiny:amd64 (0.95-1.1ubuntu2), gpg-agent:amd64 (2.4.8-4ubuntu3.1, automatic), apache2-data:amd64 (2.4.66-2ubuntu2.6, automatic), libnettle8t64:amd64 (3.10.2-1, automatic), libcurl3t64-gnutls:amd64 (8.18.0-1ubuntu2.8, automatic), libyaml-0-2:amd64 (0.2.5-2build3), libevent-core-2.1-7t64:amd64 (2.1.12-stable-10ubuntu0.2, automatic), libmaxminddb0:amd64 (1.12.2-1build2, automatic), apache2-bin:amd64 (2.4.66-2ubuntu2.6, automatic), libassuan9:amd64 (3.0.2-2build1, automatic), libcap2:amd64 (1:2.75-10ubuntu2, automatic), libssh2-1t64:amd64 (1.11.1-1ubuntu0.26.04.4, automatic), python3.14-venv:amd64 (3.14.4-1ubuntu0.2, automatic), locales:amd64 (2.43-2ubuntu2.4), libuv1t64:amd64 (1.51.0-2ubuntu1, automatic), libkrb5-3:amd64 (1.22.1-2ubuntu4.1, automatic), libtext-charwidth-perl:amd64 (0.04-11build4, automatic), traceroute:amd64 (1:2.1.6-1build1), media-types:amd64 (14.0.0build1, automatic), libpython3.14-stdlib:amd64 (3.14.4-1ubuntu0.2, automatic), net-tools:amd64 (2.10-2ubuntu1), bind9-dnsutils:amd64 (1:9.20.24-1ubuntu0.4), libk5crypto3:amd64 (1.22.1-2ubuntu4.1, automatic), tcl8.6:amd64 (8.6.17+dfsg-1build1, automatic), libsqlite3-0:amd64 (3.46.1-9ubuntu0.3, automatic), libtext-wrapi18n-perl:amd64 (0.06-10, automatic), libjemalloc2:amd64 (5.3.0-4, automatic), pinentry-curses:amd64 (1.3.2-3ubuntu1, automatic), libjson-c5:amd64 (0.18+ds-3, automatic), libcurl4t64:amd64 (8.18.0-1ubuntu2.8, automatic), gpgsm:amd64 (2.4.8-4ubuntu3.1, automatic), adduser:amd64 (3.153ubuntu1, automatic), ripgrep:amd64 (15.1.0-1ubuntu1), ca-certificates:amd64 (20260816ubuntu0.26.04.1), liberror-perl:amd64 (0.17030-1, automatic), apache2-utils:amd64 (2.4.66-2ubuntu2.6, automatic), libwtmpdb0:amd64 (0.75.0-5ubuntu1, automatic), libpython3-stdlib:amd64 (3.14.3-0ubuntu2, automatic), whois:amd64 (5.6.6), openssh-sftp-server:amd64 (1:10.2p1-2ubuntu3.8, automatic), libbrotli1:amd64 (1.2.0-3build1, automatic), bind9-libs:amd64 (1:9.20.24-1ubuntu0.4, automatic), cron-daemon-common:amd64 (3.0pl1-200ubuntu1, automatic), liblmdb0:amd64 (0.9.31-1build2, automatic), sudo:amd64 (1.9.17p2-1ubuntu3.2), libsystemd-shared:amd64 (259.9-0ubuntu0.1, automatic), silversearcher-ag:amd64 (2.2.0+git20200805-1.2build1), apache2:amd64 (2.4.66-2ubuntu2.6), libgnutls30t64:amd64 (3.8.12-2ubuntu1.1, automatic), wtmpdb:amd64 (0.75.0-5ubuntu1), dirmngr:amd64 (2.4.8-4ubuntu3.1, automatic), libksba8:amd64 (1.6.7-2build1, automatic), cron:amd64 (3.0pl1-200ubuntu1), libnpth0t64:amd64 (1.8-3build1, automatic), curl:amd64 (8.18.0-1ubuntu2.8), perl-modules-5.40:amd64 (5.40.1-7ubuntu0.3, automatic), python3.14-minimal:amd64 (3.14.4-1ubuntu0.2, automatic), tmux:amd64 (3.6a-2ubuntu0.2), libaprutil1-ldap:amd64 (1.6.3-3ubuntu3.1, automatic), git-man:amd64 (1:2.53.0-1ubuntu1.1, automatic), libelf1t64:amd64 (0.194-4, automatic), libedit2:amd64 (3.1-20251016-1, automatic), iproute2:amd64 (6.19.0-1ubuntu1.1), gpgconf:amd64 (2.4.8-4ubuntu3.1, automatic), libapr1t64:amd64 (1.7.6-3, automatic), netcat-openbsd:amd64 (1.234-1), libatomic1:amd64 (16-20260322-1ubuntu1), libncurses6:amd64 (6.6+20251231-1, automatic), openssl:amd64 (3.5.5-1ubuntu3.7), nftables:amd64 (1.1.6-1)
+End-Date: 2026-10-24  09:58:02
+
+Start-Date: 2026-10-24  09:58:40
+Commandline: apt-get install -y --no-install-recommends python3-websockets python3-aiohttp
+Install: python3-websockets:amd64 (15.0.1-1build2), python3-frozenlist:amd64 (1.8.0-2build1, automatic), python3-aiosignal:amd64 (1.4.0-1, automatic), python3-aiohttp:amd64 (3.13.3-3ubuntu1), python3-attr:amd64 (25.4.0-1build1, automatic), python3-propcache:amd64 (0.3.1-1build2, automatic), python3-multidict:amd64 (6.4.3-1build2, automatic), python3-async-timeout:amd64 (5.0.1-1, automatic), python3-yarl:amd64 (1.22.0-1build1, automatic), python3-aiohappyeyeballs:amd64 (2.6.1-2, automatic), python3-idna:amd64 (3.11-1ubuntu0.1, automatic)
+End-Date: 2026-10-24  09:58:49
+
+Start-Date: 2026-10-24  10:33:48
+Commandline: apt-get install -y bubblewrap python3-venv rsync cron
+Install: libpopt0:amd64 (1.19+dfsg-2build1, automatic), rsync:amd64 (3.4.1+ds1-7ubuntu0.3)
+End-Date: 2026-10-24  10:33:49
+
+Start-Date: 2026-10-24  10:43:31
+Commandline: apt-get install -y postgresql-18 libpq-dev build-essential libyaml-dev pkg-config
+Install: libalgorithm-merge-perl:amd64 (0.08-5, automatic), libgomp1:amd64 (16-20260322-1ubuntu1, automatic), manpages-dev:amd64 (6.17-1, automatic), gcc-15-base:amd64 (15.2.0-16ubuntu1, automatic), g++-15:amd64 (15.2.0-16ubuntu1, automatic), gcc-15:amd64 (15.2.0-16ubuntu1, automatic), libgcc-15-dev:amd64 (15.2.0-16ubuntu1, automatic), libstdc++-15-dev:amd64 (15.2.0-16ubuntu1, automatic), build-essential:amd64 (12.12ubuntu2.26.04.2), libctf-nobfd0:amd64 (2.46-3ubuntu2, automatic), libtypes-serialiser-perl:amd64 (1.01-1, automatic), gcc-x86-64-linux-gnu:amd64 (4:15.2.0-5ubuntu1, automatic), libtsan2:amd64 (16-20260322-1ubuntu1, automatic), cpp:amd64 (4:15.2.0-5ubuntu1, automatic), g++:amd64 (4:15.2.0-5ubuntu1, automatic), ssl-cert:amd64 (1.1.3ubuntu2, automatic), libsensors-config:amd64 (1:3.6.2-2build1, automatic), gcc:amd64 (4:15.2.0-5ubuntu1, automatic), postgresql-18:amd64 (18.6-0ubuntu0.26.04.1), cpp-15-x86-64-linux-gnu:amd64 (15.2.0-16ubuntu1, automatic), libhwasan0:amd64 (16-20260322-1ubuntu1, automatic), libalgorithm-diff-perl:amd64 (1.201-1, automatic), libbinutils:amd64 (2.46-3ubuntu2, automatic), libfakeroot:amd64 (1.37.2-1, automatic), cpp-x86-64-linux-gnu:amd64 (4:15.2.0-5ubuntu1, automatic), patch:amd64 (2.8-2build1, automatic), libpq-dev:amd64 (18.6-0ubuntu0.26.04.1), sysstat:amd64 (12.7.7-0ubuntu2, automatic), binutils-x86-64-linux-gnu:amd64 (2.46-3ubuntu2, automatic), bzip2:amd64 (1.0.8-6ubuntu0.1, automatic), logrotate:amd64 (3.22.0-1build1, automatic), libllvm21:amd64 (1:21.1.8-6ubuntu1, automatic), libnuma1:amd64 (2.0.19-1build1, automatic), pkgconf:amd64 (2.5.1-4, automatic), libjson-perl:amd64 (4.10000-1, automatic), libmpfr6:amd64 (4.2.2-3, automatic), g++-x86-64-linux-gnu:amd64 (4:15.2.0-5ubuntu1, automatic), libcc1-0:amd64 (16-20260322-1ubuntu1, automatic), libmpc3:amd64 (1.3.1-3, automatic), liblocale-gettext-perl:amd64 (1.07-8, automatic), libfile-fcntllock-perl:amd64 (0.22-4ubuntu6, automatic), postgresql-client-18:amd64 (18.6-0ubuntu0.26.04.1, automatic), dpkg-dev:amd64 (1.23.7ubuntu1, automatic), libasan8:amd64 (16-20260322-1ubuntu1, automatic), rpcsvc-proto:amd64 (1.4.3-1build1, automatic), manpages:amd64 (6.17-1, automatic), libcommon-sense-perl:amd64 (3.75-3build5, automatic), make:amd64 (4.4.1-3, automatic), libctf0:amd64 (2.46-3ubuntu2, automatic), liburing2:amd64 (2.14-1, automatic), g++-15-x86-64-linux-gnu:amd64 (15.2.0-16ubuntu1, automatic), lto-disabled-list:amd64 (79, automatic), libssl-dev:amd64 (3.5.5-1ubuntu3.7, automatic), libxslt1.1:amd64 (1.1.45-0.1, automatic), libcrypt-dev:amd64 (1:4.5.1-1, automatic), postgresql-common:amd64 (290ubuntu1, automatic), pkg-config:amd64 (2.5.1-4), cpp-15:amd64 (15.2.0-16ubuntu1, automatic), binutils-common:amd64 (2.46-3ubuntu2, automatic), libitm1:amd64 (16-20260322-1ubuntu1, automatic), libdpkg-perl:amd64 (1.23.7ubuntu1, automatic), libc-dev-bin:amd64 (2.43-2ubuntu2.4, automatic), libyaml-dev:amd64 (0.2.5-2build3), postgresql-client-common:amd64 (290ubuntu1, automatic), gcc-15-x86-64-linux-gnu:amd64 (15.2.0-16ubuntu1, automatic), libsframe3:amd64 (2.46-3ubuntu2, automatic), libsensors5:amd64 (1:3.6.2-2build1, automatic), libgprofng0:amd64 (2.46-3ubuntu2, automatic), libisl23:amd64 (0.27-1build1, automatic), libc6-dev:amd64 (2.43-2ubuntu2.4, automatic), postgresql-18-jit:amd64 (18.6-0ubuntu0.26.04.1, automatic), pkgconf-bin:amd64 (2.5.1-4, automatic), libquadmath0:amd64 (16-20260322-1ubuntu1, automatic), libubsan1:amd64 (16-20260322-1ubuntu1, automatic), liblsan0:amd64 (16-20260322-1ubuntu1, automatic), libpkgconf7:amd64 (2.5.1-4, automatic), libalgorithm-diff-xs-perl:amd64 (0.04-9, automatic), libjson-xs-perl:amd64 (4.040-1, automatic), libpq5:amd64 (18.6-0ubuntu0.26.04.1, automatic), libicu78:amd64 (78.2-2ubuntu1, automatic), binutils:amd64 (2.46-3ubuntu2, automatic), fakeroot:amd64 (1.37.2-1, automatic), linux-libc-dev:amd64 (7.0.0-38.38, automatic)
+End-Date: 2026-10-24  10:44:31
+
+Start-Date: 2026-10-24  10:45:24
+Commandline: apt-get install -y zlib1g-dev libgmp-dev
+Install: libgmpxx4ldbl:amd64 (2:6.3.0+dfsg-5ubuntu2, automatic), zlib1g-dev:amd64 (1:1.3.dfsg+really1.3.1-1ubuntu3.2), libgmp-dev:amd64 (2:6.3.0+dfsg-5ubuntu2)
+End-Date: 2026-10-24  10:45:25

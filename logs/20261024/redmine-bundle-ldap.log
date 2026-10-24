@@ -1,0 +1,15 @@
+Don't run Bundler as root. Installing your bundle as root will break this
+application for all non-root users on this machine.
+[DEPRECATED] Platform :mingw, :x64_mingw, :mswin will be removed in the future. Please use platform :windows instead.
+Your Gemfile lists the gem puma (>= 0) more than once.
+You should probably keep only one of them.
+Remove any duplicate entries and specify the gem only once.
+While it's not a problem now, it could cause errors if you change the version of one of them later.
+Fetching gem metadata from https://rubygems.org/........
+Fetching net-ldap 0.20.0
+Installing net-ldap 0.20.0
+Bundle complete! 52 Gemfile dependencies, 96 gems now installed.
+Gems in the groups 'development', 'test' and 'minimagick' were not installed.
+Bundled gems are installed into `/opt/redmine-bundle`
+2 installed gems you directly depend on are looking for funding.
+  Run `bundle fund` for details

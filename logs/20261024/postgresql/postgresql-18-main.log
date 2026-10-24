@@ -1,0 +1,8 @@
+2026-10-24 10:44:36.984 UTC [5105] LOG:  starting PostgreSQL 18.6 (Ubuntu 18.6-0ubuntu0.26.04.1) on x86_64-pc-linux-gnu, compiled by gcc (Ubuntu 15.2.0-16ubuntu1) 15.2.0, 64-bit
+2026-10-24 10:44:36.984 UTC [5105] LOG:  listening on Unix socket "/var/run/postgresql/.s.PGSQL.5432"
+2026-10-24 10:44:37.050 UTC [5111] LOG:  database system was shut down at 2026-10-24 10:44:30 UTC
+2026-10-24 10:44:37.058 UTC [5105] LOG:  database system is ready to accept connections
+2026-10-24 10:49:37.153 UTC [5109] LOG:  checkpoint starting: time
+2026-10-24 10:51:17.560 UTC [5109] LOG:  checkpoint complete: wrote 994 buffers (6.1%), wrote 3 SLRU buffers; 1 WAL file(s) added, 0 removed, 0 recycled; write=100.094 s, sync=0.300 s, total=100.407 s; sync files=740, longest=0.059 s, average=0.001 s; distance=4701 kB, estimate=4701 kB; lsn=0/1EE6548, redo lsn=0/1BFD4C0
+2026-10-24 10:54:37.661 UTC [5109] LOG:  checkpoint starting: time
+2026-10-24 10:55:16.794 UTC [5109] LOG:  checkpoint complete: wrote 390 buffers (2.4%), wrote 1 SLRU buffers; 0 WAL file(s) added, 0 removed, 0 recycled; write=39.126 s, sync=0.003 s, total=39.133 s; sync files=152, longest=0.003 s, average=0.001 s; distance=3217 kB, estimate=4552 kB; lsn=0/1F219F8, redo lsn=0/1F21968

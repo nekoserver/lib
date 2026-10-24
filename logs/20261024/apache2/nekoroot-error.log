@@ -1,0 +1,14 @@
+[Sat Oct 24 10:28:11.123507 2026] [ssl:warn] [pid 153:tid 153] AH01906: localhost:8443:0 server certificate is a CA certificate (BasicConstraints: CA == TRUE !?)
+[Sat Oct 24 10:28:11.123557 2026] [ssl:warn] [pid 153:tid 153] AH01909: localhost:8443:0 server certificate does NOT include an ID which matches the server name
+[Sat Oct 24 10:28:11.136884 2026] [ssl:warn] [pid 155:tid 155] AH01906: localhost:8443:0 server certificate is a CA certificate (BasicConstraints: CA == TRUE !?)
+[Sat Oct 24 10:28:11.136901 2026] [ssl:warn] [pid 155:tid 155] AH01909: localhost:8443:0 server certificate does NOT include an ID which matches the server name
+[Sat Oct 24 10:34:36.469625 2026] [ssl:warn] [pid 155:tid 155] AH01906: localhost:8443:0 server certificate is a CA certificate (BasicConstraints: CA == TRUE !?)
+[Sat Oct 24 10:34:36.469648 2026] [ssl:warn] [pid 155:tid 155] AH01909: localhost:8443:0 server certificate does NOT include an ID which matches the server name
+[Sat Oct 24 10:35:21.261840 2026] [ssl:warn] [pid 155:tid 155] AH01906: localhost:8443:0 server certificate is a CA certificate (BasicConstraints: CA == TRUE !?)
+[Sat Oct 24 10:35:21.261879 2026] [ssl:warn] [pid 155:tid 155] AH01909: localhost:8443:0 server certificate does NOT include an ID which matches the server name
+[Sat Oct 24 10:35:42.948237 2026] [authz_core:error] [pid 1216:tid 1233] [client 104.28.167.23:0] AH01630: client denied by server configuration: proxy:http://127.0.0.1:8080/lib/ops/chat_observer.py
+[Sat Oct 24 10:35:42.963181 2026] [authz_core:error] [pid 1216:tid 1248] [client 104.28.167.23:0] AH01630: client denied by server configuration: proxy:http://127.0.0.1:8080/lib/keys/
+[Sat Oct 24 10:35:43.229246 2026] [authz_core:error] [pid 1216:tid 1256] [client 104.28.167.23:0] AH01630: client denied by server configuration: proxy:http://127.0.0.1:8080/lib/ops/chat_observer.py
+[Sat Oct 24 10:35:43.263645 2026] [authz_core:error] [pid 1216:tid 1257] [client 104.28.167.23:0] AH01630: client denied by server configuration: proxy:http://127.0.0.1:8080/lib/keys/
+[Sat Oct 24 10:52:53.957744 2026] [ssl:warn] [pid 155:tid 155] AH01906: localhost:8443:0 server certificate is a CA certificate (BasicConstraints: CA == TRUE !?)
+[Sat Oct 24 10:52:53.960112 2026] [ssl:warn] [pid 155:tid 155] AH01909: localhost:8443:0 server certificate does NOT include an ID which matches the server name

@@ -31,3 +31,12 @@ test('PR links and detected URLs open outside the embedded stream', () => {
     assert.ok(html.includes('rel="noopener noreferrer"'));
   }
 });
+
+test('API reply underscores remain literal without changing code or URLs', () => {
+  const html = renderMarkdown('前_中_後 _reply_ __reply__ codex_prompt NETWORK_PROMPT_OK\n\n*italic* **bold** `a_b_c` [link](https://example.com/a_b_c)');
+  assert.ok(html.includes('前_中_後 _reply_ __reply__ codex_prompt NETWORK_PROMPT_OK'));
+  assert.ok(html.includes('<em>italic</em>'));
+  assert.ok(html.includes('<strong>bold</strong>'));
+  assert.ok(html.includes('<code>a_b_c</code>'));
+  assert.ok(html.includes('href="https://example.com/a_b_c"'));
+});

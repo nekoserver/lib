@@ -26,7 +26,7 @@ Encoding.default_external = Encoding::UTF_8
 Encoding.default_internal = nil
 
 module TunnelsLib
-  ACCOUNT_ID = "4eb48547c6f6a8194e6c3eb5e700463f"
+  ACCOUNT_ID = ENV.fetch("CLOUDFLARE_ACCOUNT_ID", "4eb48547c6f6a8194e6c3eb5e700463f")
   CF = "/usr/local/bin/cf"
   OAUTH_LIST = "/usr/local/libexec/cf-tunnels-list"
 
@@ -51,7 +51,7 @@ module TunnelsLib
   end
 
   def fetch_with_token
-    token = ENV["CLOUDFLARE_API_TOKEN"]
+    token = ENV["CF_CONTAINER_API_TOKEN"].to_s.empty? ? ENV["CLOUDFLARE_API_TOKEN"] : ENV["CF_CONTAINER_API_TOKEN"]
     return [nil, nil, "no_api_token"] if token.nil? || token.empty?
 
     env = ENV.to_h.merge(

@@ -83,6 +83,51 @@ module TunnelsLib
     s[0, limit]
   end
 
+  # Read-only discovery metadata for the conversation stream hosted beside this
+  # API. Keep paths relative so callers do not have to trust a Host header, and
+  # report configuration separately from live health (the Worker probes the
+  # public embed URL for that).
+  def conversation_stream
+    configured_hosts = begin
+      parsed = JSON.parse(ENV.fetch('HTTP_X_LIB_STREAM_HOSTS', '[]'))
+      parsed.is_a?(Array) ? parsed.filter_map do |host|
+        begin
+          next unless host.is_a?(Hash)
+          id = host['id'].to_s
+          label = host['label'].to_s
+          origin = URI.parse(host['origin'].to_s)
+          next unless id.match?(/\A[a-z0-9][a-z0-9_-]{0,31}\z/i) && label.length.between?(1, 64)
+          next unless origin.scheme == 'https' && origin.host && origin.path.to_s == ''
+          { 'id' => id, 'label' => label, 'origin' => origin.to_s.delete_suffix('/'),
+            'priority' => Integer(host['priority']), 'enabled' => host['enabled'] == true }
+        rescue URI::InvalidURIError, ArgumentError, TypeError
+          nil
+        end
+      end.first(100) : []
+    rescue JSON::ParserError
+      []
+    end
+    {
+      "embed_path" => "/lib/conversation-embed.html",
+      "stream_path" => "/lib/api/chat",
+      "protocols" => %w[websocket sse ndjson jsonseq],
+      "authentication" => "conversation-session",
+      "observer_configured" => !ENV["LIB_CHAT_APP_SOCKET"].to_s.empty? && !ENV["LIB_CHAT_THREAD_ID"].to_s.empty?,
+      "observer_socket_present" => File.socket?("/run/lib-chat-observer/observer.sock"),
+      "hosts" => configured_hosts
+    }
+  rescue SystemCallError
+    {
+      "embed_path" => "/lib/conversation-embed.html",
+      "stream_path" => "/lib/api/chat",
+      "protocols" => %w[websocket sse ndjson jsonseq],
+      "authentication" => "conversation-session",
+      "observer_configured" => false,
+      "observer_socket_present" => false,
+      "hosts" => []
+    }
+  end
+
   def sanitize_tunnel(t)
     conns = t.is_a?(Hash) ? (t["connections"] || []) : []
     conns = [] unless conns.is_a?(Array)
@@ -216,6 +261,7 @@ module TunnelsLib
     if raw.nil? || raw.empty?
       return attach_message!({
         "tunnels" => [],
+        "conversation_stream" => conversation_stream,
         "auth" => "error",
         "fetched_at" => fetched_at,
         "error" => redact(err)
@@ -226,6 +272,7 @@ module TunnelsLib
     if tunnels == :parse_error
       return attach_message!({
         "tunnels" => [],
+        "conversation_stream" => conversation_stream,
         "auth" => auth.to_s,
         "fetched_at" => fetched_at,
         "error" => "json_parse_error"
@@ -234,6 +281,7 @@ module TunnelsLib
 
     attach_message!({
       "tunnels" => apply_filters(tunnels, filters),
+      "conversation_stream" => conversation_stream,
       "auth" => auth.to_s,
       "fetched_at" => fetched_at
     }, filters, default_engine: default_engine)

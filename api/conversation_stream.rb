@@ -58,7 +58,7 @@ module ConversationStream
       rescue URI::InvalidURIError, ArgumentError, TypeError
         nil
       end
-    end.first(100)
+    end.first(50)
   rescue JSON::ParserError
     []
   end

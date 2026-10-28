@@ -156,6 +156,36 @@ def create_app(secret, origins, *, frame_origins=None):
             return web.json_response({'error': 'console_unavailable'}, status=503, headers={'Cache-Control': 'no-store'})
         return web.json_response({'accepted': True}, headers={'Cache-Control': 'no-store'})
 
+    async def spec_evaluation(request):
+        origin = request.headers.get('Origin') or f'https://{request.host}'
+        if origin not in origins or request.query_string:
+            return web.json_response({'error': 'origin_rejected'}, status=403)
+        try: data = await request.json()
+        except (ValueError, UnicodeError): return web.json_response({'error': 'invalid_request'}, status=400)
+        if not isinstance(data, dict) or set(data) != {'action', 'repository', 'path'} or data['action'] not in ('inspect', 'create') or not all(isinstance(data[key], str) and 0 < len(data[key]) <= 512 for key in ('repository', 'path')):
+            return web.json_response({'error': 'invalid_request'}, status=400)
+        if data['action'] == 'create':
+            if console_remaining(console_token(request), origin) <= 0:
+                return web.json_response({'error': 'console_session_required'}, status=401)
+        else:
+            token = request.cookies.get(SESSION_COOKIE) or request.headers.get('Authorization', '').removeprefix('Bearer ')
+            if not valid(secret, token, origin): return web.json_response({'error': 'session_expired'}, status=401)
+        try:
+            async with asyncio.timeout(20):
+                reader, writer = await asyncio.open_unix_connection('/run/lib-chat-observer/observer.sock', limit=4_194_304)
+                try:
+                    writer.write((json.dumps({'op': 'spec-eval', **data}, ensure_ascii=False) + '\n').encode())
+                    await writer.drain()
+                    result = json.loads(await reader.readline())
+                finally:
+                    writer.close()
+                    await writer.wait_closed()
+            if not isinstance(result, dict) or result.get('error'):
+                return web.json_response({'error': 'evaluation_unavailable'}, status=503)
+            return web.json_response(result, headers={'Cache-Control': 'no-store'})
+        except (OSError, ValueError, TimeoutError):
+            return web.json_response({'error': 'evaluation_unavailable'}, status=503)
+
     async def stream(request):
         protocol = request.match_info['protocol']
         if protocol not in TYPES or request.query_string:
@@ -208,6 +238,7 @@ def create_app(secret, origins, *, frame_origins=None):
     app.router.add_get(PREFIX + 'console-session', lambda request: session(request, console=True))
     app.router.add_delete(PREFIX + 'console-session', lambda request: session(request, console=True))
     app.router.add_post(PREFIX + 'console', send_to_console)
+    app.router.add_post(PREFIX + 'spec-eval', spec_evaluation)
     app.router.add_post(PREFIX + '{protocol}', stream)
     register_site(app, secret, origins, frame_origins=frame_origins, valid_asset_ticket=valid_asset_ticket)
     return app

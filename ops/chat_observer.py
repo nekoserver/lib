@@ -13,6 +13,7 @@ import stat
 import re
 from websockets.asyncio.client import unix_connect
 from websockets.exceptions import ConnectionClosed
+from spec_eval import configured_evaluations
 
 SOCKET = '/run/lib-chat-observer/observer.sock'
 INTERVAL = 1
@@ -183,6 +184,36 @@ async def target_snapshots(path, thread_id, source_file=None, fallback=None):
             await asyncio.sleep(INTERVAL)
 
 
+async def console_connected(path, thread_id):
+    if not re.fullmatch(r'[A-Za-z0-9_-]{1,128}', thread_id): return False
+    async with unix_connect(path, uri='ws://localhost', max_size=16_777_216) as ws:
+        client = ReadClient(ws)
+        await client.request('initialize', {'clientInfo': {'name': 'spec_eval_preflight', 'version': '0.1.0'}})
+        await ws.send(json.dumps({'method': 'initialized', 'params': {}}))
+        thread = (await client.request('thread/read', {'threadId': thread_id, 'includeTurns': False}))['thread']
+        return (thread.get('status') or {}).get('type') in ('idle', 'active')
+
+
+async def spec_evaluation(operation):
+    if set(operation) != {'op', 'action', 'repository', 'path'} or operation['action'] not in ('inspect', 'create'):
+        raise ValueError('invalid_evaluation_request')
+    service = configured_evaluations()
+    repository, spec = operation['repository'], operation['path']
+    result = await service.inspect(repository, spec)
+    path, thread_id = configured_source(os.environ['LIB_CHAT_APP_SOCKET'], os.environ['LIB_CHAT_THREAD_ID'], SOURCE_FILE)
+    connected = False
+    try: connected = await console_connected(path, thread_id)
+    except (OSError, ValueError, TimeoutError, ConnectionClosed): pass
+    if operation['action'] == 'create':
+        if not connected: raise ValueError('console_unavailable')
+        async def send(prompt):
+            if configured_source(os.environ['LIB_CHAT_APP_SOCKET'], os.environ['LIB_CHAT_THREAD_ID'], SOURCE_FILE) != (path, thread_id):
+                raise ValueError('console_target_changed')
+            await send_to_console(path, thread_id, prompt)
+        result = await service.create(repository, spec, send, thread_id=thread_id)
+    return {**result, 'connected': connected}
+
+
 async def handle(reader, writer):
     try:
         peer = writer.get_extra_info('socket')
@@ -194,6 +225,14 @@ async def handle(reader, writer):
         try:
             operation = json.loads(line)
         except (ValueError, UnicodeError):
+            return
+        if isinstance(operation, dict) and operation.get('op') == 'spec-eval':
+            try:
+                async with asyncio.timeout(18): result = await spec_evaluation(operation)
+                writer.write((json.dumps(result, ensure_ascii=False) + '\n').encode())
+            except (OSError, ValueError, KeyError, TimeoutError):
+                writer.write(b'{"error":"evaluation_unavailable","connected":false}\n')
+            await writer.drain()
             return
         if isinstance(operation, dict) and set(operation) == {'op', 'text'} and operation.get('op') == 'send' and isinstance(operation.get('text'), str):
             text = operation['text']

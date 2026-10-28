@@ -34,6 +34,7 @@ if (embedded) {
       if (CONSOLE_TTL_OPTIONS.has(event.data.consoleTtlSeconds)) consoleTtlSeconds = event.data.consoleTtlSeconds;
       updateConsoleSection(); notifyParent({ type: 'conversation-state', busy });
     }
+    if (event.data?.type === 'conversation-spec-eval') void handleSpecEvaluation(event);
     if (event.data?.type === 'conversation-start') watch({ type: 'observe' });
     if (event.data?.type === 'conversation-stop') stopWatching();
     if (event.data?.type === 'conversation-theme' && ['light', 'dark'].includes(event.data.theme)) document.documentElement.dataset.theme = event.data.theme;
@@ -261,6 +262,24 @@ async function revokeConsoleCapability() {
   dropConsoleToken();
   consoleAuthorized = false;
   consoleExpiresAt = 0;
+}
+async function handleSpecEvaluation(event) {
+  const { id, action, repository, path } = event.data;
+  if (typeof id !== 'string' || !/^[a-zA-Z0-9-]{1,80}$/.test(id) || !['inspect', 'create'].includes(action) || typeof repository !== 'string' || typeof path !== 'string' || repository.length > 512 || path.length > 512) return;
+  let result;
+  try {
+    const token = action === 'create' ? consoleToken : getSession();
+    if (!token || (action === 'create' && (!consoleAuthorized || consoleExpiresAt <= Date.now() || consoleBusy))) throw new Error('AIチャットで接続と送信許可を確認してください。');
+    const response = await fetch('/lib/api/chat/spec-eval', {
+      method: 'POST', credentials: 'same-origin', cache: 'no-store',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ action, repository, path }), signal: AbortSignal.timeout(25000)
+    });
+    const data = await response.json();
+    if (!response.ok || data.error || typeof data.available !== 'boolean') throw new Error('SPEC評価情報を取得できません。接続・リポジトリ設定・送信許可を確認してください。');
+    result = { ...data, canCreate: data.connected === true && consoleAuthorized && consoleExpiresAt > Date.now() && !consoleBusy };
+  } catch (error) { result = { error: error instanceof Error ? error.message : 'SPEC評価に失敗しました。', canCreate: false }; }
+  window.parent.postMessage({ type: 'conversation-spec-eval-result', id, result }, event.origin);
 }
 async function signedJsonPost(path, value, secret) {
   const body = JSON.stringify(value), timestamp = String(Math.floor(Date.now() / 1000));

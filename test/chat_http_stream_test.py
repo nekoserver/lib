@@ -6,7 +6,7 @@ from pathlib import Path
 import sys
 import time
 import unittest
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, Mock, patch
 from aiohttp.test_utils import TestClient, TestServer
 
 sys.path.insert(0, str(Path(__file__).parents[1] / 'ops'))
@@ -98,6 +98,35 @@ class StreamIntegrationTest(unittest.IsolatedAsyncioTestCase):
              patch.object(backend, 'HEARTBEAT_INTERVAL', 0), patch.object(backend, 'POLL_INTERVAL', 0):
             events = [event async for event in backend.event_stream({'op': 'poll', 'ask_id': ID})]
         self.assertIn({'type': 'heartbeat'}, events)
+
+
+class SpecEvalAuthorizationTest(StreamIntegrationTest):
+    async def test_read_and_write_capabilities_are_separate(self):
+        response = await self.client.post(http.PREFIX+'session', data=b'{"type":"observe"}', headers=self.signed(http.PREFIX+'session', b'{"type":"observe"}'))
+        observer = (await response.json())['token']
+        data={'action':'create','repository':'nekoserver/dynamicneko','path':'SPEC.feature.md'}
+        with patch.object(http.asyncio,'open_unix_connection',new_callable=AsyncMock) as upstream:
+            response=await self.client.post(http.PREFIX+'spec-eval',json=data,headers={'Origin':ORIGIN,'Authorization':'Bearer '+observer})
+            self.assertEqual(response.status,401)
+            response=await self.client.post(http.PREFIX+'spec-eval',json={**data,'action':'inspect'},headers={'Origin':'https://evil.example','Authorization':'Bearer '+observer})
+            self.assertEqual(response.status,403)
+            response=await self.client.post(http.PREFIX+'spec-eval',json={**data,'path':[]},headers={'Origin':ORIGIN,'Authorization':'Bearer '+observer})
+            self.assertEqual(response.status,400)
+            upstream.assert_not_called()
+
+    async def test_console_capability_relays_structured_request_and_revocation_stops_write(self):
+        path=http.PREFIX+'console-session'; body=b'{"type":"console","ttl_seconds":3600}'
+        response=await self.client.post(path,data=body,headers=self.signed(path,body))
+        token=(await response.json())['token']
+        writer=AsyncMock(); writer.write=Mock(); writer.close=Mock(); reader=AsyncMock()
+        reader.readline.return_value=b'{"available":true,"connected":true,"eval":null,"run":{"id":"run","status":"pending"}}\n'
+        with patch.object(http.asyncio,'open_unix_connection',new_callable=AsyncMock,return_value=(reader,writer)):
+            response=await self.client.post(http.PREFIX+'spec-eval',json={'action':'create','repository':'nekoserver/dynamicneko','path':'SPEC.feature.md'},headers={'Origin':ORIGIN,'Authorization':'Bearer '+token})
+            self.assertEqual(response.status,200)
+            self.assertEqual(json.loads(writer.write.call_args.args[0])['op'],'spec-eval')
+        await self.client.delete(path,headers={'Origin':ORIGIN,'Authorization':'Bearer '+token})
+        response=await self.client.post(http.PREFIX+'spec-eval',json={'action':'create','repository':'nekoserver/dynamicneko','path':'SPEC.feature.md'},headers={'Origin':ORIGIN,'Authorization':'Bearer '+token})
+        self.assertEqual(response.status,401)
 
 
 if __name__ == '__main__':

@@ -91,5 +91,42 @@ class ObserverTest(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(all(call['params'].get('threadId') == 'fixed-thread' for call in calls[1:]))
 
 
+    async def test_eval_uses_existing_console_rpc_and_verifies_real_file(self):
+        from spec_eval import SpecEvaluations
+        import subprocess
+        calls=[]
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory); repo=root/'repo'; repo.mkdir()
+            subprocess.run(['git','init','-q',str(repo)],check=True)
+            subprocess.run(['git','-C',str(repo),'remote','add','origin','https://github.com/nekoserver/dynamicneko.git'],check=True)
+            (repo/'SPEC.feature.md').write_text('# Feature')
+            service=SpecEvaluations({'nekoserver/dynamicneko':str(repo)},root/'receipts')
+            async def app_server(ws):
+                async for raw in ws:
+                    message=json.loads(raw)
+                    if 'id' not in message: continue
+                    calls.append(message['method'])
+                    if message['method']=='thread/read': result={'thread':{'status':{'type':'idle'}}}
+                    else: result={}
+                    if message['method']=='turn/start':
+                        prompt=message['params']['input'][0]['text']
+                        self.assertIn(str(repo),prompt)
+                        header=next(line for line in prompt.splitlines() if line.startswith('<!-- tree-view-spec-eval '))
+                        (repo/'EVAL.feature.md').write_text(header+'\n## 評価\n根拠付きの完成した評価本文を保存した。\n')
+                    await ws.send(json.dumps({'id':message['id'],'result':result}))
+            socket=directory+'/app.sock'
+            with patch.object(observer,'configured_evaluations',return_value=service), patch.object(observer,'SOURCE_FILE',root/'absent.json'), patch.dict(observer.os.environ,{'LIB_CHAT_APP_SOCKET':socket,'LIB_CHAT_THREAD_ID':'fixed-thread'}):
+                async with unix_serve(app_server,socket):
+                    operation={'op':'spec-eval','action':'create','repository':'nekoserver/dynamicneko','path':'SPEC.feature.md'}
+                    accepted=await observer.spec_evaluation(operation)
+                    self.assertTrue(accepted['connected'])
+                    self.assertIsNone(accepted['eval'])
+                    result=await observer.spec_evaluation({**operation,'action':'inspect'})
+                    self.assertEqual(result['run']['status'],'completed')
+                    self.assertEqual(result['eval']['path'],'EVAL.feature.md')
+                    await observer.spec_evaluation(operation)
+            self.assertEqual(calls.count('turn/start'),1)
+
+
 if __name__ == '__main__':
     unittest.main()

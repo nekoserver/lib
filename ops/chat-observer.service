@@ -13,7 +13,9 @@ Restart=on-failure
 RestartSec=3
 NoNewPrivileges=true
 ProtectSystem=strict
-ReadWritePaths=/run/lib-chat-observer
+StateDirectory=lib-chat-observer
+StateDirectoryMode=0700
+ReadWritePaths=/run/lib-chat-observer /var/lib/lib-chat-observer
 UMask=0077
 
 [Install]

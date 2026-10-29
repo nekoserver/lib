@@ -1,4 +1,5 @@
 require 'minitest/autorun'
+require 'minitest/mock'
 require_relative '../api/hmac_auth'
 
 class HmacAuthEnvTest < Minitest::Test

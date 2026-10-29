@@ -100,3 +100,7 @@ Start this VM setup after sleep/restart with `/app/start-web.sh`.
 
 Additionally verify a real signed POST, signed poll, unsigned rejection, CGI/SSI,
 and local TLS certificate verification in the deployed environment.
+
+The HMAC environment regression test also uses `minitest/mock`. With Minitest 6,
+install the separate `minitest-mock` test dependency before running
+`ruby test/hmac_auth_env_test.rb`; it isn't a CGI runtime dependency.

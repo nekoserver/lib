@@ -19,9 +19,17 @@ Slack /neko askgk
 
 会話observerは`/run/lib-chat-observer/observer.sock`で、Claude Codeのセッション記録（`/root/.claude/projects`）を配信する。
 
+```
+本体Worker /aichat のパネル（iframe）
+  → https://mygw.nekomaneki.work/lib/conversation-embed.html ・ /lib/chat/ ・ /lib/t/
+  → https://mygw.nekomaneki.work/lib/api/chat/{session,sse,ndjson,jsonseq} → chat_http_stream.py :8092
+  → wss://mygw.nekomaneki.work/lib/api/chat/ws                             → chat_websocket.py   :8091
+  → observer（/run/lib-chat-observer/observer.sock）
+```
+
 ## 再起動後の手順
 
-コンテナを再起動すると、`/var/www/html/lib`、Apacheの追加設定、worker、observerはすべて消える。rootで次を1回実行する（何度実行してもよい）。
+コンテナを再起動すると、`/var/www/html/lib`、Apacheの追加設定、worker、observer、AIチャットのストリームのサーバーはすべて消える。rootで次を1回実行する（何度実行してもよい）。
 
 ```sh
 ~/lib/claude/ops/restore-claude-host.sh
@@ -29,11 +37,12 @@ Slack /neko askgk
 
 行うこと:
 
-1. `lib/api`と`lib/claude/api`を`/var/www/html/lib`へ複製する。`/root`は0700で、Apacheの`www-data`からは`/root/lib`を読めないため。
+1. `lib/api`・`lib/claude/api`・`lib/ops`（`*.py`）・`lib/chat`・`conversation-embed.html`を`/var/www/html/lib`へ複製する。`/root`は0700で、`www-data`からは`/root/lib`を読めないため。
 2. `/etc/apache2/lib-secrets.conf`（root、0600）に`ORIGIN_HMAC_SECRET`とCloudflareのトークンを書く。値は実行時の環境変数から読み、リポジトリには入れない。
 3. `claude/ops/apache-lib-tunnels.conf`を`/etc/apache2/lib-tunnels.conf`に置き、`/etc/apache2/sites-available/000-demo.conf`の`ProxyPass /`より前に`Include`を1行入れる。`/lib/api/tunnels`だけをCGIへ通し、CGIのタイムアウトは330秒。
-4. `apache2ctl configtest`の後に`graceful`で再読込する。
-5. `start-llm-worker-claude.sh`でworker、`start-chat-observer-claude.sh`でobserverを起動する。起動済みなら何もしない。
+4. `claude/ops/apache-lib-chat.conf`を`/etc/apache2/lib-chat.conf`に置き、`RewriteEngine On`の直後に`Include`を1行入れる。AIチャットの埋め込みページ・資産・ストリームを8092へ、WebSocketを8091へ送る。既存の「WebSocketはすべて8080へ」の規則より前に置く必要がある。
+5. `apache2ctl configtest`の後に`graceful`で再読込する。
+6. `start-llm-worker-claude.sh`でworker、`start-chat-observer-claude.sh`でobserver、`start-chat-streams-claude.sh`でストリームのサーバー（`www-data`、ログ`/tmp/chat-http-stream-claude.log`・`/tmp/chat-websocket-claude.log`）を起動する。起動済みなら何もしない。
 
 ### 前提
 
@@ -103,6 +112,7 @@ Claudeへ添えるのは`sanitize_tunnel`後の名前・ID・状態・接続数�
 |---|---|---|
 | `tunnelsの応答にreplyが含まれていません` | Apacheが`/lib/api/tunnels`を`server.js`へ送り、デモの固定JSON（`"message":"cloudflare-workers-github-oauth-1 demo container"`）を返している | `restore-claude-host.sh`を実行 |
 | トンネル一覧が空、`"auth":"error"`・`"error":"[]\n"` | CGIに起動時のトークンが渡っている | 一覧が取れるトークンのある環境で`restore-claude-host.sh`を再実行 |
+| AIチャットのパネルの表示がおかしい（埋め込みにJSONが出る、接続できない） | Apacheが`/lib/conversation-embed.html`・`/lib/api/chat/*`を`server.js`へ送り、デモの固定JSONを返している。またはストリームのサーバーが起動していない | `restore-claude-host.sh`を実行。`ss -ltn`で8091・8092を確認 |
 | `codex_worker_unavailable` | workerが起動していない | `claude/ops/start-llm-worker-claude.sh` |
 | `claude_not_authenticated` | `codex-web`のClaude認証が無い | `/var/lib/codex-web/.claude/.credentials.json`を用意 |
 | 先頭なしの質問でCGIが落ちる（`/var/lib/lib-api/ask`の`Errno::ENOENT`） | 元の`tunnels.rb`の動作（参謀`ask_sanbo.rb`へ送る） | `tunnels.claude.rb`を使う（PR #103で対応） |

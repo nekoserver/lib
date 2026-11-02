@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 require 'minitest/autorun'
 require 'stringio'
+require 'tmpdir'
+require 'socket'
 require_relative '../api/tunnels.claude'
 
 class TunnelsClaudeRbTest < Minitest::Test
@@ -37,6 +39,52 @@ class TunnelsClaudeRbTest < Minitest::Test
     assert_equal [300, 0], seen
   ensure
     LlmPrompt.define_singleton_method(:run_with_caller_wait, original)
+  end
+
+  # Runs the CGI with a signed POST against a fake worker socket and a cached tunnel list.
+  def submitted_job(message)
+    Dir.mktmpdir do |dir|
+      cache = File.join(dir, 'tunnels.json')
+      File.write(cache, JSON.generate([{ 'name' => 'nekoroot', 'id' => 'x', 'status' => 'healthy', 'connections' => 3,
+                                         'credentials_file' => 'secret-path' }]))
+      sock = File.join(dir, 'worker.sock')
+      server = UNIXServer.new(sock)
+      seen = Thread.new do
+        client = server.accept
+        job = JSON.parse(client.gets)
+        client.puts(JSON.generate('ask_status' => 'done', 'ask_id' => "#{job['engine']}-00000000-0000-0000-0000-000000000000", 'reply' => 'ok'))
+        client.close
+        job
+      end
+      body = JSON.generate('message' => message)
+      ts = Time.now.to_i.to_s
+      path = '/lib/api/tunnels'
+      env = { 'REQUEST_METHOD' => 'POST', 'REQUEST_URI' => path, 'SCRIPT_NAME' => path,
+              'CONTENT_TYPE' => 'application/json', 'CONTENT_LENGTH' => body.bytesize.to_s,
+              'HTTP_X_TIMESTAMP' => ts, 'HTTP_X_SIGNATURE' => HmacAuth.sign('test-secret', 'POST', path, ts, body),
+              'ORIGIN_HMAC_SECRET' => 'test-secret', 'REMOTE_ADDR' => '203.0.113.9',
+              'LIB_CODEX_SOCKET' => sock, 'LIB_TUNNELS_CACHE' => cache }
+      out, err, = Open3.capture3(env, RbConfig.ruby, File.expand_path('../api/tunnels.claude.rb', __dir__), stdin_data: body)
+      assert_includes out, %q("reply": "ok"), err
+      seen.value
+    ensure
+      server&.close
+    end
+  end
+
+  def test_a_message_without_an_engine_prefix_goes_to_claude
+    assert_equal 'claude', submitted_job('トンネルの状態を教えて')['engine']
+    assert_equal 'codex', submitted_job('codex_prompt="hello"')['engine']
+  end
+
+  # The sandbox has no Cloudflare credentials, so Claude gets the list the API already fetched.
+  def test_claude_prompt_carries_the_sanitized_tunnel_list
+    prompt = submitted_job('トンネルの状態を教えて')['prompt']
+    assert_includes prompt, '"name":"nekoroot"'
+    assert_includes prompt, '"count":3'
+    refute_includes prompt, 'secret-path'
+    assert prompt.end_with?("トンネルの状態を教えて"), prompt
+    assert_equal 'hello', submitted_job('codex_prompt=hello')['prompt']
   end
 
   def test_loading_does_not_run_the_cgi

@@ -66,6 +66,7 @@
 | `--allowedTools`のBashをコマンド単位にする（例: `Bash(cf tunnels *)`） | askgkで使う質問（`tunnels-list`、`models-list`、`settings`、自由記述）が答えられ、許可外のコマンドが拒否されることを確かめる |
 
 決めること: 1回あたりの金額。許可するコマンドの一覧（先に、今の質問で使われているコマンドを洗い出す）。
+この段階でClaudeとCodexの設定が離れるため、問い合わせ先を分けるかも見直す（[`DESIGN.claude-engines.20261102.md`](DESIGN.claude-engines.20261102.md)）。
 
 ## 段階3: 体験の改善
 

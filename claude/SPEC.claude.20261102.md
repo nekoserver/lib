@@ -13,9 +13,13 @@ lib/claude/
 ├── ops/claude-helper.sh              Claude CLIヘルパー（元: ops/claude-helper.sh）
 ├── ops/llm-worker-claude.service
 ├── ops/start-llm-worker-claude.sh    systemdの無いホスト用の起動
+├── ops/start-chat-observer-claude.sh observerの起動（同上）
+├── ops/restore-claude-host.sh        初期設定時の復元（CGI公開・worker・observer）
+├── ops/apache-lib-tunnels.conf       /lib/api/tunnelsをCGIへ通すApacheの設定
 ├── test/chat_observer_claude_test.py
 ├── test/llm_worker_claude_test.py
 ├── test/tunnels_claude_rb_test.rb
+├── test/restore_claude_host_test.py
 └── test/manual/                      実際にClaudeを呼ぶ確認の手順とスクリプト（MANUAL_CHECKS.md）
 ```
 
@@ -30,6 +34,8 @@ APIの形、HMAC認証、IP許可、フィルタ、`message`・`ask_id`・`claud
 - shebangは`#!/usr/bin/env ruby`（PATH上のruby）。
 - `cf tunnels list --json`で取得する。`--json`なしの出力は表形式でJSONとして読めない（元では`json_parse_error`）。
 - `connections`が配列でなく接続数（整数）で返る場合はその値を`count`とする。`colos`・`created_at`は`cf`が返さないため空になる。
+- エンジンの先頭（`codex_prompt=`等）が無い`message`はClaudeへ送る（`tunnels-claude.rb`と同じ`default_engine: :claude`）。元は参謀（`ask_sanbo.rb`）へ送り、このホストでは`/var/lib/lib-api/ask`が無く例外で落ちる（2026-11-02確認）。
+- Claudeへのプロンプトの前に、その要求で取得済みのトンネル一覧（`sanitize_tunnel`後の`tunnels`、`fetched_at`、`error`）を添える。workerのsandboxにはCloudflareの認証情報が無く（`cf`は`CLOUDFLARE_ACCOUNT_IDが未設定`）、PID名前空間も別でcloudflaredが見えないため、添えないと「トンネルは動いていない」と誤答した（2026-11-02確認）。Codexへのプロンプトは変えない。
 - `message`付きのLLM要求の待ち時間を90秒から300秒にする（`LlmPrompt::WAIT_SECONDS`）。`wait 0`（投入のみ、`ask_id`で照会）の呼出しは0のまま。CGIを置くWebサーバーのタイムアウトは300秒より長くすること。
 
 ## chat_observer_claude.py
@@ -60,6 +66,17 @@ Codex app-serverの代わりにClaude Codeのセッション記録`$LIB_CHAT_CLA
 - URLのパス: 埋め込み`/lib/conversation-embed.html`、WebSocket`/lib/api/chat/ws`（`wss`）、SSE・NDJSON・JSON Text Sequence`/lib/api/chat/{sse,ndjson,jsonseq}`。本体Workerの`conversationStreamEndpoints`と同じ。
 - 本体Worker: 台帳のファイル`src/data/conversation-stream-routes.json`（`routes`に`id`・`origin`・`label`・`enabled`、任意の`autoPriority`）を書き換えて接続先を切り替える。試験運用のあいだは環境変数での差し替えは設けない（2026-11-02、利用者の判断）。不正な台帳なら止める。詳細は[`FEATURES.claude.20261102.md`](FEATURES.claude.20261102.md)の機能9。
 
+## 初期設定時の復元（restore-claude-host.sh）
+
+コンテナの再起動で、`/var/www/html/lib`、Apacheの設定、worker・observerは消える。rootで`claude/ops/restore-claude-host.sh`を実行すると次を行う。何度実行してもよい。
+
+1. `lib/api`と`lib/claude/api`を`/var/www/html/lib`へ複製する（`/root`は0700で`www-data`が辿れない）。
+2. `/etc/apache2/lib-secrets.conf`（0600）に`ORIGIN_HMAC_SECRET`とCloudflareのトークンを書く。トークンは`LIB_TUNNELS_CF_TOKEN`、無ければ実行者の`CF_CONTAINER_API_TOKEN`。entrypoint.shがApacheに渡すトークン（`/etc/profile.d/cf-env.sh`）では`cf tunnels list`が`[]`になるため使わない（2026-11-02確認）。
+3. `apache-lib-tunnels.conf`を`/etc/apache2/lib-tunnels.conf`に置き、VirtualHostの`ProxyPass /`より前でIncludeする。これが無いとApacheが全パスを`server.js`へ送り、`/lib/api/tunnels`はデモの固定JSONを返す（`/neko askgk`は「tunnelsの応答にreplyが含まれていません」）。CGIのタイムアウトは330秒。
+4. Apacheを再読込し、`start-llm-worker-claude.sh`と`start-chat-observer-claude.sh`で起動する。observerの監視対象は既定で`workspace:/root`。
+
+確認（2026-11-02）: 実行後、Apache経由の`/lib/api/tunnels`でトンネル2件、Workerと同形の署名付きPOSTで`ask_status: done`と`reply`が返る。Slackからの`/neko askgk`は未確認。
+
 ## 検証済み（2026-11-01〜02、cf-container上）
 
 - `tunnels.claude.rb`: GET/HTML・`status=healthy`の絞込でトンネル一覧を返す。
@@ -76,7 +93,7 @@ Codex app-serverの代わりにClaude Codeのセッション記録`$LIB_CHAT_CLA
 - Slack → Cloudflare Worker → rust-worker-sqlx-d1 → tunnels API の経路。応答が待ち時間内に返ったため、`ask_id`照会の経路も未通過。
 - `/neko askgk`はCloudflare Worker側でD1の「askgkの待ち時間」（既定120秒）で打ち切る。300秒待たせるには本番`/settings`で300に変更が必要（未変更）。
 - workerは手動起動（`start-llm-worker-claude.sh`、ログ`/tmp/llm-worker-claude.log`）。コンテナ再起動で止まる。常駐にはcf-containerの`entrypoint.sh`への追加が必要（未変更）。
-- このホストのApacheは`/lib`を公開しておらず、`Timeout 300`のまま。`/lib/claude/api`のCGI実行設定も未確認。
+- このホストのApacheは`/lib/api/tunnels`だけを`restore-claude-host.sh`でCGIへ通す。他の`/lib`は公開しない。
 - observerの`spec-eval create`はEVALの保存まで完了しない（上記）。送信時に対象リポジトリの読み書きを許可する必要があるが、権限を広げる判断のため未実装。Codex版observerとCodex app-serverの接続は、このホストにapp-serverが無く未試験。
 
 ## 反映

@@ -1,0 +1,23 @@
+[Unit]
+Description=Observer and authenticated input bridge for the configured Claude Code conversation
+After=network.target
+Conflicts=chat-observer.service
+
+[Service]
+User=root
+Group=www-data
+EnvironmentFile=/etc/lib-chat.env
+ExecStart=/usr/bin/python3 /var/www/html/lib/claude/ops/chat_observer_claude.py
+RuntimeDirectory=lib-chat-observer
+RuntimeDirectoryMode=0750
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=true
+ProtectSystem=strict
+StateDirectory=lib-chat-observer
+StateDirectoryMode=0700
+ReadWritePaths=/run/lib-chat-observer /var/lib/lib-chat-observer /root/.claude /root/.claude.json
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

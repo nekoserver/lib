@@ -4,6 +4,103 @@
 評価対象: `lib/claude`の未コミットの作業ツリー（`api/tunnels.claude.rb`、`ops/chat_observer_claude.py`、`ops/llm_worker_claude.py`、`ops/claude-helper.sh`、`ops/*.service`、`ops/start-llm-worker-claude.sh`、`test/chat_observer_claude_test.py`）
 評価の基準: [`SPEC.claude.20261102.md`](SPEC.claude.20261102.md)（仕様どおりか）、[`SUGGEST.claude.20261102.md`](SUGGEST.claude.20261102.md)（Claude Code固有の機能をどこまで使えているか）
 
+## 追記: 実装状況にもとづくSPECの再評価（2026-11-02、PR #103・#104の後）
+
+**対象**: `main`（PR #103マージ後）の`lib/claude`と、このコンテナで動いている状態（`restore-claude-host.sh`で構成） — SPECの各記述が今の実装・動作と合っているかを、コードと実行結果で確かめ直した。以下の本文（「総合評価」以降）はPR #103より前の評価として残す。
+
+### 総合
+
+SPECの中心である「元ファイルを変えずに、本番の配置がないホストでtunnels API・worker・observerを動かす」は満たしている。再起動後の復元がスクリプト1本で再現でき、Apache経由（Slackと同じ入口）でClaudeが正しい内容で答えるところまで確認した。前回の不具合1・2・4は直っており、テストも差し替え部分を押さえている。
+
+一方で、SPECの記述が実装に追いついていない箇所がいくつかある（下の「SPECの記述の不整合」）。また、`message`付きの要求が`wait_seconds`を無視して最大300秒待つ点は、Cloudflare経由の経路で打ち切られる恐れがあり、SPECにも書かれていない。
+
+| 観点 | 前回 | 今回 |
+|---|---|---|
+| SPECへの適合（表示・応答） | 良い | 良い。Apache経由の入口とClaudeの回答内容まで確認 |
+| SPECへの適合（observerの送信） | 不具合あり | 適合（修正済み、実際の送信で確認済み） |
+| 元ファイルを変えない方針 | 守れている | 守れている（PR #103の変更は`claude/`のみ） |
+| テスト | 不足 | おおむね十分。差し替え部分はすべてテストあり。`wait_seconds`の扱いは未検証 |
+| 運用（復元・常駐・タイムアウト） | 未整備 | 復元は整備（スクリプト）。自動起動は未対応。タイムアウトに新たな懸念 |
+| SPECの記述の正確さ | — | 要修正（古い件数、矛盾、このホストに合わない「反映」） |
+| Claude固有の機能の活用（SUGGEST） | 未着手 | 未着手のまま |
+
+### SPECの記述ごとの確認
+
+| SPECの記述 | 確認方法 | 結果 |
+|---|---|---|
+| 構成（ファイル一覧） | `ls`と照合 | 適合。PR #103の4ファイルも記載済み |
+| tunnels: shebang・`--json`・接続数が整数 | Apache経由の`GET`でトンネル一覧を取得、テスト | 適合 |
+| tunnels: 先頭なしの`message`はClaudeへ | テスト（偽のworkerソケットで投入エンジンを記録）、Apache経由の実際の質問 | 適合 |
+| tunnels: Claudeへのプロンプトにトンネル一覧を添える | テスト（一覧が入り、`sanitize_tunnel`で落とす項目は入らない）、実際の質問で`term-root`停止を正しく回答 | 適合。Codexへのプロンプトは変わらないこともテストで確認 |
+| tunnels: 待ちは`message`付きで300秒、`wait 0`は0 | `tunnels_lib.rb`の180行目を確認 | **記述があいまい**。待ちを決めるのは`message`キーの有無だけで、リクエストの`wait_seconds`は読んでいない。下の新たな不具合Aを参照 |
+| tunnels: Webサーバーのタイムアウトを300秒超に | `apache-lib-tunnels.conf`の`CGIDScriptTimeout 330` | Apacheについては適合。その手前のCloudflareの制限は考慮されていない（不具合A） |
+| askgk: 署名付きPOSTに応答、署名なしは401 | Apache経由で実行 | 適合（8〜9秒で`done`、署名なしは`401`） |
+| worker: sandbox、helperのbind、`/root`は作業ディレクトリのみ | テスト5件、前回の実行結果 | 適合 |
+| worker: sandbox内で`cf`が使えない | askgk経由で`cf tunnels list`を実行させた | 事実として適合（`CLOUDFLARE_ACCOUNT_IDが未設定`）。SPECはこれを前提にトンネル一覧を添える設計にした |
+| observer: ソケット・プロトコル・出力の形 | 本来のソケットで`watch` | 適合 |
+| observer: `workspace:`で最新の記録を追う | `workspace:/root`で起動し、`watch`でこの会話（タイトル「Tunnels.rbとobserverの復旧」）を受信 | 適合。**前回「未確認」から確認済みに変わった**。`/root`以外のパスは未確認 |
+| observer: 送信、`--`、CLIの選択 | テスト、前回の実際の送信 | 適合 |
+| observer: `spec-eval create` | 前回の確認のまま | SPECの記述どおり、EVALの保存まで完了しない（権限の判断待ち） |
+| 復元: 4つの処理、何度実行してもよい | テスト4件（一時ディレクトリ）、vhostを元に戻してから実際に実行 | 適合。2回目の実行で`Include`が重複しないこともテストで確認 |
+| 復元: 起動時のトークンでは一覧が`[]` | Apacheの環境のトークンで`cf`を実行 | 適合（2026-11-02時点） |
+| stream_routes・本体Workerの台帳 | 今回は触っていない | 未再確認（テスト`stream_routes_test.py`は通過） |
+
+### SPECの記述の不整合（直すべき箇所）
+
+| 箇所 | 内容 |
+|---|---|
+| 「tunnels.claude.rb」の冒頭 | 「`message`・`ask_id`・`claude_prompt=`等の振り分けは`tunnels.rb`と同じ」とあるが、同じ節の下で先頭なしの`message`をClaudeへ送ると書いており、矛盾する。冒頭から「振り分け」を外す |
+| 「検証済み」のテスト件数 | 「Python 12件、Ruby 4件」は古い。今は`claude/test`のPython 22件、Ruby 6件 |
+| 「未確認・未対応」のworker | 「workerは手動起動。コンテナ再起動で止まる」は事実だが、`restore-claude-host.sh`で1回で戻せることが書かれていない |
+| 「反映」 | systemdと`/var/www/html/lib/claude`への全体の配置を前提にしている。このコンテナにはsystemdが無く（PID 1は`init`）、`restore-claude-host.sh`は`api`だけを複製し、workerとobserverは`/root/lib`から起動する。このホスト向けの手順（`restore-claude-host.sh`）と、systemdのあるホスト向けの手順を分けて書く |
+| 待ち時間の記述 | 「`wait 0`（投入のみ）の呼出しは0のまま」は、`wait_seconds: 0`を送れば投入だけになると読める。実際は`message`キーがあれば必ず300秒まで待つ（不具合A） |
+| `/usage`・`/status` | 先頭なしの`message`をClaudeへ送るため、元ではCodexへ送る`/usage`・`/status`もClaudeにプロンプトとして渡る（`LlmPrompt.route`で確認）。SPECに記載が無い |
+
+### 新たに見つかった問題
+
+**A. `message`付きの要求は`wait_seconds`を無視して最大300秒待つ（重大度: 中）**
+
+- 箇所: `api/tunnels_lib.rb`の`attach_message!`が`filters.key?('message') ? 90 : 0`で待ち時間を決め、別名版が正の値を300秒に置き換える。リクエストの`wait_seconds`は読んでいない。
+- 影響: `claude/test/manual/askgk_request.rb`は「`wait_seconds: 0`で投入し、`ask_id`で照会する」と書いているが、実際には最初の要求が回答まで待つ。今回の確認がすべて1回の要求で`done`になったのはこのため。Cloudflare経由の要求は、一般にオリジンの応答を100秒程度で打ち切る（524）。100秒を超える回答では、Workerに結果が届かない恐れがある。
+- 確認状況: 待ち時間の決め方はコードで確認。Cloudflareでの打ち切りと、Worker側がそれをどう扱うかは未確認（試していない）。
+- 対処案（要合意）: 別名版でリクエストの`wait_seconds`を尊重する。または待ちの上限をCloudflareの制限より短くし、残りは`ask_id`の照会に任せる。どちらもWorkerとの取り決めに関わる。
+
+**B. 復元が実行者のシェルのトークンに依存する（重大度: 中、運用）**
+
+- 起動時のトークンでは一覧が取れないため、`restore-claude-host.sh`はClaude Codeのシェルにあるトークンを使う。このため`entrypoint.sh`から自動で実行しても、一覧が空になる。自動起動の前に、起動時のトークンの権限を直すか、トークンの渡し方を決める必要がある。
+
+**C. その他（重大度: 低）**
+
+| 箇所 | 内容 |
+|---|---|
+| `restore-claude-host.sh` | vhost（`000-demo.conf`）を直接書き換える。コンテナのイメージ側でvhostが変わると、`ProxyPass /`が見つからず止まる（その場合はエラーで終了する作り） |
+| `/etc/apache2/lib-secrets.conf` | HMACの鍵とトークンを平文で置く（root、0600）。Apacheの子プロセス（`www-data`）からは読めないが、CGIの環境変数には入る。今このvhostで動くCGIは`tunnels.claude.rb`だけ |
+| askgkの回答 | 前回の「`/root/lib`はコミットがない」に加え、今回も未コミットのファイルがある時点で「uncommitted changesは無い」と答えた。sandbox内の`codex-web`から見たgitの扱いによると思われる。未確認 |
+| 前回の「Apacheの`Timeout 300`と同じ値」 | `CGIDScriptTimeout 330`で解消。ただし不具合Aのとおり、手前のCloudflareの制限が先に来る |
+
+### テスト
+
+- `claude/test`: Python 22件、Ruby 6件、すべてOK。
+- 元のテスト: `test/tunnels_claude_test.rb`、`test/llm_prompt_test.rb`、`test/chat_observer_test.py`、`test/chat_websocket_test.py`、`test/llm_worker_test.py`はOK（`PYTHONPATH=ops`で直接実行。`python3 -m unittest test.…`の形では`test`がパッケージでないため読み込めない）。
+- 未検証: `wait_seconds`の扱い（不具合A）、`/usage`のClaudeへの振り分け、実際のコンテナ再起動後の復元。
+
+### SUGGESTに対する現状
+
+前回から実装済みになったものは無い。トンネル一覧をプロンプトに添える変更は、SUGGEST 8（`sanitize_tunnel`と同じ項目だけを返すMCPツール）と同じ目的、つまり許可した項目だけをClaudeに見せるものを、より簡単な形で先に入れたものと言える。MCPにすると、Claudeが必要なときだけ取得でき、Bashを外す（SUGGEST 3）ことも検討できる。
+
+### 推奨する対応の順
+
+1. SPECの記述を直す（上の「不整合」の6点）。合意は要らない。
+2. 不具合Aの方針を決める（`wait_seconds`を尊重するか、待ちの上限を下げるか）。Workerとの取り決めに関わるため合意が要る。決めたら、先に失敗するテストを書いてから直す。
+3. Slackからの`/neko askgk`を確かめる。長い回答（100秒超）で照会の経路も通す。
+4. 起動時のトークンの権限を直し、`entrypoint.sh`から`restore-claude-host.sh`を呼ぶ（不具合B、PLANの段階1）。
+5. PLANの段階2（費用上限、Bashの絞り込み）。
+
+### 確認したこと・していないこと
+
+- 確認（2026-11-02）: 上の表の「確認方法」に書いたもの。テストの実行、Apache経由の要求（トンネル一覧、先頭なしの質問、`claude_prompt=`、`hello`、署名なしの401）、observerの`watch`、`LlmPrompt.route`での`/usage`の振り分け、`tunnels_lib.rb`の待ち時間のコード、systemdが無いこと。
+- 未確認: Slack〜Cloudflare Worker〜rust-worker-sqlx-d1の経路、100秒を超える回答でのCloudflareの打ち切り、`ask_id`照会の経路、実際のコンテナ再起動後の復元、`workspace:`の`/root`以外のパス、stream_routesと本体Workerの台帳（今回は触っていない）。
+
 ## 追記: 不具合1・2の修正（2026-11-02）
 
 **対象**: `ops/chat_observer_claude.py`の`send_to_console`・`public_snapshot`、`test/chat_observer_claude_test.py` — 下記の不具合1・2を修正し、修正の確認中に見つかった不具合4も修正した。以下の本文は修正前の評価として残す。

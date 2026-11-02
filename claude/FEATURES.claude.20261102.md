@@ -110,18 +110,18 @@
 
 - それまで接続先は4か所に固定値で書かれていた（`conversationStreamHosts.ts`の表、パネルの`<option>`、死活確認、CSPの`frame-src`）。これを1つの台帳と解決関数にまとめた。
 - 台帳: 経路ごとに`id`・`origin`（トンネルの公開ホスト）・`label`（省略時はホスト名）・`enabled`。`autoPriority`は「自動」で試す順（省略時は表示順）。
-- `CONVERSATION_STREAM_ROUTES`（Workerの変数、台帳全体のJSON）で差し替える。未指定時は同梱の台帳（従来の4つ、表示順・自動の順も従来どおり）。askgkの経路台帳（`ASKGK_ROUTES`）と同じ方式。
-- 明示した台帳が不正なら既定へ戻さない。死活確認は500と理由、`/aichat`は`frame-src 'none'`にしてパネルに理由を表示し、開始できなくする。
+- 台帳は`src/data/conversation-stream-routes.json`（従来の4つ、表示順・自動の順も従来どおり）。試験運用のあいだは、このファイルを書き換えて切り替える。環境変数での差し替えは設けない（2026-11-02、利用者の判断）。
+- 台帳が不正なら、誤った接続先を使わず止める。死活確認は500と理由、`/aichat`は`frame-src 'none'`にしてパネルに理由を表示し、開始できなくする。
 - `conversationStreamEndpoints(origin)`で、1つのoriginから埋め込みと各通信方式のURLを組み立てる。
 - 元: `conversationStreamHosts.ts`・`conversationStreamPanel.ts`（[`f4273a8c`](https://github.com/nekoserver/cloudflare-workers-github-oauth-1/commit/f4273a8c) 2026-10-26 feat: add Redmine observer as auto stream host）、`containerEndpoints.ts`（[`ae340fdf`](https://github.com/nekoserver/cloudflare-workers-github-oauth-1/commit/ae340fdf) 2026-10-21）、`conversationStreamHealth.ts`（[`264d4c72`](https://github.com/nekoserver/cloudflare-workers-github-oauth-1/commit/264d4c72) 2026-10-21）
-- 確認: 関連テスト37件（新規の台帳テスト、死活確認、エンドポイント、CSP、パネル）。出力したページの`<script>`を`node --check`（既定・別の台帳・設定エラーの3通り）。デプロイ、本番での切替は未実施。
+- 確認: 関連テスト33件（新規の台帳テスト、死活確認、エンドポイント、CSP、パネル）。出力したページの`<script>`を`node --check`（既定・別の台帳・設定エラーの3通り）。デプロイ、本番での切替は未実施。
 - 既存テスト2件（`aichat-stream-frame-csp.test.ts`、`conversation-stream-health-endpoint.test.ts`）は、変更前からRedmine追加後の順序に追従しておらず失敗していた。今回の変更で実際の順序に合わせた。
 
 ### コンテナを切り替えるときの手順
 
 1. コンテナ側: `python3 lib/claude/ops/stream_routes.py env`の値を、ストリームのサーバー（`chat_websocket.py`・`chat_http_stream.py`）の`LIB_CHAT_ORIGINS`に設定して再起動する。
-2. 同じく`stream_routes.py worker --id <ID>`の出力を、本体Workerの`CONVERSATION_STREAM_ROUTES`の`routes`に加える（必要なら`autoPriority`も）。
-3. 本体Workerの変数を更新する（デプロイは利用者の環境から）。次のリクエストから反映される。
+2. 同じく`stream_routes.py worker --id <ID>`の出力を、本体Workerの台帳`src/data/conversation-stream-routes.json`の`routes`に加える（必要なら`autoPriority`も）。
+3. テストを通してから本体Workerをデプロイする（デプロイは利用者の環境から）。
 
 ## 10. テストと手動確認の手順
 

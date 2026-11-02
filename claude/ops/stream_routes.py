@@ -5,8 +5,8 @@ Which public hostname reaches this container depends on the tunnel it was starte
 with (entrypoint.sh renders /etc/cloudflared/ingress.yml from NEKOROOT_HOSTNAME).
 The embed page connects to its own origin, so the stream servers must accept that
 origin (LIB_CHAT_ORIGINS) and the main Worker must list it as a stream route
-(CONVERSATION_STREAM_ROUTES, src/utils/conversationStreamRoutes.ts there).
-This derives both from the ingress, so switching containers needs no hand edits.
+(src/data/conversation-stream-routes.json there, validated by
+src/utils/conversationStreamRoutes.ts). This derives both from the ingress.
 
     stream_routes.py env    [--ingress PATH]            # LIB_CHAT_ORIGINS=... (keeps existing values)
     stream_routes.py worker [--ingress PATH] --id ID    # route entries for the Worker ledger (JSON)

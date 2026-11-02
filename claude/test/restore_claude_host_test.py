@@ -1,0 +1,64 @@
+import os
+from pathlib import Path
+import subprocess
+import tempfile
+import unittest
+
+SCRIPT = Path(__file__).parents[1] / 'ops/restore-claude-host.sh'
+SITE = """<VirtualHost *:8443>
+    ProxyRequests Off
+    ProxyPass / http://127.0.0.1:8080/ retry=0
+    ProxyPassReverse / http://127.0.0.1:8080/
+</VirtualHost>
+"""
+
+
+class RestoreClaudeHostTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        root = Path(self.tmp.name)
+        self.www, self.apache = root / 'www/lib', root / 'apache2'
+        (self.apache / 'sites-available').mkdir(parents=True)
+        self.site = self.apache / 'sites-available/000-demo.conf'
+        self.site.write_text(SITE)
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def run_script(self, **env):
+        base = {'PATH': os.environ['PATH'], 'LIB_WWW': str(self.www), 'LIB_APACHE_DIR': str(self.apache),
+                'LIB_RESTORE_NO_START': '1', 'ORIGIN_HMAC_SECRET': 'hmac-test', 'CF_CONTAINER_API_TOKEN': 'cf-test'}
+        return subprocess.run(['sh', str(SCRIPT)], env={**base, **env}, capture_output=True, text=True)
+
+    def test_routes_tunnels_before_the_server_js_proxy(self):
+        self.assertEqual(self.run_script().returncode, 0)
+        lines = self.site.read_text().splitlines()
+        include = lines.index(f'    Include {self.apache}/lib-tunnels.conf')
+        self.assertLess(include, next(i for i, line in enumerate(lines) if line.strip().startswith('ProxyPass / ')))
+        conf = (self.apache / 'lib-tunnels.conf').read_text()
+        self.assertIn(f'Include {self.apache}/lib-secrets.conf', conf)
+        self.assertIn(f'ScriptAlias /lib/api/tunnels {self.www}/claude/api/tunnels.claude.rb', conf)
+        self.assertTrue((self.www / 'claude/api/tunnels.claude.rb').is_file())
+        self.assertTrue((self.www / 'api/tunnels_lib.rb').is_file())
+
+    def test_is_idempotent(self):
+        self.run_script()
+        self.assertEqual(self.run_script().returncode, 0)
+        self.assertEqual(self.site.read_text().count('lib-tunnels.conf'), 1)
+
+    def test_secrets_are_private_and_prefer_the_explicit_token(self):
+        self.run_script(LIB_TUNNELS_CF_TOKEN='cf-explicit')
+        secrets = self.apache / 'lib-secrets.conf'
+        self.assertEqual(secrets.stat().st_mode & 0o777, 0o600)
+        self.assertEqual(secrets.read_text(), 'SetEnv ORIGIN_HMAC_SECRET "hmac-test"\n'
+                                              'SetEnv CF_CONTAINER_API_TOKEN "cf-explicit"\n')
+
+    def test_requires_the_secret(self):
+        result = self.run_script(ORIGIN_HMAC_SECRET='')
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('ORIGIN_HMAC_SECRET', result.stderr)
+        self.assertEqual(self.site.read_text(), SITE)
+
+
+if __name__ == '__main__':
+    unittest.main()

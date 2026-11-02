@@ -1,0 +1,129 @@
+# cf-containerでのlib/claude（tunnels API・worker・observer）の設定手順
+
+作成日: 2026-11-02
+**対象**: Claude Codeが動くcf-container（`mygw.nekomaneki.work`、トンネル`nekoroot`） — コンテナの再起動後に、`/neko askgk`への応答と会話observerを戻す手順と、2026-11-02に行った復旧の記録。
+
+関連: [`claude/SPEC.claude.20261102.md`](claude/SPEC.claude.20261102.md)（仕様）、[`claude/test/manual/MANUAL_CHECKS.md`](claude/test/manual/MANUAL_CHECKS.md)（手動確認）、[`claude/DESIGN.claude-engines.20261102.md`](claude/DESIGN.claude-engines.20261102.md)（CodexとClaudeの分け方）、PR [#103](https://github.com/nekoserver/lib/pull/103)。
+
+## 構成
+
+```
+Slack /neko askgk
+  → Cloudflare Worker → rust-worker-sqlx-d1
+  → https://mygw.nekomaneki.work/lib/api/tunnels （HMAC署名付きPOST）
+  → cloudflared（/etc/cloudflared/ingress.yml）→ Apache :8443
+      /lib/api/tunnels → CGI /var/www/html/lib/claude/api/tunnels.claude.rb
+      それ以外        → server.js :8080
+  → LLM worker（/run/lib-codex/worker.sock）→ bwrap sandbox → claude -p（codex-webの認証）
+```
+
+会話observerは`/run/lib-chat-observer/observer.sock`で、Claude Codeのセッション記録（`/root/.claude/projects`）を配信する。
+
+## 再起動後の手順
+
+コンテナを再起動すると、`/var/www/html/lib`、Apacheの追加設定、worker、observerはすべて消える。rootで次を1回実行する（何度実行してもよい）。
+
+```sh
+~/lib/claude/ops/restore-claude-host.sh
+```
+
+行うこと:
+
+1. `lib/api`と`lib/claude/api`を`/var/www/html/lib`へ複製する。`/root`は0700で、Apacheの`www-data`からは`/root/lib`を読めないため。
+2. `/etc/apache2/lib-secrets.conf`（root、0600）に`ORIGIN_HMAC_SECRET`とCloudflareのトークンを書く。値は実行時の環境変数から読み、リポジトリには入れない。
+3. `claude/ops/apache-lib-tunnels.conf`を`/etc/apache2/lib-tunnels.conf`に置き、`/etc/apache2/sites-available/000-demo.conf`の`ProxyPass /`より前に`Include`を1行入れる。`/lib/api/tunnels`だけをCGIへ通し、CGIのタイムアウトは330秒。
+4. `apache2ctl configtest`の後に`graceful`で再読込する。
+5. `start-llm-worker-claude.sh`でworker、`start-chat-observer-claude.sh`でobserverを起動する。起動済みなら何もしない。
+
+### 前提
+
+- 環境変数`ORIGIN_HMAC_SECRET`と、トンネルを読めるCloudflareのトークン（`LIB_TUNNELS_CF_TOKEN`、無ければ`CF_CONTAINER_API_TOKEN`）。Claude Codeのシェルには両方ある。
+- `codex-web`ユーザーとClaudeの認証`/var/lib/codex-web/.claude/.credentials.json`。
+- Claudeのネイティブバイナリ`/opt/node22/lib/node_modules/@anthropic-ai/claude-code/node_modules/@anthropic-ai/claude-code-linux-x64/claude`。`/opt/node22/bin/claude`はネイティブバイナリの無いスタブで動かない。
+- 2026-11-02の再起動では、認証とネイティブバイナリは起動後に用意されていた（04:22・04:26）。何が置いたかは未確認。
+
+### トークンの注意
+
+コンテナ起動時のトークン（`/etc/profile.d/cf-env.sh`、Apacheの環境にも入る）では`cf tunnels list --json`が`[]`を返す。Claude Codeのシェルのトークンでは一覧が取れる。そのため、復元スクリプトは実行者の環境のトークンを`lib-secrets.conf`に書く。起動時のトークン（`/cf-containers`のトークン設定）にトンネルの読取権限があるかは見直しが必要。
+
+### observerの監視対象
+
+既定は`workspace:/root`で、`/root`で最新のClaude Codeセッションを追う。固定する場合は次のどちらか。
+
+- `LIB_CHAT_CLAUDE_SESSION=<セッションID>`を付けて`start-chat-observer-claude.sh`を実行する（起動中なら先に止める）。
+- `/var/lib/lib-chat-observer/claude-source.json`に`{"sessionId":"…"}`か`{"followWorkspace":"/絶対パス"}`を書く。root所有、0600。
+
+## 確認
+
+`~/lib`で実行する。
+
+```sh
+# 単体テスト
+python3 -m unittest discover -s claude/test -p '*_test.py'
+ruby claude/test/tunnels_claude_rb_test.rb
+
+# トンネル一覧（127.0.0.1からのGETはIP許可で通る）
+curl -sk 'https://127.0.0.1:8443/lib/api/tunnels?status=healthy'
+
+# askgkと同じ署名付きリクエスト（CGIを直接実行）
+ruby claude/test/manual/askgk_request.rb
+
+# 署名なしPOSTは401
+curl -sk -o /dev/null -w '%{http_code}\n' -X POST https://127.0.0.1:8443/lib/api/tunnels \
+  -H 'Content-Type: application/json' -d '{"message":"x"}'
+```
+
+期待する結果:
+
+- トンネル一覧に`cfc-tunnel`・`nekoroot`がある（`"auth": "api_token"`）。
+- askgkは`"ask_status": "done"`と`reply`、`llm_model: claude-opus-5-5`。数秒〜十数秒。
+- 署名なしは`401`。
+
+observerは、ソケットに`{"op":"watch"}`を送ると`type: conversation`のスナップショットが返る。
+
+```sh
+python3 -c 'import socket; s=socket.socket(socket.AF_UNIX); s.connect("/run/lib-chat-observer/observer.sock"); s.sendall(b"{\"op\":\"watch\"}\n"); print(s.makefile().readline()[:300])'
+```
+
+ログ: worker`/tmp/llm-worker-claude.log`、observer`/tmp/chat-observer-claude.log`、Apache`/var/log/apache2/nekoroot-access.log`・`nekoroot-error.log`、ジョブ記録`/var/lib/lib-llm/jobs`。
+
+## 問い合わせの振り分け
+
+| `message` | 送り先 | このホストでの結果 |
+|---|---|---|
+| 先頭なし（例: `/neko askgk トンネルの状態は？`） | Claude | 応答する。取得済みのトンネル一覧をプロンプトに添える |
+| `claude_prompt="…"` | Claude | 応答する |
+| `codex_prompt="…"` | Codex | `codex_execution_failed`（Codex本体が無い。保留） |
+
+Claudeへ添えるのは`sanitize_tunnel`後の名前・ID・状態・接続数と取得時刻だけ。sandboxにはCloudflareの認証情報を渡さない。
+
+## 症状と原因
+
+| 症状 | 原因 | 対処 |
+|---|---|---|
+| `tunnelsの応答にreplyが含まれていません` | Apacheが`/lib/api/tunnels`を`server.js`へ送り、デモの固定JSON（`"message":"cloudflare-workers-github-oauth-1 demo container"`）を返している | `restore-claude-host.sh`を実行 |
+| トンネル一覧が空、`"auth":"error"`・`"error":"[]\n"` | CGIに起動時のトークンが渡っている | 一覧が取れるトークンのある環境で`restore-claude-host.sh`を再実行 |
+| `codex_worker_unavailable` | workerが起動していない | `claude/ops/start-llm-worker-claude.sh` |
+| `claude_not_authenticated` | `codex-web`のClaude認証が無い | `/var/lib/codex-web/.claude/.credentials.json`を用意 |
+| 先頭なしの質問でCGIが落ちる（`/var/lib/lib-api/ask`の`Errno::ENOENT`） | 元の`tunnels.rb`の動作（参謀`ask_sanbo.rb`へ送る） | `tunnels.claude.rb`を使う（PR #103で対応） |
+| 「トンネルは動いていない」と誤答 | sandboxからは`cf`もcloudflaredも見えない | PR #103でトンネル一覧をプロンプトに添える |
+| シェルの`find`・`grep`が`claude native binary not installed`で失敗 | Claude Codeのシェル関数が、ネイティブバイナリの無い`claude.exe`を呼ぶ | `command find`・`command grep`を使う |
+| workerのログに`BrokenPipeError` | 起動スクリプトの生存確認（接続してすぐ切る） | 害はない |
+
+## 2026-11-02の復旧の記録
+
+1. 再起動後、worker・observerは止まり、`/run`・`/var/lib`の状態も消えていた。単体テストは通った。
+2. workerを起動。CGIを直接実行してトンネル一覧とaskgkの応答を確認した。
+3. observerを本来のソケットで起動（`workspace:/root`）し、`watch`でこの会話が届くことを確認した。
+4. Slackからの`/neko askgk`がreplyなしで失敗。Apacheのアクセスログで要求の到着を確認し、`server.js`の汎用応答が原因と特定した。
+5. `/var/www/html/lib`への複製、`lib-secrets.conf`、vhostへのCGIの設定でreplyが返るようにした。一覧が空だったのは起動時のトークンが原因だったため、シェルのトークンに替えた。
+6. 手順を`restore-claude-host.sh`にまとめ、vhostを元に戻してからスクリプトで再構成して確認した。
+7. 先頭なしの質問が参謀へ行って落ちること、Claudeがトンネル停止と誤答することを直した（テストを先に追加）。
+8. ブランチ`fix/claude-askgk-restore-20261102`にコミットし、PR #103を作成した。
+
+## 未対応
+
+- Slackからの`/neko askgk`での確認（PR #103の修正後は未実施）。Apache経由の署名付きPOSTでは確認済み。
+- 再起動時の自動実行。cf-containerの`entrypoint.sh`から`restore-claude-host.sh`を呼ぶ必要がある。ただし起動時の環境にはトンネルを読めるトークンが無いため、トークンの扱いを先に決める。
+- `/neko askgk`のWorker側の待ち時間（D1、既定120秒）。300秒待たせるには本番の`/settings`の変更が必要。
+- `codex_prompt=`の扱い（DESIGNメモの方針2・3）。

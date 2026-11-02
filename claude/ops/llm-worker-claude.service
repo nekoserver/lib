@@ -1,0 +1,13 @@
+[Unit]
+Description=Claude variant of the private Codex/Claude CLI worker for /lib/api
+After=network.target
+
+[Service]
+User=root
+ExecStart=/usr/bin/python3 /var/www/html/lib/claude/ops/llm_worker_claude.py
+Restart=on-failure
+RestartSec=3
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

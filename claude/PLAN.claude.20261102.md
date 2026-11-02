@@ -48,7 +48,7 @@
 | 作業 | 完了の条件 | 担当・反映先 |
 |---|---|---|
 | コンテナ起動時にworkerを起動（`start-llm-worker-claude.sh`） | 再起動後に`/neko askgk claude_prompt="hello"`が応答する | cf-containerの`entrypoint.sh` |
-| ストリームの接続先の切替（2026-11-02に仕組みを実装、未コミット・未デプロイ） | コンテナ起動時に`stream_routes.py env`で`LIB_CHAT_ORIGINS`を設定し、本体Workerの`CONVERSATION_STREAM_ROUTES`に`stream_routes.py worker`の経路を入れて、AIチャットのパネルからそのコンテナの会話が見える | cf-containerの`entrypoint.sh`、本体Workerの変数とデプロイ |
+| ストリームの接続先の切替（2026-11-02に仕組みを実装、未コミット・未デプロイ） | コンテナ起動時に`stream_routes.py env`で`LIB_CHAT_ORIGINS`を設定し、本体Workerの台帳`src/data/conversation-stream-routes.json`に`stream_routes.py worker`の経路を入れて、AIチャットのパネルからそのコンテナの会話が見える | cf-containerの`entrypoint.sh`、本体Workerの台帳の更新とデプロイ |
 | observerを使う場合は同様に起動し、監視対象を設定 | 再起動後に`observe`で会話が届く | 同上、`LIB_CHAT_CLAUDE_SESSION` |
 | CGIのタイムアウトを300秒より長くする | 300秒かかる応答が切れずに返る（下記の試験） | Apacheの設定 |
 | `/neko askgk`のWorker側の待ち時間を300秒にする | `/settings`の「askgkの待ち時間」が300 | 本番の`/settings`（管理者） |

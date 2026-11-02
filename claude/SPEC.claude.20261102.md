@@ -58,7 +58,7 @@ Codex app-serverの代わりにClaude Codeのセッション記録`$LIB_CHAT_CLA
 
 - `ops/stream_routes.py`: `/etc/cloudflared/ingress.yml`のうち、パス指定なしでApache（`https://127.0.0.1:8443`または`localhost:8443`）へ向かうホスト名を接続先とする。`env`（`LIB_CHAT_ORIGINS`、既存値を残す）、`worker --id`（本体Workerの台帳の経路）、`endpoints`（各URL）を出力する。
 - URLのパス: 埋め込み`/lib/conversation-embed.html`、WebSocket`/lib/api/chat/ws`（`wss`）、SSE・NDJSON・JSON Text Sequence`/lib/api/chat/{sse,ndjson,jsonseq}`。本体Workerの`conversationStreamEndpoints`と同じ。
-- 本体Worker: `CONVERSATION_STREAM_ROUTES`（台帳のJSON: `routes`に`id`・`origin`・`label`・`enabled`、任意の`autoPriority`）で接続先を差し替える。未指定時は同梱の台帳。不正なら既定へ戻さず止める。詳細は[`FEATURES.claude.20261102.md`](FEATURES.claude.20261102.md)の機能9。
+- 本体Worker: 台帳のファイル`src/data/conversation-stream-routes.json`（`routes`に`id`・`origin`・`label`・`enabled`、任意の`autoPriority`）を書き換えて接続先を切り替える。試験運用のあいだは環境変数での差し替えは設けない（2026-11-02、利用者の判断）。不正な台帳なら止める。詳細は[`FEATURES.claude.20261102.md`](FEATURES.claude.20261102.md)の機能9。
 
 ## 検証済み（2026-11-01〜02、cf-container上）
 

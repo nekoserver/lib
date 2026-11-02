@@ -1,9 +1,11 @@
 #!/bin/sh
 # Restore the lib/claude services on a freshly started cf-container (run as root from any directory):
-#   1. copy lib/api and lib/claude/api to /var/www/html/lib (www-data cannot traverse /root)
+#   1. copy lib/api, lib/claude/api, lib/ops, lib/chat and conversation-embed.html to
+#      /var/www/html/lib (www-data cannot traverse /root)
 #   2. write /etc/apache2/lib-secrets.conf (0600) from ORIGIN_HMAC_SECRET and the Cloudflare token
-#   3. route /lib/api/tunnels to tunnels.claude.rb instead of server.js, then reload Apache
-#   4. start the LLM worker and the chat observer
+#   3. route /lib/api/tunnels to tunnels.claude.rb, and the AI chat embed page and streams
+#      to the stream servers, instead of server.js; then reload Apache
+#   4. start the LLM worker, the chat observer and the chat stream servers
 #
 # Token: LIB_TUNNELS_CF_TOKEN, else CF_CONTAINER_API_TOKEN of the caller. The token that
 # entrypoint.sh hands Apache (/etc/profile.d/cf-env.sh) lists no tunnels, so it is not used.
@@ -20,9 +22,12 @@ TOKEN=${LIB_TUNNELS_CF_TOKEN:-${CF_CONTAINER_API_TOKEN:-}}
 [ -n "$SECRET" ] || { echo "Set ORIGIN_HMAC_SECRET" >&2; exit 1; }
 [ -n "$TOKEN" ] || { echo "Set LIB_TUNNELS_CF_TOKEN or CF_CONTAINER_API_TOKEN" >&2; exit 1; }
 
-install -d -m 0755 "$WWW/api" "$WWW/claude/api"
+install -d -m 0755 "$WWW/api" "$WWW/claude/api" "$WWW/ops" "$WWW/chat"
 cp -a "$LIB/api/." "$WWW/api/"
 cp -a "$LIB/claude/api/." "$WWW/claude/api/"
+cp -a "$LIB"/ops/*.py "$WWW/ops/"
+cp -a "$LIB/chat/." "$WWW/chat/"
+cp -a "$LIB/conversation-embed.html" "$WWW/"
 chmod -R a+rX "$WWW"
 
 (umask 077
@@ -35,9 +40,17 @@ if ! grep -q "Include $APACHE/lib-tunnels.conf" "$SITE"; then
   grep -q "Include $APACHE/lib-tunnels.conf" "$SITE" || { echo "No 'ProxyPass /' in $SITE" >&2; exit 1; }
 fi
 echo "apache: /lib/api/tunnels -> $WWW/claude/api/tunnels.claude.rb"
+cp "$HERE/apache-lib-chat.conf" "$APACHE/lib-chat.conf"
+# The chat rules must precede the vhost's catch-all WebSocket rewrite to server.js.
+if ! grep -q "Include $APACHE/lib-chat.conf" "$SITE"; then
+  sed -i "0,/^\( *\)RewriteEngine On\$/s##&\n\1Include $APACHE/lib-chat.conf#" "$SITE"
+  grep -q "Include $APACHE/lib-chat.conf" "$SITE" || { echo "No 'RewriteEngine On' in $SITE" >&2; exit 1; }
+fi
+echo "apache: /lib/conversation-embed.html, /lib/chat/, /lib/t/, /lib/api/chat/* -> 127.0.0.1:8092 (ws: 8091)"
 
 [ "${LIB_RESTORE_NO_START:-}" = 1 ] && exit 0
 apache2ctl configtest
 apache2ctl graceful
 "$HERE/start-llm-worker-claude.sh"
 "$HERE/start-chat-observer-claude.sh"
+"$HERE/start-chat-streams-claude.sh"

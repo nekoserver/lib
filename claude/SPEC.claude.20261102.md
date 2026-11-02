@@ -14,8 +14,10 @@ lib/claude/
 ├── ops/llm-worker-claude.service
 ├── ops/start-llm-worker-claude.sh    systemdの無いホスト用の起動
 ├── ops/start-chat-observer-claude.sh observerの起動（同上）
+├── ops/start-chat-streams-claude.sh  AIチャットのストリームのサーバーの起動（同上、www-data）
 ├── ops/restore-claude-host.sh        初期設定時の復元（CGI公開・worker・observer）
 ├── ops/apache-lib-tunnels.conf       /lib/api/tunnelsをCGIへ通すApacheの設定
+├── ops/apache-lib-chat.conf          埋め込みページとストリームをストリームのサーバーへ通すApacheの設定
 ├── test/chat_observer_claude_test.py
 ├── test/llm_worker_claude_test.py
 ├── test/tunnels_claude_rb_test.rb
@@ -68,14 +70,16 @@ Codex app-serverの代わりにClaude Codeのセッション記録`$LIB_CHAT_CLA
 
 ## 初期設定時の復元（restore-claude-host.sh）
 
-コンテナの再起動で、`/var/www/html/lib`、Apacheの設定、worker・observerは消える。rootで`claude/ops/restore-claude-host.sh`を実行すると次を行う。何度実行してもよい。
+コンテナの再起動で、`/var/www/html/lib`、Apacheの設定、worker・observer・ストリームのサーバーは消える。rootで`claude/ops/restore-claude-host.sh`を実行すると次を行う。何度実行してもよい。
 
-1. `lib/api`と`lib/claude/api`を`/var/www/html/lib`へ複製する（`/root`は0700で`www-data`が辿れない）。
+1. `lib/api`・`lib/claude/api`・`lib/ops`（`*.py`）・`lib/chat`・`conversation-embed.html`を`/var/www/html/lib`へ複製する（`/root`は0700で`www-data`が辿れない）。
 2. `/etc/apache2/lib-secrets.conf`（0600）に`ORIGIN_HMAC_SECRET`とCloudflareのトークンを書く。トークンは`LIB_TUNNELS_CF_TOKEN`、無ければ実行者の`CF_CONTAINER_API_TOKEN`。entrypoint.shがApacheに渡すトークン（`/etc/profile.d/cf-env.sh`）では`cf tunnels list`が`[]`になるため使わない（2026-11-02確認）。
 3. `apache-lib-tunnels.conf`を`/etc/apache2/lib-tunnels.conf`に置き、VirtualHostの`ProxyPass /`より前でIncludeする。これが無いとApacheが全パスを`server.js`へ送り、`/lib/api/tunnels`はデモの固定JSONを返す（`/neko askgk`は「tunnelsの応答にreplyが含まれていません」）。CGIのタイムアウトは330秒。
-4. Apacheを再読込し、`start-llm-worker-claude.sh`と`start-chat-observer-claude.sh`で起動する。observerの監視対象は既定で`workspace:/root`。
+4. `apache-lib-chat.conf`を`/etc/apache2/lib-chat.conf`に置き、VirtualHostの`RewriteEngine On`の直後でIncludeする。既存の「WebSocketはすべて8080へ」の書き換えより前に置くため。`/lib/conversation-embed.html`・`/lib/chat/`・`/lib/t/`・`/lib/api/chat/*`を`chat_http_stream.py`（127.0.0.1:8092）へ、WebSocketの`/lib/api/chat/ws`を`chat_websocket.py`（127.0.0.1:8091）へ送る。これが無いと、本体WorkerのAIチャットのパネルが埋め込むページもストリームも`server.js`のデモの固定JSONになり、表示が壊れる（2026-11-02確認）。
+5. Apacheを再読込し、`start-llm-worker-claude.sh`・`start-chat-observer-claude.sh`・`start-chat-streams-claude.sh`で起動する。observerの監視対象は既定で`workspace:/root`。ストリームのサーバーは`www-data`で複製の側から動かし、`LIB_CHAT_ORIGINS`は`stream_routes.py env`の値、`LIB_CHAT_FRAME_ORIGINS`はそれに本体Workerのorigin（`https://cloudflare-workers-github-oauth-1.nekoflare.workers.dev`、`https://dynamicneko.nekoflare.workers.dev`）を加えたもの。どちらも環境変数で変えられる。依存（`websockets`・`aiohttp`）はシステムのPython（3.14）のものを使う（`/opt/lib-chat`のvenvは無い）。
 
 確認（2026-11-02）: 実行後、Apache経由の`/lib/api/tunnels`でトンネル2件、Workerと同形の署名付きPOSTで`ask_status: done`と`reply`が返る。Slackからの`/neko askgk`は未確認。
+AIチャット: 公開URL（`https://mygw.nekomaneki.work`、Cloudflare経由）で、埋め込みページは未認証ならログイン画面（CSPの`frame-ancestors`に本体Workerのorigin）、未認証の資産は401。HMACでのセッション取得の後、SSE・NDJSON・JSON Text Sequenceでobserverの会話のスナップショットが届き、WebSocketは101とchallengeを返す。本体Workerの`/aichat`のパネルからの表示は未確認（ブラウザを使っていない）。
 
 ## 検証済み（2026-11-01〜02、cf-container上）
 
@@ -93,7 +97,7 @@ Codex app-serverの代わりにClaude Codeのセッション記録`$LIB_CHAT_CLA
 - Slack → Cloudflare Worker → rust-worker-sqlx-d1 → tunnels API の経路。応答が待ち時間内に返ったため、`ask_id`照会の経路も未通過。
 - `/neko askgk`はCloudflare Worker側でD1の「askgkの待ち時間」（既定120秒）で打ち切る。300秒待たせるには本番`/settings`で300に変更が必要（未変更）。
 - workerは手動起動（`start-llm-worker-claude.sh`、ログ`/tmp/llm-worker-claude.log`）。コンテナ再起動で止まる。常駐にはcf-containerの`entrypoint.sh`への追加が必要（未変更）。
-- このホストのApacheは`/lib/api/tunnels`だけを`restore-claude-host.sh`でCGIへ通す。他の`/lib`は公開しない。
+- このホストのApacheは`restore-claude-host.sh`で、`/lib/api/tunnels`をCGIへ、AIチャットの埋め込みページ・資産・ストリームをストリームのサーバーへ通す。他の`/lib`は公開しない。
 - observerの`spec-eval create`はEVALの保存まで完了しない（上記）。送信時に対象リポジトリの読み書きを許可する必要があるが、権限を広げる判断のため未実装。Codex版observerとCodex app-serverの接続は、このホストにapp-serverが無く未試験。
 
 ## 反映

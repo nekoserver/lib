@@ -7,6 +7,9 @@ import unittest
 SCRIPT = Path(__file__).parents[1] / 'ops/restore-claude-host.sh'
 SITE = """<VirtualHost *:8443>
     ProxyRequests Off
+    RewriteEngine On
+    RewriteCond %{HTTP:Upgrade} =websocket [NC]
+    RewriteRule /(.*) ws://127.0.0.1:8080/$1 [P,L]
     ProxyPass / http://127.0.0.1:8080/ retry=0
     ProxyPassReverse / http://127.0.0.1:8080/
 </VirtualHost>
@@ -41,10 +44,24 @@ class RestoreClaudeHostTest(unittest.TestCase):
         self.assertTrue((self.www / 'claude/api/tunnels.claude.rb').is_file())
         self.assertTrue((self.www / 'api/tunnels_lib.rb').is_file())
 
+    def test_routes_chat_before_the_catch_all_websocket_rewrite(self):
+        self.assertEqual(self.run_script().returncode, 0)
+        lines = self.site.read_text().splitlines()
+        include = lines.index(f'    Include {self.apache}/lib-chat.conf')
+        self.assertEqual(lines[include - 1].strip(), 'RewriteEngine On')
+        self.assertLess(include, next(i for i, line in enumerate(lines) if 'ws://127.0.0.1:8080' in line))
+        conf = (self.apache / 'lib-chat.conf').read_text()
+        self.assertIn('RewriteRule ^/lib/api/chat/ws$ ws://127.0.0.1:8091/lib/api/chat/ws [P,L]', conf)
+        self.assertIn('http://127.0.0.1:8092/lib/$1 [P,L]', conf)
+        # The stream servers run as www-data from the deployed copy.
+        for name in ('ops/chat_http_stream.py', 'ops/chat_websocket.py', 'chat/app.mjs', 'conversation-embed.html'):
+            self.assertTrue((self.www / name).is_file(), name)
+
     def test_is_idempotent(self):
         self.run_script()
         self.assertEqual(self.run_script().returncode, 0)
         self.assertEqual(self.site.read_text().count('lib-tunnels.conf'), 1)
+        self.assertEqual(self.site.read_text().count('lib-chat.conf'), 1)
 
     def test_secrets_are_private_and_prefer_the_explicit_token(self):
         self.run_script(LIB_TUNNELS_CF_TOKEN='cf-explicit')

@@ -129,5 +129,18 @@ class SpecEvalAuthorizationTest(StreamIntegrationTest):
         self.assertEqual(response.status,401)
 
 
+    async def test_console_input_returns_conflict_for_owned_thread_and_acknowledges_acceptance(self):
+        path = http.PREFIX + 'console-session'; body = b'{"type":"console","ttl_seconds":900}'
+        response = await self.client.post(path, data=body, headers=self.signed(path, body))
+        token = (await response.json())['token']
+        writer = AsyncMock(); writer.write = Mock(); writer.close = Mock(); reader = AsyncMock()
+        for payload, status in [(b'{"type":"error","error":"console_in_use"}\n', 409), (b'{"type":"accepted"}\n', 200)]:
+            reader.readline.return_value = payload
+            with patch.object(http.asyncio, 'open_unix_connection', new_callable=AsyncMock, return_value=(reader, writer)):
+                response = await self.client.post(http.PREFIX + 'console', json={'prompt':'hello'}, headers={'Origin':ORIGIN,'Authorization':'Bearer '+token})
+                self.assertEqual(response.status, status)
+                self.assertEqual(json.loads(writer.write.call_args.args[0]), {'op':'send','text':'hello'})
+
+
 if __name__ == '__main__':
     unittest.main()

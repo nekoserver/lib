@@ -70,9 +70,15 @@ class ReadClient:
                     return result['result']
 
 
+class ConsoleInputError(ValueError):
+    def __init__(self, code):
+        self.code = code
+        super().__init__(code)
+
+
 class ConsoleClient(ReadClient):
     async def request(self, method, params):
-        if method not in ('initialize', 'turn/start'):
+        if method not in ('initialize', 'thread/read', 'thread/resume', 'turn/start'):
             raise ValueError('Console input method required')
         self.sequence += 1
         sequence = self.sequence
@@ -83,6 +89,9 @@ class ConsoleClient(ReadClient):
                 if result.get('id') != sequence:
                     continue
                 if 'error' in result:
+                    error = result['error']
+                    if method == 'thread/resume' and isinstance(error, dict) and 'already has an active writer' in str(error.get('message', '')):
+                        raise ConsoleInputError('console_in_use')
                     raise ValueError('App-server rejected console input')
                 return result['result']
 
@@ -94,6 +103,13 @@ async def send_to_console(path, thread_id, text):
         client = ConsoleClient(ws)
         await client.request('initialize', {'clientInfo': {'name': 'direct_console_input', 'version': '0.1.0'}})
         await ws.send(json.dumps({'method': 'initialized', 'params': {}}))
+        # Reading persisted history does not load it into App Server memory.
+        # Resume only on authenticated input; observation must stay read-only.
+        thread = (await client.request('thread/read', {'threadId': thread_id, 'includeTurns': False}))['thread']
+        if (thread.get('status') or {}).get('type') == 'notLoaded':
+            resumed = await client.request('thread/resume', {'threadId': thread_id, 'excludeTurns': True})
+            if resumed.get('thread', {}).get('id') != thread_id:
+                raise ValueError('App-server resumed an unexpected conversation')
         await client.request('turn/start', {
             'threadId': thread_id,
             'input': [{'type': 'text', 'text': text, 'text_elements': []}],
@@ -247,6 +263,8 @@ async def handle(reader, writer):
                 async with asyncio.timeout(15):
                     await send_to_console(path, thread_id, text)
                 writer.write(b'{"type":"accepted"}\n')
+            except ConsoleInputError as error:
+                writer.write((json.dumps({'type': 'error', 'error': error.code}) + '\n').encode())
             except (OSError, ValueError, TimeoutError, ConnectionClosed):
                 writer.write(b'{"type":"error","error":"console_unavailable"}\n')
             await writer.drain()

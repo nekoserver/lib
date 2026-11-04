@@ -136,3 +136,11 @@ Run `python3 ops/build_chat_embed.py` after updating embed frontend sources. Com
 On initial observation and reconnection, the embedded answer section scrolls to the latest message and focuses it without an additional scroll jump. Later updates follow the bottom only while the viewer remains near the bottom, preserving an older reading position. Embedded body text is 11px and metadata 9px. Parent stream toolbar buttons use 7px text (6px on narrow screens), with protocol/start/stop controls on the same row and no visible panel heading.
 
 Markdown links, including PRs and detected URLs, use target=_blank with noopener/noreferrer. The parent iframe must allow-popups and allow-popups-to-escape-sandbox so GitHub and other destinations open as normal tabs rather than inside the embedded frame. Embedded links have no underline. Regenerate fingerprinted assets after changing the Markdown renderer.
+
+## 初期設定・再配置後の検収（2026-11-04）
+
+`tunnels.rb` CGI、WebSocket/SSE/NDJSON/JSON Sequence、observer/App Serverを初めて設定したときと再設定・再配置のたびに、起動後検収を行う。実施手順はメインWorkerリポジトリ `containers/demo/NETWORK-RUNBOOK.md` の「初期設定後の検収」に従う。
+
+合格条件は、現在ENV優先、tunnels.rbの署名済みJSON内容、Apache/SSI/CGI、限定Unix socketの所在と権限、固定threadを読むobserver、各方式の認証と実event、投稿を明示許可した後のconsole accepted、同じthreadのassistant応答まで。200やacceptedだけで完了にしない。秘密値、Cookie/token、会話全文をログ・REPORTに残さない。別writer所有時はlockを保持して停止する。投稿用forkは承認後に限り、別会話・非同期であることを表示する。
+
+2026-11-04実測ではmygwの既存SSH threadが別writer所有だったため、承認された履歴forkを投稿用に設定。WebSocket/HTTP配信とobserverを確認し、console acceptedの後に固有応答を受信した。恒久設計ではない。詳しくは[暫定構成SPEC](/root/lib/SPEC.lib.20261104.console-stream-adhoc.md)。

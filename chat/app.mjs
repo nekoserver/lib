@@ -57,6 +57,7 @@ const messageNodes = new Map();
 let focusLatestOnNextSnapshot = true;
 
 function renderConversation(data) {
+  $('job').textContent = typeof data.title === 'string' ? data.title : '';
   const container = $('conversation');
   const scroller = embedded ? container.closest('section') : container;
   const focusLatest = focusLatestOnNextSnapshot;
@@ -94,7 +95,7 @@ function renderConversation(data) {
       if (focusLatest) container.lastElementChild?.focus({ preventScroll: true });
     });
   }
-  $('status').textContent = data.status === 'notLoaded' ? '監視対象の会話は終了しています。サーバーの監視先設定を確認してください。' : data.status === 'active' ? 'この会話を表示中 · AIが作業中' : 'この会話を表示中 · 次の更新を待っています';
+  $('status').textContent = data.status === 'notLoaded' ? '会話の履歴を表示中です。この実行サーバーには読み込まれていません。' : data.status === 'active' ? 'この会話を表示中 · AIが作業中' : 'この会話を表示中 · 次の更新を待っています';
   const activities = { commandExecution: 'コマンド', webSearch: '検索', fileChange: 'ファイル変更', mcpToolCall: 'ツール', dynamicToolCall: 'ツール' };
   $('activity').textContent = data.activity.map(item => activities[item.kind] || 'ツール').join(' · ');
 }
@@ -330,6 +331,7 @@ $('console-form').addEventListener('submit', async event => {
       await revokeConsoleCapability();
       throw new Error('送信許可を確認できませんでした。キーを再入力して許可し直してください。');
     }
+    if (response.status === 409) throw new Error('この会話は別のCodexで使用中のため、ここから直接送信できません。');
     if (!response.ok) throw new Error(response.status === 503 ? 'Codexコンソールに接続できません。' : `送信に失敗しました（HTTP ${response.status}）。`);
     $('console-prompt').value = '';
     $('console-status').textContent = '送信しました。この会話に応答が届きます。';

@@ -53,3 +53,18 @@ mygwのobserverはSSH上のCodexと同じ会話の履歴を読んでいた。し
 - 実利用者のログイン済みブラウザからの投稿操作と、コンテナ再作成後の復元は未検証。
 
 App Serverの履歴分岐と投稿仕様の根拠: [公式OpenAIドキュメント](https://learn.chatgpt.com/docs/app-server)。診断経緯は [REPORT](REPORT.console-post.20261104.md) を参照。
+
+
+## 2026-11-05: 一本化方針への移行
+
+ユーザー指定により、別の投稿用会話で競合を回避する運用は採用しない。現在ENVのCODEX_THREAD_IDと依頼本文を読み取りAPIで照合し、observerの参照先をその同一会話へ設定した。過去のfork履歴は削除も自動マージもしていない。
+
+投稿時にthread/resumeがactive writerで拒否された場合は、その会話IDへCodex 0.166.0のnative `thread/queue/add` で入力を追加する。writerのロックは維持し、fork・別IDへの再送・queue登録後のturn/startは行わない。返されたqueuedSubmissionのID・clientUserMessageId・inputを確認できたときに限りaccepted/queuedを返す。エラーや不明な応答を自動再試行しない。観測クライアントからqueue/addは呼べない。
+
+画面はaccepted=trueを検証し、queued=trueなら「この会話の送信待ち」と表示する。受付は応答完了を意味しない。現在のwriterが入力を取り込むまでは待機する。所有プロセスの終了・再起動後を含む自動復帰と、通信断後の利用者による再投稿の重複排除は未保証。
+
+実測では公開console POSTのaccepted=true/queued=trueと、同じENV会話のnative queue/listに一致する入力が1件だけ存在することを確認した。既存writerが処理中のため、この検証時点で取り込み・assistant応答は未確認。詳細は本体Workerの20261105 NETWORK REPORTを参照。
+
+### 後続ターンでの配信確認
+
+同じ会話でテスト投稿を実受信し、assistantのSTREAM_POST_OK_20261105応答を公開observer配信でも確認した。native queueの該当件数は0となった。前節の取り込み・実応答未確認は解消。実ブラウザ操作・再作成後の復元・通信断時の手動再送の重複排除は引き続き未検証。

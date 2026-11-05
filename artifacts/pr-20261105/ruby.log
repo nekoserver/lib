@@ -1,0 +1,37 @@
+
+$ ruby test/hmac_auth_env_test.rb
+test/hmac_auth_env_test.rb:2:in 'Kernel#require': cannot load such file -- minitest/mock (LoadError)
+	from test/hmac_auth_env_test.rb:2:in '<main>'
+
+$ ruby test/llm_prompt_test.rb
+Run options: --seed 18100
+
+# Running:
+
+................
+
+Finished in 0.508799s, 31.4466 runs/s, 135.6134 assertions/s.
+
+16 runs, 69 assertions, 0 failures, 0 errors, 0 skips
+
+$ ruby test/railway_exec_test.rb
+Run options: --seed 52746
+
+# Running:
+
+.....
+
+Finished in 0.070169s, 71.2566 runs/s, 969.0891 assertions/s.
+
+5 runs, 68 assertions, 0 failures, 0 errors, 0 skips
+
+$ ruby test/tunnels_claude_test.rb
+Run options: --seed 65444
+
+# Running:
+
+......
+
+Finished in 0.060513s, 99.1529 runs/s, 330.5098 assertions/s.
+
+6 runs, 20 assertions, 0 failures, 0 errors, 0 skips

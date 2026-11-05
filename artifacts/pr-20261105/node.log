@@ -1,0 +1,71 @@
+✔ actual stream form handles HTTP 200 accepted=true error=undefined (2.997169ms)
+✔ actual stream form handles HTTP 200 accepted=true error=undefined (1.467092ms)
+✔ actual stream form handles HTTP 409 accepted=undefined error=console_in_use (0.643556ms)
+✔ actual stream form handles HTTP 200 accepted=false error=undefined (0.62615ms)
+✔ AI answers render headings, lists, code fences, links and tables (69.142065ms)
+✔ raw HTML and event handlers stay text (1.02604ms)
+✔ unsafe Markdown URLs are not made into links or images (1.813633ms)
+✔ PR links and detected URLs open outside the embedded stream (3.960606ms)
+✔ API reply underscores remain literal without changing code or URLs (1.63885ms)
+✔ retry status preserves the observer failure instead of reporting a generic disconnect (0.745269ms)
+✔ read-only observation reconnects with bounded backoff and resets after data (0.351848ms)
+✔ stopping, missing auth and permanent errors never restart observation (0.873431ms)
+✔ browser timers are called with their global receiver (1.369165ms)
+✔ session creation distinguishes rejected keys from unavailable servers (94.253572ms)
+✖ a reopened tab restores the cookie session without keeping the HMAC key (6.138645ms)
+✖ a rejected remembered session is cleared instead of hiding the key input (2.625612ms)
+✔ authenticates before submitting and delivers final answer (14.672747ms)
+✔ disconnect does not resend a prompt (0.541633ms)
+✔ resume request never sends a submit (3.450841ms)
+✔ bad authentication closes and frees the connection (0.238879ms)
+✔ observation session reconnects with an empty key without invoking WebCrypto (0.693161ms)
+✔ observer outage preserves authentication (error frame: true) (1.058368ms)
+✔ observer outage preserves authentication (error frame: false) (0.430616ms)
+✔ pasted key whitespace matches the server normalization (3.362919ms)
+✔ observer failure reports its cause without clearing the authenticated session (1.109476ms)
+✔ sse: fragmented UTF-8 and multiple records are preserved (63.042208ms)
+✔ sse: signs the exact POST path and body, submits once (44.556198ms)
+✔ ndjson: fragmented UTF-8 and multiple records are preserved (1.666031ms)
+✔ ndjson: signs the exact POST path and body, submits once (54.918362ms)
+✔ jsonseq: fragmented UTF-8 and multiple records are preserved (1.424098ms)
+✔ jsonseq: signs the exact POST path and body, submits once (3.13078ms)
+✔ SSE parses CRLF, comments, IDs and multiline data (3.242437ms)
+✔ JSON-seq supports formatted multiline JSON (1.214613ms)
+✔ truncated HTTP streams do not silently succeed (1.018759ms)
+✔ stopping an HTTP stream aborts without another request (0.445018ms)
+✔ sse: observation session reconnects without importing an empty HMAC key (0.997577ms)
+✔ ndjson: observation session reconnects without importing an empty HMAC key (0.213811ms)
+✔ jsonseq: observation session reconnects without importing an empty HMAC key (0.235774ms)
+✔ sse: observer failure preserves the cause and the session (0.363355ms)
+✔ ndjson: observer failure preserves the cause and the session (0.215504ms)
+✔ jsonseq: observer failure preserves the cause and the session (0.192449ms)
+✔ valid parent colors are applied without changing authentication or connection state (1.198099ms)
+✔ invalid colors, missing values and image URLs are rejected without partial updates (0.262554ms)
+✔ unrelated control messages cannot apply a palette (0.125919ms)
+ℹ tests 44
+ℹ suites 0
+ℹ pass 42
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1229.01386
+
+✖ failing tests:
+
+test at test/chat_session_cookie_test.mjs:22:1
+✖ a reopened tab restores the cookie session without keeping the HMAC key (6.138645ms)
+  ReferenceError [Error]: location is not defined
+      at Module.getSession (file:///root/lib/chat/session.mjs?cookie-test-first:6:19)
+      at TestContext.<anonymous> (file:///root/lib/test/chat_session_cookie_test.mjs:39:24)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at test/chat_session_cookie_test.mjs:62:1
+✖ a rejected remembered session is cleared instead of hiding the key input (2.625612ms)
+  ReferenceError [Error]: location is not defined
+      at getSession (file:///root/lib/chat/session.mjs?cookie-test-rejected:6:19)
+      at Module.restoreSession (file:///root/lib/chat/session.mjs?cookie-test-rejected:30:18)
+      at TestContext.<anonymous> (file:///root/lib/test/chat_session_cookie_test.mjs:69:32)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)

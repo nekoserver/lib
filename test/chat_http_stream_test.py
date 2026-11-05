@@ -134,11 +134,12 @@ class SpecEvalAuthorizationTest(StreamIntegrationTest):
         response = await self.client.post(path, data=body, headers=self.signed(path, body))
         token = (await response.json())['token']
         writer = AsyncMock(); writer.write = Mock(); writer.close = Mock(); reader = AsyncMock()
-        for payload, status in [(b'{"type":"error","error":"console_in_use"}\n', 409), (b'{"type":"accepted"}\n', 200)]:
+        for payload, status in [(b'{"type":"error","error":"console_in_use"}\n', 409), (b'{"type":"accepted"}\n', 200), (b'{"type":"accepted","queued":true}\n', 200)]:
             reader.readline.return_value = payload
             with patch.object(http.asyncio, 'open_unix_connection', new_callable=AsyncMock, return_value=(reader, writer)):
                 response = await self.client.post(http.PREFIX + 'console', json={'prompt':'hello'}, headers={'Origin':ORIGIN,'Authorization':'Bearer '+token})
                 self.assertEqual(response.status, status)
+                if b'queued' in payload: self.assertEqual(await response.json(), {'accepted':True,'queued':True})
                 self.assertEqual(json.loads(writer.write.call_args.args[0]), {'op':'send','text':'hello'})
 
 

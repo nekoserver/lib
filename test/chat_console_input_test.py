@@ -52,7 +52,7 @@ class ConsoleInputTest(unittest.IsolatedAsyncioTestCase):
         for thread in ('workspace:/root', '../other', ''):
             with self.assertRaises(ValueError): await send_to_console('/unused.sock', thread, 'hello')
 
-    async def test_active_writer_is_preserved_and_no_turn_is_sent(self):
+    async def test_active_writer_is_preserved_when_queue_is_unavailable(self):
         from chat_observer import ConsoleInputError
         calls = []
         async def server(ws):
@@ -60,16 +60,18 @@ class ConsoleInputTest(unittest.IsolatedAsyncioTestCase):
                 d = json.loads(raw)
                 if 'id' not in d: continue
                 calls.append(d['method'])
-                if d['method'] == 'thread/resume':
+                if d['method'] == 'thread/queue/add':
+                    reply = {'error': {'code': -32601, 'message': 'queue unavailable'}}
+                elif d['method'] == 'thread/resume':
                     reply = {'error': {'code': -32600, 'message': 'thread fixed-thread already has an active writer'}}
                 else:
                     reply = {'result': {'thread': {'status': {'type': 'notLoaded'}}} if d['method'] == 'thread/read' else {}}
                 await ws.send(json.dumps({'id': d['id'], **reply}))
         with tempfile.TemporaryDirectory() as tmp:
             async with unix_serve(server, tmp + '/app.sock'):
-                with self.assertRaises(ConsoleInputError) as error:
+                with self.assertRaises(ValueError):
                     await send_to_console(tmp + '/app.sock', 'fixed-thread', 'hello')
-        self.assertEqual(error.exception.code, 'console_in_use')
+        self.assertEqual(calls.count('thread/queue/add'), 1)
         self.assertNotIn('turn/start', calls)
 
 if __name__ == '__main__': unittest.main()

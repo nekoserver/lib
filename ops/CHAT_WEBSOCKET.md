@@ -144,3 +144,8 @@ Markdown links, including PRs and detected URLs, use target=_blank with noopener
 合格条件は、現在ENV優先、tunnels.rbの署名済みJSON内容、Apache/SSI/CGI、限定Unix socketの所在と権限、固定threadを読むobserver、各方式の認証と実event、投稿を明示許可した後のconsole accepted、同じthreadのassistant応答まで。200やacceptedだけで完了にしない。秘密値、Cookie/token、会話全文をログ・REPORTに残さない。別writer所有時はlockを保持して停止する。投稿用forkは承認後に限り、別会話・非同期であることを表示する。
 
 2026-11-04実測ではmygwの既存SSH threadが別writer所有だったため、承認された履歴forkを投稿用に設定。WebSocket/HTTP配信とobserverを確認し、console acceptedの後に固有応答を受信した。恒久設計ではない。詳しくは[暫定構成SPEC](/root/lib/SPEC.lib.20261104.console-stream-adhoc.md)。
+
+
+### 2026-11-05: 同一会話への投稿
+
+現在の方針は一本化。ENVの固定会話を表示・投稿先とし、writer競合を新たなforkで回避しない。Codex 0.166.0のnative thread/queue/addへの登録を検証した場合は、HTTP accepted=true/queued=trueと送信待ち表示にする。観測は引き続き読み取りのみ。キューの受付と、その後のwriter取り込み・実応答を別々に検証する。詳細と未確認境界は [一本化追記](../SPEC.lib.20261104.console-stream-adhoc.md) を参照。

@@ -1,0 +1,30 @@
+✔ session creation distinguishes rejected keys from unavailable servers (99.208481ms)
+✖ a reopened tab restores the cookie session without keeping the HMAC key (7.402072ms)
+✖ a rejected remembered session is cleared instead of hiding the key input (2.527404ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 1
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 253.451128
+
+✖ failing tests:
+
+test at test/chat_session_cookie_test.mjs:22:1
+✖ a reopened tab restores the cookie session without keeping the HMAC key (7.402072ms)
+  ReferenceError [Error]: location is not defined
+      at Module.getSession (file:///tmp/lib-pr-baseline-ptso7tt8/chat/session.mjs?cookie-test-first:6:19)
+      at TestContext.<anonymous> (file:///tmp/lib-pr-baseline-ptso7tt8/test/chat_session_cookie_test.mjs:39:24)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+
+test at test/chat_session_cookie_test.mjs:62:1
+✖ a rejected remembered session is cleared instead of hiding the key input (2.527404ms)
+  ReferenceError [Error]: location is not defined
+      at getSession (file:///tmp/lib-pr-baseline-ptso7tt8/chat/session.mjs?cookie-test-rejected:6:19)
+      at Module.restoreSession (file:///tmp/lib-pr-baseline-ptso7tt8/chat/session.mjs?cookie-test-rejected:30:18)
+      at TestContext.<anonymous> (file:///tmp/lib-pr-baseline-ptso7tt8/test/chat_session_cookie_test.mjs:69:32)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7)

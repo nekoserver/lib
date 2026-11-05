@@ -1,0 +1,45 @@
+......../usr/lib/python3/dist-packages/aiohttp/web_urldispatcher.py:208: DeprecationWarning: Bare functions are deprecated, use async ones
+  warnings.warn(
+......................../usr/lib/python3/dist-packages/aiohttp/web_urldispatcher.py:208: DeprecationWarning: Bare functions are deprecated, use async ones
+  warnings.warn(
+...................opening handshake failed
+Traceback (most recent call last):
+  File "/usr/lib/python3/dist-packages/websockets/asyncio/server.py", line 356, in conn_handler
+    await connection.handshake(
+    ...<3 lines>...
+    )
+  File "/usr/lib/python3/dist-packages/websockets/asyncio/server.py", line 207, in handshake
+    raise self.protocol.handshake_exc
+  File "/usr/lib/python3/dist-packages/websockets/server.py", line 138, in accept
+    ) = self.process_request(request)
+        ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "/usr/lib/python3/dist-packages/websockets/server.py", line 269, in process_request
+    self.origin = self.process_origin(headers)
+                  ~~~~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "/usr/lib/python3/dist-packages/websockets/server.py", line 307, in process_origin
+    raise InvalidOrigin(origin)
+websockets.exceptions.InvalidOrigin: invalid Origin header: https://evil.example
+opening handshake failed
+Traceback (most recent call last):
+  File "/usr/lib/python3/dist-packages/websockets/asyncio/server.py", line 356, in conn_handler
+    await connection.handshake(
+    ...<3 lines>...
+    )
+  File "/usr/lib/python3/dist-packages/websockets/asyncio/server.py", line 207, in handshake
+    raise self.protocol.handshake_exc
+  File "/usr/lib/python3/dist-packages/websockets/server.py", line 138, in accept
+    ) = self.process_request(request)
+        ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "/usr/lib/python3/dist-packages/websockets/server.py", line 269, in process_request
+    self.origin = self.process_origin(headers)
+                  ~~~~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "/usr/lib/python3/dist-packages/websockets/server.py", line 307, in process_origin
+    raise InvalidOrigin(origin)
+websockets.exceptions.InvalidOrigin: missing Origin header
+............{"ask_id": "test", "status": "done"}
+.....{"ask_id": "test", "status": "done"}
+.....................
+----------------------------------------------------------------------
+Ran 89 tests in 5.128s
+
+OK

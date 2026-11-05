@@ -1,0 +1,2 @@
+test/hmac_auth_env_test.rb:2:in 'Kernel#require': cannot load such file -- minitest/mock (LoadError)
+	from test/hmac_auth_env_test.rb:2:in '<main>'

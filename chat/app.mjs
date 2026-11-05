@@ -333,8 +333,12 @@ $('console-form').addEventListener('submit', async event => {
     }
     if (response.status === 409) throw new Error('この会話は別のCodexで使用中のため、ここから直接送信できません。');
     if (!response.ok) throw new Error(response.status === 503 ? 'Codexコンソールに接続できません。' : `送信に失敗しました（HTTP ${response.status}）。`);
+    const result = await response.json();
+    if (result?.accepted !== true) throw new Error('送信を受理できませんでした。');
     $('console-prompt').value = '';
-    $('console-status').textContent = '送信しました。この会話に応答が届きます。';
+    $('console-status').textContent = result.queued === true
+      ? 'この会話の送信待ちに追加しました。現在の処理後に応答が届きます。'
+      : '送信しました。この会話に応答が届きます。';
   } catch (error) {
     $('console-status').textContent = error instanceof Error ? error.message : '送信に失敗しました。';
   } finally { consoleBusy = false; updateConsoleSection(); }

@@ -11,6 +11,7 @@ import socket
 import struct
 import stat
 import re
+import uuid
 from websockets.asyncio.client import unix_connect
 from websockets.exceptions import ConnectionClosed
 from spec_eval import configured_evaluations
@@ -78,7 +79,7 @@ class ConsoleInputError(ValueError):
 
 class ConsoleClient(ReadClient):
     async def request(self, method, params):
-        if method not in ('initialize', 'thread/read', 'thread/resume', 'turn/start'):
+        if method not in ('initialize', 'thread/read', 'thread/resume', 'turn/start', 'thread/queue/add'):
             raise ValueError('Console input method required')
         self.sequence += 1
         sequence = self.sequence
@@ -101,13 +102,31 @@ async def send_to_console(path, thread_id, text):
         raise ValueError('A fixed conversation is required')
     async with unix_connect(path, uri='ws://localhost', max_size=16_777_216) as ws:
         client = ConsoleClient(ws)
-        await client.request('initialize', {'clientInfo': {'name': 'direct_console_input', 'version': '0.1.0'}})
+        await client.request('initialize', {'clientInfo': {'name': 'direct_console_input', 'version': '0.1.0'},
+                                            'capabilities': {'experimentalApi': True}})
         await ws.send(json.dumps({'method': 'initialized', 'params': {}}))
         # Reading persisted history does not load it into App Server memory.
         # Resume only on authenticated input; observation must stay read-only.
         thread = (await client.request('thread/read', {'threadId': thread_id, 'includeTurns': False}))['thread']
         if (thread.get('status') or {}).get('type') == 'notLoaded':
-            resumed = await client.request('thread/resume', {'threadId': thread_id, 'excludeTurns': True})
+            try:
+                resumed = await client.request('thread/resume', {'threadId': thread_id, 'excludeTurns': True})
+            except ConsoleInputError as error:
+                if error.code != 'console_in_use':
+                    raise
+                # The existing writer consumes its own native queue. Never fork,
+                # release its lock, or start a second turn after queue acceptance.
+                message_id = str(uuid.uuid4())
+                inputs = [{'type': 'text', 'text': text, 'text_elements': []}]
+                result = await client.request('thread/queue/add', {
+                    'threadId': thread_id, 'clientUserMessageId': message_id, 'input': inputs,
+                })
+                queued = result.get('queuedSubmission', {})
+                if (not isinstance(queued, dict) or not isinstance(queued.get('id'), str)
+                        or not queued['id'] or queued.get('clientUserMessageId') != message_id
+                        or queued.get('input') != inputs):
+                    raise ValueError('Invalid queue acknowledgement')
+                return {'queued': True}
             if resumed.get('thread', {}).get('id') != thread_id:
                 raise ValueError('App-server resumed an unexpected conversation')
         await client.request('turn/start', {
@@ -261,8 +280,11 @@ async def handle(reader, writer):
             path, thread_id = configured_source(path, thread_id, SOURCE_FILE)
             try:
                 async with asyncio.timeout(15):
-                    await send_to_console(path, thread_id, text)
-                writer.write(b'{"type":"accepted"}\n')
+                    outcome = await send_to_console(path, thread_id, text)
+                result = {'type': 'accepted'}
+                if outcome and outcome.get('queued') is True:
+                    result['queued'] = True
+                writer.write((json.dumps(result) + '\n').encode())
             except ConsoleInputError as error:
                 writer.write((json.dumps({'type': 'error', 'error': error.code}) + '\n').encode())
             except (OSError, ValueError, TimeoutError, ConnectionClosed):

@@ -156,7 +156,10 @@ def create_app(secret, origins, *, frame_origins=None):
             return web.json_response({'error': 'console_in_use'}, status=409, headers={'Cache-Control': 'no-store'})
         if not isinstance(result, dict) or result.get('type') != 'accepted':
             return web.json_response({'error': 'console_unavailable'}, status=503, headers={'Cache-Control': 'no-store'})
-        return web.json_response({'accepted': True}, headers={'Cache-Control': 'no-store'})
+        accepted = {'accepted': True}
+        if result.get('queued') is True:
+            accepted['queued'] = True
+        return web.json_response(accepted, headers={'Cache-Control': 'no-store'})
 
     async def spec_evaluation(request):
         origin = request.headers.get('Origin') or f'https://{request.host}'

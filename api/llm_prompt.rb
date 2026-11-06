@@ -7,7 +7,7 @@ require 'uri'
 module LlmPrompt
   SOCKET = ENV.fetch('LIB_CODEX_SOCKET', '/run/lib-codex/worker.sock')
   MAX_PROMPT = 16_384
-  ID = /\A(?:codex|claude|nemotron)-[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}\z/
+  ID = /\A(?:codex|claude|nemotron|muse)-[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}\z/
   module_function
 
   def maybe_percent_decode(value)
@@ -18,14 +18,14 @@ module LlmPrompt
   def route(filters = nil, default_engine: nil, **fields)
     filters ||= fields
     prompts = {}
-    %w[codex claude nemotron].each do |engine|
+    %w[codex claude nemotron muse].each do |engine|
       ["#{engine}_prompt", "#{engine}_prmpt", "#{engine}_promt"].each do |key|
         next unless filters.key?(key)
         return [:conflict, nil] if prompts.key?(engine.to_sym) && prompts[engine.to_sym] != filters[key].to_s
         prompts[engine.to_sym] = filters[key].to_s
       end
     end
-    match = filters['message'].to_s.match(/\A(codex|claude|nemotron)_(?:prompt|prmpt|promt)=(.*)\z/m)
+    match = filters['message'].to_s.match(/\A(codex|claude|nemotron|muse)_(?:prompt|prmpt|promt)=(.*)\z/m)
     if match
       value = match[2]
       if value.length >= 2 && [['"', '"'], ['“', '”']].any? { |left, right| value.start_with?(left) && value.end_with?(right) }
@@ -60,7 +60,7 @@ module LlmPrompt
   end
 
   def run(engine, prompt, wait_seconds: 0)
-    return [nil, 'unsupported_engine', { 'ask_status' => 'failed' }] unless %i[codex claude].include?(engine)
+    return [nil, 'unsupported_engine', { 'ask_status' => 'failed' }] unless %i[codex claude muse].include?(engine)
     return [nil, 'empty_prompt', { 'ask_status' => 'failed' }] if prompt.to_s.strip.empty?
     return [nil, 'prompt_too_large', { 'ask_status' => 'failed' }] if prompt.bytesize > MAX_PROMPT
     result = request('op' => 'submit', 'engine' => engine.to_s, 'prompt' => prompt)

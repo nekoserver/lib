@@ -96,6 +96,18 @@ python3 -c 'import socket; s=socket.socket(socket.AF_UNIX); s.connect("/run/lib-
 
 ログ: worker`/tmp/llm-worker-claude.log`、observer`/tmp/chat-observer-claude.log`、Apache`/var/log/apache2/nekoroot-access.log`・`nekoroot-error.log`、ジョブ記録`/var/lib/lib-llm/jobs`。
 
+
+## muse_prompt
+
+`/neko askgk muse_prompt="…"`は、workerがtailnet上の`muse-vm:8080`（OpenAI互換API）へプロンプトを送る。Codex・Claudeと違いCLIは動かさず、サンドボックスの外でHTTPを送るだけ。
+
+- **キー**: workerを起動する環境の`MUSE_API_KEY`から読む。ファイルには書かない。起動時に環境から取り除くため、Codex・Claudeの実行からは見えない。未設定なら`muse_not_authenticated`になる。
+- **接続**: このホストの`tailscaled`はuserspaceモードなので、`tailscale nc`を経由する。`tailscaled`は再起動しない（`--state=mem:`のためノードの状態が消える）。
+- **反映**: workerは起動時の環境とコードを使い続ける。実行中のジョブが無いときに`llm_worker_claude.py`を止めてから、`MUSE_API_KEY`のある環境で`restore-claude-host.sh`を実行する。
+- **任意の設定**: `LIB_MUSE_HOST`（既定`muse-vm`）、`LIB_MUSE_PORT`（既定`8080`）、`LIB_MUSE_MODEL`（既定`muse`）。
+
+確認は`ruby claude/test/manual/askgk_request.rb claude/api/tunnels.claude.rb 'muse_prompt="今日は何日？"'`。`"via": "muse"`、`"ask_status": "done"`、`reply`が返る。
+
 ## 問い合わせの振り分け
 
 | `message` | 送り先 | このホストでの結果 |

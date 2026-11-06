@@ -135,7 +135,7 @@ def execute(job, prompt):
     llm_worker.save(job)
     try:
         reply, model = ask_muse(prompt)
-        job.update(ask_status='done', llm_model=model,
+        job.update(ask_status='done', model=model, llm_model=model,
                    reply=reply.encode()[:llm_worker.MAX_OUTPUT].decode('utf-8', errors='ignore'))
     except MuseError as error:
         job.update(ask_status='failed', ask_error=str(error))

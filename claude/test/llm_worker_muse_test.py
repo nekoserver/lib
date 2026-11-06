@@ -95,6 +95,11 @@ class MuseJobTest(unittest.TestCase):
         job = self.run_job(return_value=('六日', 'muse-1'))
         self.assertEqual((job['ask_status'], job['reply'], job['via'], job['llm_model']), ('done', '六日', 'muse', 'muse-1'))
 
+    def test_a_done_job_uses_the_model_key_the_cgi_reads(self):
+        # tunnels_lib.rb reads meta['model']; llm_model alone never reaches the Worker.
+        job = self.run_job(return_value=('六日', 'muse-1'))
+        self.assertEqual(job['model'], 'muse-1')
+
     def test_failures_are_reported_on_the_job(self):
         for raised, code in ((worker.MuseError('muse_usage_limit'), 'muse_usage_limit'), (TimeoutError(), 'llm_timeout'),
                              (OSError(), 'muse_connection_failed')):

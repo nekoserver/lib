@@ -15,7 +15,7 @@ class LlmPromptTest < Minitest::Test
   end
 
   def test_engine_prefixes_and_prmpt_alias_select_usage_agent
-    %w[codex claude nemotron].each do |engine|
+    %w[codex claude nemotron muse].each do |engine|
       %w[prompt prmpt promt].each do |suffix|
         assert_equal [engine.to_sym, '/usage'], LlmPrompt.route('message' => "#{engine}_#{suffix}=\"/usage\"")
         assert_equal [engine.to_sym, '/usage'], LlmPrompt.route("#{engine}_#{suffix}" => '/usage')
@@ -23,6 +23,20 @@ class LlmPromptTest < Minitest::Test
     end
     assert_equal [:conflict, nil], LlmPrompt.route('codex_prompt' => '/usage', 'codex_prmpt' => 'different')
   end
+  def test_muse_prompt_submits_to_the_worker_and_its_job_id_can_be_polled
+    assert_equal [:muse, '今日は何日？'], LlmPrompt.route('message' => 'muse_prompt="今日は何日？"')
+    assert_match LlmPrompt::ID, 'muse-12345678-1234-1234-1234-123456789abc'
+    sent = nil
+    original = LlmPrompt.method(:request)
+    LlmPrompt.define_singleton_method(:request) { |payload| sent = payload; { 'ask_status' => 'pending', 'ask_id' => 'x' } }
+    begin
+      LlmPrompt.run(:muse, '今日は何日？')
+    ensure
+      LlmPrompt.define_singleton_method(:request, original)
+    end
+    assert_equal({ 'op' => 'submit', 'engine' => 'muse', 'prompt' => '今日は何日？' }, sent)
+  end
+
   def test_claude_promt_agents_alias
     assert_equal [:claude, '/agents'], LlmPrompt.route('message' => 'claude_promt="/agents"')
     assert_equal [:claude, '/agents'], LlmPrompt.route('claude_promt' => '/agents')

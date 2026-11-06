@@ -76,6 +76,27 @@ class ChatIntegrationTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.calls[0], {'op': 'submit', 'engine': 'codex', 'prompt': 'Hello\nworld'})
         self.assertTrue(all(call['op'] == 'poll' for call in self.calls[1:]))
 
+    async def test_muse_submit_polls_its_job_to_the_final_reply(self):
+        muse_id = 'muse-00000000-0000-0000-0000-000000000000'
+        self.results = [{'ask_id': muse_id, 'ask_status': 'pending'},
+                        {'ask_id': muse_id, 'ask_status': 'done', 'reply': 'PONG', 'via': 'muse'}]
+        async with connect(self.url, origin=ORIGIN) as ws:
+            await self.auth(ws)
+            await ws.send(json.dumps({'type': 'submit', 'engine': 'muse', 'prompt': 'Hello'}))
+            states = [await self.next_result(ws) for _ in range(2)]
+        self.assertEqual([s.get('ask_status') for s in states], ['pending', 'done'])
+        self.assertEqual(states[-1]['reply'], 'PONG')
+        self.assertEqual(self.calls[0], {'op': 'submit', 'engine': 'muse', 'prompt': 'Hello'})
+        self.assertEqual(self.calls[1], {'op': 'poll', 'ask_id': muse_id})
+
+    async def test_muse_job_can_be_resumed(self):
+        muse_id = 'muse-00000000-0000-0000-0000-000000000000'
+        self.assertEqual(chat.worker_payload({'type': 'resume', 'ask_id': muse_id}), {'op': 'poll', 'ask_id': muse_id})
+
+    async def test_engines_without_a_worker_are_still_rejected(self):
+        with self.assertRaises(ValueError):
+            chat.worker_payload({'type': 'submit', 'engine': 'nemotron', 'prompt': 'Hello'})
+
     async def test_resume_only_polls(self):
         self.results = [{'ask_id': ID, 'ask_status': 'done', 'reply': 'existing'}]
         async with connect(self.url, origin=ORIGIN) as ws:

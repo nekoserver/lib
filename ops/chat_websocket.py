@@ -14,7 +14,7 @@ from websockets.exceptions import ConnectionClosed
 
 ENDPOINT = '/lib/api/chat/ws'
 SOCKET = os.environ.get('LIB_CODEX_SOCKET', '/run/lib-codex/worker.sock')
-IDS = re.compile(r'^(codex|claude)-[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$')
+IDS = re.compile(r'^(codex|claude|muse)-[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$')
 POLL_INTERVAL = 0.5
 HEARTBEAT_INTERVAL = 5
 DEMO_INTERVAL = 0.1
@@ -40,7 +40,7 @@ def worker_payload(data):
         if not isinstance(ask_id, str) or not IDS.fullmatch(ask_id):
             raise ValueError('invalid_ask_id')
         return {'op': 'poll', 'ask_id': ask_id}
-    if data.get('type') != 'submit' or data.get('engine') not in ('codex', 'claude'):
+    if data.get('type') != 'submit' or data.get('engine') not in ('codex', 'claude', 'muse'):
         raise ValueError('invalid_request')
     prompt = data.get('prompt')
     if not isinstance(prompt, str) or not prompt.strip():

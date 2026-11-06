@@ -115,6 +115,10 @@ python3 -c 'import socket; s=socket.socket(socket.AF_UNIX); s.connect("/run/lib-
 | 先頭なし（例: `/neko askgk トンネルの状態は？`） | Claude | 応答する。取得済みのトンネル一覧をプロンプトに添える |
 | `claude_prompt="…"` | Claude | 応答する |
 | `codex_prompt="…"` | Codex | 既定では`codex_execution_failed`。必要なら[`codex/README.md`](codex/README.md)の手順で有効にする |
+| `muse_prompt="…"` | Muse（`muse-vm`） | 応答する。workerの起動時に`MUSE_API_KEY`が必要 |
+| `nemotron_prompt="…"` | なし | `unsupported_engine`。振り分けだけあり、実行先は無い |
+
+AIチャットのストリーム（WebSocket・SSE・NDJSON・JSON Text Sequence）では、`◯_prompt=`の文字列ではなく`{"type":"submit","engine":"◯","prompt":"△"}`でエンジンを選ぶ。`engine`は`codex`・`claude`・`muse`。
 
 Claudeへ添えるのは`sanitize_tunnel`後の名前・ID・状態・接続数と取得時刻だけ。sandboxにはCloudflareの認証情報を渡さない。
 

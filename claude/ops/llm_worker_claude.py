@@ -105,7 +105,7 @@ def ask_muse(prompt):
     if not isinstance(reply, str) or not reply.strip():
         raise MuseError('muse_execution_failed')
     model = data.get('model')
-    return reply, model if isinstance(model, str) and MODEL_NAME.fullmatch(model) else MUSE_MODEL
+    return reply.strip(), model if isinstance(model, str) and MODEL_NAME.fullmatch(model) else MUSE_MODEL
 
 
 def submit(engine, prompt):

@@ -58,6 +58,11 @@ class MuseAskTest(unittest.TestCase):
         self.assertIn('Authorization: Bearer test-key', seen['head'])
         self.assertEqual(seen['body'], {'model': 'muse', 'messages': [{'role': 'user', 'content': '今日は何日？'}]})
 
+    def test_surrounding_whitespace_is_removed_from_the_reply(self):
+        body = json.dumps({'model': 'muse-1', 'choices': [{'message': {'content': '\n金曜日です。\n二行目\n\n'}}]}).encode()
+        with answer(body=body):
+            self.assertEqual(worker.ask_muse('今日は何曜日？'), ('金曜日です。\n二行目', 'muse-1'))
+
     def test_http_failures_map_to_error_codes(self):
         for status, body, code in ((401, b'{}', 'muse_authentication_failed'), (429, b'{}', 'muse_usage_limit'),
                                    (500, b'{}', 'muse_execution_failed'), (200, b'not json', 'muse_execution_failed'),

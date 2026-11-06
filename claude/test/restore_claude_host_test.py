@@ -57,6 +57,13 @@ class RestoreClaudeHostTest(unittest.TestCase):
         for name in ('ops/chat_http_stream.py', 'ops/chat_websocket.py', 'chat/app.mjs', 'conversation-embed.html'):
             self.assertTrue((self.www / name).is_file(), name)
 
+    def test_starts_apache_without_apache2ctl(self):
+        # apache2ctl hands over to systemctl here and exits 0 without doing anything.
+        script = SCRIPT.read_text()
+        self.assertNotIn('apache2ctl graceful', script)
+        self.assertIn('/usr/sbin/apache2 -k', script)
+        self.assertIn('if pgrep -x apache2 >/dev/null; then apache graceful; else apache start; fi', script)
+
     def test_is_idempotent(self):
         self.run_script()
         self.assertEqual(self.run_script().returncode, 0)

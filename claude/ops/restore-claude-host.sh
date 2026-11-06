@@ -4,7 +4,7 @@
 #      /var/www/html/lib (www-data cannot traverse /root)
 #   2. write /etc/apache2/lib-secrets.conf (0600) from ORIGIN_HMAC_SECRET and the Cloudflare token
 #   3. route /lib/api/tunnels to tunnels.claude.rb, and the AI chat embed page and streams
-#      to the stream servers, instead of server.js; then reload Apache
+#      to the stream servers, instead of server.js; then start or reload Apache and check port 8443
 #   4. start the LLM worker, the chat observer and the chat stream servers
 #
 # Token: LIB_TUNNELS_CF_TOKEN, else CF_CONTAINER_API_TOKEN of the caller. The token that
@@ -50,7 +50,25 @@ echo "apache: /lib/conversation-embed.html, /lib/chat/, /lib/t/, /lib/api/chat/*
 
 [ "${LIB_RESTORE_NO_START:-}" = 1 ] && exit 0
 apache2ctl configtest
-apache2ctl graceful
+# Not apache2ctl: here it hands over to systemctl, which prints "Running in chroot, ignoring
+# command" and exits 0, so Apache stays down or keeps its old configuration.
+apache() {  # start | graceful; a minimal environment, the CGI reads PassEnv from it.
+  env -i PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin \
+    CLOUDFLARE_ACCOUNT_ID="${CLOUDFLARE_ACCOUNT_ID:-}" \
+    sh -c '. /etc/apache2/envvars; exec /usr/sbin/apache2 -k "$1"' sh "$1"
+}
+if pgrep -x apache2 >/dev/null; then apache graceful; else apache start; fi
+python3 - <<'PY_CHECK'
+import socket, sys, time
+for _ in range(40):
+    try:
+        socket.create_connection(('127.0.0.1', 8443), 1).close()
+        print('apache: listening on 8443')
+        sys.exit(0)
+    except OSError:
+        time.sleep(0.25)
+sys.exit('apache: nothing is listening on 8443 (see /var/log/apache2/nekoroot-error.log)')
+PY_CHECK
 "$HERE/start-llm-worker-claude.sh"
 "$HERE/start-chat-observer-claude.sh"
 "$HERE/start-chat-streams-claude.sh"

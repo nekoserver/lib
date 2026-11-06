@@ -41,7 +41,7 @@ Slack /neko askgk
 2. `/etc/apache2/lib-secrets.conf`（root、0600）に`ORIGIN_HMAC_SECRET`とCloudflareのトークンを書く。値は実行時の環境変数から読み、リポジトリには入れない。
 3. `claude/ops/apache-lib-tunnels.conf`を`/etc/apache2/lib-tunnels.conf`に置き、`/etc/apache2/sites-available/000-demo.conf`の`ProxyPass /`より前に`Include`を1行入れる。`/lib/api/tunnels`だけをCGIへ通し、CGIのタイムアウトは330秒。
 4. `claude/ops/apache-lib-chat.conf`を`/etc/apache2/lib-chat.conf`に置き、`RewriteEngine On`の直後に`Include`を1行入れる。AIチャットの埋め込みページ・資産・ストリームを8092へ、WebSocketを8091へ送る。既存の「WebSocketはすべて8080へ」の規則より前に置く必要がある。
-5. `apache2ctl configtest`の後に`graceful`で再読込する。
+5. `apache2ctl configtest`の後に、`apache2`を直接実行して起動または再読込し、8443の応答を確かめる。`apache2ctl`はこのコンテナでは`systemctl`に渡され、何もしないまま0で終わる。
 6. `start-llm-worker-claude.sh`でworker、`start-chat-observer-claude.sh`でobserver、`start-chat-streams-claude.sh`でストリームのサーバー（`www-data`、ログ`/tmp/chat-http-stream-claude.log`・`/tmp/chat-websocket-claude.log`）を起動する。起動済みなら何もしない。
 
 ### 前提
@@ -102,7 +102,7 @@ python3 -c 'import socket; s=socket.socket(socket.AF_UNIX); s.connect("/run/lib-
 |---|---|---|
 | 先頭なし（例: `/neko askgk トンネルの状態は？`） | Claude | 応答する。取得済みのトンネル一覧をプロンプトに添える |
 | `claude_prompt="…"` | Claude | 応答する |
-| `codex_prompt="…"` | Codex | `codex_execution_failed`（Codex本体が無い。保留） |
+| `codex_prompt="…"` | Codex | 既定では`codex_execution_failed`。必要なら[`codex/README.md`](codex/README.md)の手順で有効にする |
 
 Claudeへ添えるのは`sanitize_tunnel`後の名前・ID・状態・接続数と取得時刻だけ。sandboxにはCloudflareの認証情報を渡さない。
 

@@ -39,3 +39,28 @@
 - `askgk_request.rb`は`timeout`で切っても、workerのジョブは続く。結果は`/var/lib/lib-llm/jobs`で読める
 - ジョブの上限は300秒。`llm_timeout`になる前に質問を分ける
 - Museの応答は30秒から5分まで幅がある。Slackの待ち時間（既定120秒）を超えることがある
+
+## 追記: 2回目の実行とMuseの再起動（2026-11-07 17時台）
+
+コンテナの起動後、Apache・worker・observer・ストリームのサーバーが止まっていたため、同じ2本（`restore-claude-host.sh`、`enable-codex-prompt.sh`）を再び実行した。前提（`ORIGIN_HMAC_SECRET`、Cloudflareのトークン、`MUSE_API_KEY`、`codex-web`のClaude認証、ネイティブバイナリ）は実行前から揃っていた。単体テストはclaude 33件、Ruby 6件、codex 8件が通った。
+
+| 確認 | 結果 |
+|---|---|
+| tunnels APIの`claude_prompt`、`codex_prompt`、`muse_prompt`、先頭なし | `ask_status: done`（`claude-opus-5-5`、`gpt-6.1-sol`、`muse`） |
+| `nemotron_prompt` | `unsupported_engine`（仕様どおり） |
+| WebSocket、SSE、NDJSON、JSON Text Sequence | claude、codex、museの全組合せで`done`（Apache経由、HMAC署名） |
+| 未対応の`engine`（ストリーム） | 400 |
+| observer | `watch`とWebSocketの`observe`でスナップショットを受信 |
+| 署名なしのPOST（tunnels API、SSE） | 401 |
+| トンネル一覧（`status=healthy`） | `nekoroot`のみ。`cfc-tunnel`は出ない（1回目と同じ） |
+
+その後、利用者がMuse（`muse-vm`）を再起動した。こちらはworkerもApacheも再起動せずに、tunnels APIの`muse_prompt`、WebSocket、SSE、NDJSON、JSON Text Sequenceのすべてで`done`が返った。workerは要求ごとに`tailscale nc`で`muse-vm:8080`へつなぐため、Muse側の再起動ではこのホストの操作は要らない。
+
+未確認: Slackからの`/neko askgk`、公開URL経由のWebSocketとSSE（1回目と同じ）。
+
+### 確認の方法
+
+- tunnels API: `ruby claude/test/manual/askgk_request.rb claude/api/tunnels.claude.rb '<engine>_prompt="hello"'`
+- ストリーム: `https://127.0.0.1:8443/lib/api/chat/{sse,ndjson,jsonseq}`へ`Origin: https://mygw.nekomaneki.work`、`X-Timestamp`、`X-Signature`（`POST\n<path>\n<timestamp>\n<bodyのsha256>`のHMAC）付きで`{"type":"submit","engine":"◯","prompt":"△"}`をPOSTする。最後の`type: job`の`ask_status`を見る
+- WebSocket: `wss://127.0.0.1:8443/lib/api/chat/ws`へ`Origin`付きで接続し、`challenge`の`nonce`に`WS\n/lib/api/chat/ws\n<nonce>`のHMACを`{"type":"auth","signature":…}`で返してから、同じ`submit`を送る。`Host`は足さない（二重になると400）
+- ストリームは、`job`イベントの`ask_status`が`pending`・`running`の間は`job`か`heartbeat`が続き、`done`か`failed`の`job`で終わる。Museでは返答の前に`heartbeat`が十数回続いた

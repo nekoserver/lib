@@ -64,3 +64,25 @@
 - ストリーム: `https://127.0.0.1:8443/lib/api/chat/{sse,ndjson,jsonseq}`へ`Origin: https://mygw.nekomaneki.work`、`X-Timestamp`、`X-Signature`（`POST\n<path>\n<timestamp>\n<bodyのsha256>`のHMAC）付きで`{"type":"submit","engine":"◯","prompt":"△"}`をPOSTする。最後の`type: job`の`ask_status`を見る
 - WebSocket: `wss://127.0.0.1:8443/lib/api/chat/ws`へ`Origin`付きで接続し、`challenge`の`nonce`に`WS\n/lib/api/chat/ws\n<nonce>`のHMACを`{"type":"auth","signature":…}`で返してから、同じ`submit`を送る。`Host`は足さない（二重になると400）
 - ストリームは、`job`イベントの`ask_status`が`pending`・`running`の間は`job`か`heartbeat`が続き、`done`か`failed`の`job`で終わる。Museでは返答の前に`heartbeat`が十数回続いた
+
+## 追記: 3回目の実行（2026-11-07 19時台）
+
+コンテナの起動後、Apache・worker・observer・ストリームのサーバーが止まっていたため、同じ2本（`restore-claude-host.sh`、`enable-codex-prompt.sh`）を再び実行した。前提（`ORIGIN_HMAC_SECRET`、`CF_CONTAINER_API_TOKEN`、`MUSE_API_KEY`、`codex-web`のClaude認証、ネイティブバイナリ）は実行前から揃っていた。`codex-web`にはCodexのログインが無く、`/root/.codex/auth.json`からコピーされた（`Logged in using ChatGPT`）。単体テストはclaude 33件、Ruby 6件、codex 8件が通った。
+
+| 確認 | 結果 |
+|---|---|
+| tunnels APIの`claude_prompt`、`codex_prompt`、`muse_prompt`、先頭なし | `ask_status: done`（`claude-opus-5-5`、`gpt-6.1-sol`、`muse`、先頭なしは`claude-opus-5-5`） |
+| `nemotron_prompt` | `unsupported_engine`（仕様どおり） |
+| WebSocket、SSE、NDJSON、JSON Text Sequence | claude、codex、museの全12通りで`done`（Apache経由、HMAC署名） |
+| 未対応の`engine`（SSE、`nemotron`） | 400 |
+| observer | WebSocketの`observe`で`conversation`のスナップショットを受信 |
+| 署名なしのPOST（tunnels API、SSE） | 401 |
+| トンネル一覧（`status=healthy`） | `nekoroot`のみ。`cfc-tunnel`は出ない（1回目・2回目と同じ） |
+
+未確認: Slackからの`/neko askgk`、公開URL経由のWebSocketとSSE（1回目・2回目と同じ）。
+
+### 同時実行で気づいたこと
+
+- **ストリームの12通りと未対応・署名なしの確認を同時に流すと、NDJSONとJSON Text Sequenceの4本が正しく終わらなかった。** codexの2本は最後の`job`が`pending`のまま、museの2本は`failed`で終わった。1本ずつ流し直すと4本とも`done`になった
+- そのとき`/var/lib/lib-llm/jobs`の記録とworkerのログはすべて`done`で、museのジョブは要求した数より少なかった。失敗した要求はworkerに届く前に終わったとみられる。`/tmp/chat-http-stream-claude.log`は空で、原因は未調査
+- 手動の確認でストリームを同時にたくさん流すと失敗と見分けにくい。エンジンごとに分けるか、1本ずつ流す

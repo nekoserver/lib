@@ -168,6 +168,14 @@ class ExecutorTest(unittest.TestCase):
                             'ORIGIN_HMAC_SECRET': 'y', 'MUSE_API_KEY': 'z', 'GH_TOKEN': 'w', 'CLOUDFLARE_ACCOUNT_ID': 'v'})
         self.assertEqual(env, {'PATH': '/bin', 'HOME': '/root', 'LANG': 'C.UTF-8'})
 
+    def test_claude_uses_the_native_binary_like_the_lib_worker(self):
+        # /opt/node22/bin/claude はネイティブのバイナリが無いスタブで動かない(claude-helper.shと同じ順で探す)
+        native = '/opt/node22/lib/node_modules/@anthropic-ai/claude-code/node_modules/@anthropic-ai/claude-code-linux-x64/claude'
+        self.assertEqual(bj.executor_command('claude', exists=lambda p: p == native)[0], native)
+        self.assertEqual(bj.executor_command('claude', exists=lambda p: True)[0], '/opt/claude-web/claude')
+        self.assertEqual(bj.executor_command('claude', exists=lambda p: False)[0], 'claude')
+        self.assertEqual(bj.executor_command('codex', exists=lambda p: True)[:2], ['codex', 'exec'])
+
     def test_lost_lease_stops_the_child(self):
         calls = []
         started = time.monotonic()

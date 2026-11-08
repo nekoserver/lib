@@ -43,6 +43,16 @@ EXECUTORS = {
     'claude': ['claude', '-p', '--output-format', 'text'],
     'codex': ['codex', 'exec', '--skip-git-repo-check', '-'],
 }
+# /opt/node22/bin/claude はネイティブのバイナリが無いスタブで動かない。claude-helper.sh と同じ順で探す。
+CLAUDE_BINARIES = ('/opt/claude-web/claude',
+                   '/opt/node22/lib/node_modules/@anthropic-ai/claude-code/node_modules/@anthropic-ai/claude-code-linux-x64/claude')
+
+
+def executor_command(name, exists=lambda p: os.access(p, os.X_OK)):
+    args = list(EXECUTORS[name])
+    if name == 'claude':
+        args[0] = next((p for p in CLAUDE_BINARIES if exists(p)), 'claude')
+    return args
 
 
 class D1Error(Exception):
@@ -274,7 +284,7 @@ def main(argv=None):
     elif args.command == 'run-once':
         worker = args.worker or f'{args.executor}@{os.uname().nodename}'
         cwd = args.cwd or tempfile.mkdtemp(prefix='bridge-job-')
-        executor = lambda prompt, ext: run_command(EXECUTORS[args.executor], prompt, extend=ext, cwd=cwd, env=child_env(os.environ))
+        executor = lambda prompt, ext: run_command(executor_command(args.executor), prompt, extend=ext, cwd=cwd, env=child_env(os.environ))
         print(json.dumps(run_once(db, executor, worker=worker), ensure_ascii=False))
     elif args.command == 'list':
         rows = db.query('SELECT l.job_id, l.status, l.attempts, l.max_attempts, l.claimed_by, l.lease_until, l.last_error, '

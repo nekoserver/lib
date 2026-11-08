@@ -8,6 +8,7 @@
 - 外部へ書き込むジョブは max_attempts = 1 で登録し、期限切れは failed にして人が確かめる。
 - 結果は bridge_job_results に claim_token ごとに保存し、上書きしない。状態の履歴はロックの表のトリガーが書く。
 - 起動はまず手動で1件ずつ(run-once)。子プロセスにはトークンや秘密の値を渡さない。
+- 変更件数は >= 1 で判定する。対象は主キー1行だけなので意味は同じで、D1のmeta.changesがトリガーで書いた行を含む場合も誤らない。
 
 使い方:
   bridge_jobs.py register --origin aichat --created-by NAME [--external] [--job-id HEX32] < 依頼文
@@ -89,7 +90,7 @@ def register(db, job_id, request_text, *, origin, created_by, external_write=Fal
         raise ValueError('依頼文が空です')
     created = db.query(
         'INSERT OR IGNORE INTO bridge_jobs (job_id, origin, created_by, ai_chat_share_id, external_write, request_text) VALUES (?, ?, ?, ?, ?, ?)',
-        [job_id, origin, created_by, ai_chat_share_id, 1 if external_write else 0, request_text])['changes'] == 1
+        [job_id, origin, created_by, ai_chat_share_id, 1 if external_write else 0, request_text])['changes'] >= 1
     db.query('INSERT OR IGNORE INTO bridge_job_locks (job_id, created_by, max_attempts) VALUES (?, ?, ?)',
              [job_id, created_by, 1 if external_write else 3])
     return created
@@ -115,7 +116,7 @@ def claim(db, job_id, token, worker, lease_seconds=LEASE_SECONDS):
            f"WHERE job_id = ?4 AND attempts < max_attempts AND result_path IS NULL "
            f"AND (status = 'queued' OR (status = 'claimed' AND lease_until <= {NOW}))")
     try:
-        return db.query(sql, [token, worker, lease_seconds, job_id])['changes'] == 1
+        return db.query(sql, [token, worker, lease_seconds, job_id])['changes'] >= 1
     except D1Unknown:
         return _token_is(db, job_id, token, 'claimed')
 
@@ -124,7 +125,7 @@ def extend(db, job_id, token, lease_seconds=LEASE_SECONDS):
     sql = (f"UPDATE bridge_job_locks SET lease_until = {NOW} + ?1, updated_at = {NOW} "
            f"WHERE job_id = ?2 AND claim_token = ?3 AND status = 'claimed' AND lease_until > {NOW}")
     try:
-        return db.query(sql, [lease_seconds, job_id, token])['changes'] == 1
+        return db.query(sql, [lease_seconds, job_id, token])['changes'] >= 1
     except D1Unknown:
         return False
 
@@ -137,14 +138,14 @@ def complete(db, job_id, token, result_text, exit_code):
         f"INSERT OR IGNORE INTO bridge_job_results (job_id, claim_token, result_text, result_sha256, exit_code) "
         f"SELECT ?1, ?2, ?3, ?4, ?5 WHERE EXISTS (SELECT 1 FROM bridge_job_locks WHERE job_id = ?1 AND claim_token = ?2 "
         f"AND status = 'claimed' AND lease_until > {NOW})",
-        [job_id, token, text, digest, exit_code])['changes'] == 1
+        [job_id, token, text, digest, exit_code])['changes'] >= 1
     if not saved:
         return False
     path = f'bridge_job_results:{token}'
     sql = (f"UPDATE bridge_job_locks SET status = 'done', result_path = ?1, result_sha256 = ?2, updated_at = {NOW} "
            f"WHERE job_id = ?3 AND claim_token = ?4 AND status = 'claimed' AND lease_until > {NOW}")
     try:
-        return db.query(sql, [path, digest, job_id, token])['changes'] == 1
+        return db.query(sql, [path, digest, job_id, token])['changes'] >= 1
     except D1Unknown:
         return _token_is(db, job_id, token, 'done')
 
@@ -154,7 +155,7 @@ def release(db, job_id, token, error):
     sql = (f"UPDATE bridge_job_locks SET status = CASE WHEN attempts >= max_attempts THEN 'failed' ELSE 'queued' END, "
            f"claim_token = NULL, lease_until = NULL, last_error = ?1, updated_at = {NOW} "
            f"WHERE job_id = ?2 AND claim_token = ?3 AND status = 'claimed' AND lease_until > {NOW}")
-    return db.query(sql, [str(error)[:2000], job_id, token])['changes'] == 1
+    return db.query(sql, [str(error)[:2000], job_id, token])['changes'] >= 1
 
 
 def fail_exhausted(db):
@@ -168,7 +169,7 @@ def fail_exhausted(db):
             f"UPDATE bridge_job_locks SET status = 'failed', last_error = ?1, updated_at = {NOW} "
             f"WHERE job_id = ?2 AND status = 'claimed' AND result_path IS NULL AND attempts >= max_attempts AND lease_until <= {NOW}",
             ['期限が切れ、試す回数の上限に達した。外部へ書き込むジョブは、人が外部の状態を確かめる', row['job_id']])['changes']
-        if changes == 1:
+        if changes >= 1:
             failed.append(row['job_id'])
     return failed
 
@@ -176,7 +177,7 @@ def fail_exhausted(db):
 def cancel(db, job_id, reason):
     sql = (f"UPDATE bridge_job_locks SET status = 'cancelled', last_error = ?1, updated_at = {NOW} "
            f"WHERE job_id = ?2 AND status IN ('queued', 'claimed')")
-    return db.query(sql, [str(reason)[:2000], job_id])['changes'] == 1
+    return db.query(sql, [str(reason)[:2000], job_id])['changes'] >= 1
 
 
 def child_env(environ):

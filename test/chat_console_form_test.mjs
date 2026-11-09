@@ -6,7 +6,7 @@ const source=readFileSync(new URL('../chat/app.mjs',import.meta.url),'utf8');
 const handler=source.slice(source.indexOf("$('console-form').addEventListener('submit'"),source.indexOf("$('console-revoke').addEventListener"));
 for (const [status,data,message,cleared] of [
  [200,{accepted:true},'送信しました。この会話に応答が届きます。',true],
- [200,{accepted:true,queued:true},'この会話の送信待ちに追加しました。現在の処理後に応答が届きます。',true],
+ [200,{accepted:true,queued:true},'次のターン待ちとして保存しました。まだAIには渡っていません。応答開始時刻は未確定です。',true],
  [409,{error:'console_in_use'},'この会話は別のCodexで使用中のため、ここから直接送信できません。',false],
  [200,{accepted:false},'送信を受理できませんでした。',false],
 ]) {

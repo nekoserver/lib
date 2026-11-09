@@ -87,7 +87,7 @@ class ObserverTest(unittest.IsolatedAsyncioTestCase):
                 snapshot = await anext(stream)
                 await stream.aclose()
         self.assertEqual(snapshot['messages'][0]['text'], '# Streaming reply')
-        self.assertEqual([call['method'] for call in calls], ['initialize', 'thread/read', 'thread/turns/list'])
+        self.assertEqual([call['method'] for call in calls], ['initialize', 'thread/read', 'thread/turns/list', 'thread/queue/list'])
         self.assertTrue(all(call['params'].get('threadId') == 'fixed-thread' for call in calls[1:]))
 
 

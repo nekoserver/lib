@@ -1,3 +1,5 @@
+import { renderConsoleQueue } from './console-queue.mjs';
+import { applyChatKeyboardInput } from './keyboard-input.mjs';
 import { applyEmbedTheme } from './theme.mjs';
 import { getSession, startSession, restoreSession, clearSession, sessionForKey } from './session.mjs?v=cookie7d';
 import { ChatSocket } from './socket.mjs?v=controls3';
@@ -13,6 +15,22 @@ const CONSOLE_STORAGE = 'conversation-console-session-v1';
 let consoleTtlSeconds = 3600;
 const parentOrigins = new Set([location.origin, 'https://1.cfw1.nekomaneki.work', 'https://cloudflare-workers-github-oauth-1.nekoflare.workers.dev', 'https://dynamicneko.nekoflare.workers.dev']);
 let parentOrigin = null;
+let compactKeyboard = false;
+let keyboardField = null;
+document.addEventListener('focusin', event => {
+  if (['prompt', 'console-prompt'].includes(event.target?.id)) keyboardField = event.target;
+});
+function syncKeyboardMode(compact) {
+  compactKeyboard = compact;
+  for (const id of ['prompt', 'console-prompt']) {
+    const field = $(id);
+    if (!field) continue;
+    field.readOnly = compact;
+    if (compact) { field.setAttribute('inputmode', 'none'); if (document.activeElement === field) field.blur(); }
+    else field.removeAttribute('inputmode');
+  }
+}
+
 if (embedded) {
   const parameters = new URLSearchParams(location.search);
   if (['sse', 'websocket', 'ndjson', 'jsonseq'].includes(parameters.get('protocol'))) $('protocol').value = parameters.get('protocol');
@@ -32,7 +50,13 @@ if (embedded) {
       const ownObservationControls = event.data.observationControls === 'embed' || (event.data.observationControls !== 'parent' && event.origin === 'https://dynamicneko.nekoflare.workers.dev');
       document.documentElement.dataset.observationControls = ownObservationControls ? 'embed' : 'parent';
       if (CONSOLE_TTL_OPTIONS.has(event.data.consoleTtlSeconds)) consoleTtlSeconds = event.data.consoleTtlSeconds;
+      syncKeyboardMode(event.data.compactKeyboard === true);
       updateConsoleSection(); notifyParent({ type: 'conversation-state', busy });
+    }
+    if (event.data?.type === 'conversation-keyboard-input' && compactKeyboard && document.documentElement.dataset.parentControls === 'true') {
+      const consoleField = $('console-prompt');
+      const field = keyboardField?.offsetParent !== null && keyboardField ? keyboardField : consoleField?.offsetParent !== null && consoleField ? consoleField : $('prompt');
+      applyChatKeyboardInput(field, event.data.input);
     }
     if (event.data?.type === 'conversation-spec-eval') void handleSpecEvaluation(event);
     if (event.data?.type === 'conversation-start') watch({ type: 'observe' });
@@ -173,7 +197,7 @@ async function watch(request) {
         $('delivery').textContent = data.source === 'conversation' ? 'このコンソールの会話を表示します。下の入力欄から、この会話へ直接メッセージを送れます。' : data.source === 'demo' ? '比較デモ：固定文章を分割配信。AIは実行しません。' : '別のAI実行：状態は随時配信、回答は生成完了時に届きます。文字単位の生成配信ではありません。';
         return;
       }
-      if (data.type === 'conversation') { reconnect.reset(); renderConversation(data); return; }
+      if (data.type === 'conversation') { reconnect.reset(); renderConversation(data); renderConsoleQueue(data.consoleQueue, $('console-status')); return; }
       if (data.type === 'heartbeat') return;
       if (data.type === 'delta') { answer += data.text; showMarkdown($('answer'), answer); return; }
       if (data.ask_id) { askId = data.ask_id; $('job').textContent = askId; }
@@ -183,6 +207,7 @@ async function watch(request) {
       $('metadata').textContent = [data.llm_model, data.llm_effort && `effort: ${data.llm_effort}`].filter(Boolean).join(' / ');
     }, sessionToken);
   } catch (error) {
+    if (request.type === 'observe') renderConsoleQueue(null, $('console-status'));
     $('status').textContent = error.message; if (!getSession()) hideKeyInput(false);
     if (request.type === 'observe') {
       if (protocol === 'websocket' && error.code === 'websocket_unavailable') {
@@ -337,7 +362,7 @@ $('console-form').addEventListener('submit', async event => {
     if (result?.accepted !== true) throw new Error('送信を受理できませんでした。');
     $('console-prompt').value = '';
     $('console-status').textContent = result.queued === true
-      ? 'この会話の送信待ちに追加しました。現在の処理後に応答が届きます。'
+      ? '次のターン待ちとして保存しました。まだAIには渡っていません。応答開始時刻は未確定です。'
       : '送信しました。この会話に応答が届きます。';
   } catch (error) {
     $('console-status').textContent = error instanceof Error ? error.message : '送信に失敗しました。';

@@ -31,9 +31,9 @@ const STORAGE = 'conversation-observer-session-v1';
 function openWithTicket(data) {
  if (!data || typeof data.token !== 'string' || !Number.isFinite(data.expires_in) || !/^[A-Za-z0-9_-]{20,80}$/.test(data.asset_ticket || '')) throw new Error('invalid_session');
  const expires = Date.now() + data.expires_in * 1000;
- try { sessionStorage.setItem(STORAGE, JSON.stringify({token:data.token, expires})); } catch {}
- const fragment = '#session=' + encodeURIComponent(data.token) + '&expires=' + expires;
- location.replace('/lib/t/' + data.asset_ticket + '/conversation-embed.html' + location.search + fragment);
+ try { sessionStorage.setItem(STORAGE, JSON.stringify({token:data.token, expires})); }
+ catch { throw new Error('session_storage_unavailable'); }
+ location.replace('/lib/t/' + data.asset_ticket + '/conversation-embed.html' + location.search);
 }
 try {
  const cached = JSON.parse(sessionStorage.getItem(STORAGE));
@@ -62,7 +62,7 @@ form.addEventListener('submit', async event => {
    try { sessionStorage.setItem(STORAGE, JSON.stringify({token:data.token, expires:Date.now()+data.expires_in*1000})); } catch {}
    location.replace('/lib/conversation-embed.html' + location.search);
   } else openWithTicket(data);
- } catch { status.textContent = '認証できませんでした。キーを確認してください。'; }
+ } catch (error) { status.textContent = error?.message === 'session_storage_unavailable' ? 'このブラウザーではセッションを保存できませんでした。サイトデータの使用を許可して再度お試しください。' : '認証できませんでした。キーを確認してください。'; }
 });
 </script></body></html>'''.replace('NONCE', nonce)
         return web.Response(text=page, content_type='text/html', headers={

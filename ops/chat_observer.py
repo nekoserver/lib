@@ -19,7 +19,7 @@ from spec_eval import configured_evaluations
 SOCKET = '/run/lib-chat-observer/observer.sock'
 INTERVAL = 1
 SOURCE_FILE = Path('/var/lib/lib-chat-observer/source.json')
-READ_METHODS = frozenset({'thread/read', 'thread/turns/list', 'thread/loaded/list'})
+READ_METHODS = frozenset({'thread/read', 'thread/turns/list', 'thread/loaded/list', 'thread/queue/list'})
 TOOL_TYPES = frozenset({'commandExecution', 'webSearch', 'fileChange', 'mcpToolCall', 'dynamicToolCall'})
 
 
@@ -183,11 +183,17 @@ async def workspace_threads(client, workspace):
     return candidates
 
 
+def public_queue_summary(result):
+    if not isinstance(result, dict) or not isinstance(result.get('data'), list):
+        return {'available': False}
+    return {'available': True, 'pending': len(result['data']), 'hasMore': bool(result.get('nextCursor'))}
+
+
 async def target_snapshots(path, thread_id, source_file=None, fallback=None):
     # The upstream connection itself is WebSocket over a root-only Unix socket.
     async with unix_connect(path, uri='ws://localhost', max_size=16_777_216) as ws:
         client = ReadClient(ws)
-        await client.request('initialize', {'clientInfo': {'name': 'readonly_chat_observer', 'version': '0.1.0'}})
+        await client.request('initialize', {'clientInfo': {'name': 'readonly_chat_observer', 'version': '0.1.0'}, 'capabilities': {'experimentalApi': True}})
         await ws.send(json.dumps({'method': 'initialized', 'params': {}}))
         previous = None
         selected = None
@@ -211,6 +217,11 @@ async def target_snapshots(path, thread_id, source_file=None, fallback=None):
                 'threadId': current_id, 'limit': 10, 'sortDirection': 'desc', 'itemsView': 'full',
             })
             snapshot = public_snapshot(thread, turns.get('data', []))
+            try:
+                queue = await client.request('thread/queue/list', {'threadId': current_id, 'limit': 100})
+                snapshot['consoleQueue'] = public_queue_summary(queue)
+            except (ValueError, TimeoutError):
+                snapshot['consoleQueue'] = {'available': False}
             if snapshot != previous:
                 yield snapshot
                 previous = snapshot

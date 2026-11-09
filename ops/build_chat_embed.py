@@ -12,7 +12,7 @@ def asset(name, source):
     return filename
 
 imports = {}
-for name in ('socket.mjs', 'http-stream.mjs', 'session.mjs', 'markdown.mjs', 'reconnect.mjs', 'theme.mjs'):
+for name in ('socket.mjs', 'http-stream.mjs', 'session.mjs', 'markdown.mjs', 'reconnect.mjs', 'theme.mjs', 'keyboard-input.mjs', 'console-queue.mjs'):
     imports[name] = asset(name, (ROOT / 'chat' / name).read_text())
 source = (ROOT / 'chat/app.mjs').read_text()
 for name, filename in imports.items():

@@ -17,4 +17,21 @@ Muse（muse-vm 上のエージェント）が日常の確認作業で使うシ�
 
 前提: POSIX sh、python3（`bridge-jobs.sh` と `pkg-versions.sh` の JSON 読み取り用）、curl（`muse-status.sh` の health 確認用）。
 
+## Muse Code SDK 連携
+
+Muse（本体）と Muse Code SDK（Python、`muse_code` パッケージ）に連動するもの。
+SDK の実体は `.py` 側で、シェルは入口（解決・引数・タイムアウト）を担う。
+
+| スクリプト | 内容 |
+|---|---|
+| `sdk-setup.sh` | SDK 用 venv（`~/.local/share/muse-sdk-venv`）を作り、本体と同版の `muse-code-sdk` を入れる。冪等 |
+| `sdk-health.sh` | 本体と SDK の版、認証キーの有無（値自体は出さない）、serve デーモンの状態 |
+| `sdk-ask.sh` | SDK で1ターンだけ指示を実行する。プロファイルは `-p`（既定 `:auto-review`、環境変数 `MUSE_PROFILE` でも指定可）。適用されなければ黙って落とさずエラー。`:unrestricted` は `MUSE_ALLOW_UNRESTRICTED=1` のときだけ。`-j` で結果サマリを JSON 出力 |
+| `sdk-profiles.sh` | ホストの権限プロファイルとモデルを一覧（読み取り専用） |
+| `sdk-sessions.sh` | ホストのセッション一覧と使用量（読み取り専用） |
+| `sdk-serve.sh` | `muse serve --listen` のソケットデーモンを start / stop / status。ソケットは well-known の `~/.local/share/muse/session-server/session-server.sock`（この版は任意パス不可） |
+| `sdk-common.sh` | 上記が読み込む共通の解決処理（単体では使わない） |
+
+注意: ターンの実行にはホスト側の認証（サインイン、または serve プロセスから見える `META_API_KEY`）が要る。未認証だと構造化エラー `authRequired` が返る。`:auto-review` は自動レビュアーが使える状態（キー設定済み）でないと `profile_not_applied` になる。
+
 `dashboard/` には、これらを Apache の SSI で呼び出すダッシュボードページがある（`dashboard/README.md` 参照）。

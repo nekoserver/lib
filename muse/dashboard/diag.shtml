@@ -1,0 +1,1 @@
+<!--#exec cmd="DIAG_QUICK=1 ../diag.sh -s | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g' -e 's/$/<br>/'" -->

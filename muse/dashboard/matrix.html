@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>muse 診断マトリックス</title>
+<style>
+  body { font-family: sans-serif; margin: 1em; background: #111; color: #ddd; }
+  h1 { font-size: 1.2em; }
+  table { border-collapse: collapse; width: 100%; font-size: .88em; }
+  th, td { border: 1px solid #444; padding: .35em .5em; vertical-align: top; text-align: left; }
+  th { background: #222; }
+  tr:nth-child(even) td { background: #181818; }
+  a { color: #8ab; }
+  .meta { color: #888; font-size: .85em; }
+</style>
+</head>
+<body>
+<h1>診断マトリックス</h1>
+<p class="meta"><a href="index.shtml">ダッシュボードへ戻る</a> / 出典: muse/DIAGNOSIS.md（diag.sh 全33項目と想定インシデントの対応表）</p>
+<table>
+<tr><th>#</th><th>インシデント</th><th>主な兆候</th><th>diag の該当チェック</th><th>切り分け・次手</th></tr>
+<tr><td>1</td><td>VM の意図せぬ再起動</td><td>全サービスが同時に若い</td><td>常駐物: VM 稼働時間（WARN）、tailscaled の開始時刻</td><td>開始時刻で再起動と断定する。tailscaled と Bridge の復帰を続けて確認</td></tr>
+<tr><td>2</td><td>tailscaled 停止・オフライン</td><td>tailnet から届かない</td><td>常駐物: tailscaled（FAIL）</td><td>プロセス不在なら bootstrap 経路（nixwrap / boot-trigger）を確認。確認自体が起動しうる CLI は使わない</td></tr>
+<tr><td>3</td><td>API Bridge 無応答</td><td>POST が返らない、:8080 無応答</td><td>常駐物: API Bridge /health（FAIL）</td><td>プロセスと待ち受けポートを確認</td></tr>
+<tr><td>4</td><td>Bridge の滞留・遅延</td><td>応答が数分かかる、後続が詰まる</td><td>常駐物: /health 応答時間（WARN）、ジョブ: キューの滞留（WARN）</td><td>単一エージェントの直列処理が上限。長い依頼が先行していないか queue/done を見る</td></tr>
+<tr><td>5</td><td>ブリッジの安全停止（504）</td><td>特定の依頼だけ 600s タイムアウト</td><td>（diag 外）/health は OK のまま</td><td>ジョブ結果ファイルで未応答の有無を確認。サーバ側に検知ルールは無い</td></tr>
+<tr><td>6</td><td>メモリ枯渇・OOM</td><td>プロセスが落ちる、全体が重い</td><td>メモリ: 空きメモリ（WARN/FAIL）、スワップ、OOM killer、RSS 上位</td><td>RSS 上位が想定内か。この VM では大半の使用量が内訳に出ない点に注意</td></tr>
+<tr><td>7</td><td>ディスク枯渇</td><td>書き込み失敗、ビルド失敗</td><td>ディスク: 使用率（WARN/FAIL）、ジャーナル使用量、workspace サイズ</td><td>対象マウントの大きいディレクトリを du で追う</td></tr>
+<tr><td>8</td><td>inode 枯渇</td><td>空き容量があるのに作れない</td><td>ディスク: inode 使用率（WARN/FAIL）</td><td>小ファイルの大量生成先を探す</td></tr>
+<tr><td>9</td><td>負荷過多</td><td>何をしても遅い</td><td>CPU: ロードアベレージ（WARN/FAIL）、CPU 上位、PSI</td><td>上位プロセスが想定内か。セル配分（1.5 コア）比で見る</td></tr>
+<tr><td>10</td><td>ゾンビ・FD 枯渇</td><td>起動失敗、too many open files</td><td>プロセス: ゾンビ（WARN）、ファイルハンドル（WARN）</td><td>親プロセスの回収漏れ、リークする常駐物の特定</td></tr>
+<tr><td>11</td><td>ネットワーク不通・DNS</td><td>名前が引けない、外へ出られない</td><td>ネットワーク: デフォルト経路、DNS 解決、待ち受けポート数、TIME_WAIT</td><td>外向きはプロキシ経由が前提。DNS は参考値、経路とポートを先に見る</td></tr>
+<tr><td>12</td><td>時刻ずれ</td><td>署名検証や有効期限で落ちる</td><td>時刻: NTP 同期、現在時刻</td><td>Webhook の ±300s 窓やトークン期限への影響を先に疑う</td></tr>
+<tr><td>13</td><td>未 push 成果物の喪失リスク</td><td>VM 再起動で作業が消える</td><td>git: 未 push コミット（WARN）、未コミット変更（WARN）</td><td>push は承認手続き付き。対象は git-heads.sh で特定する</td></tr>
+<tr><td>14</td><td>秘密情報の権限過大</td><td>トークンが他者可読</td><td>権限: ブリッジトークンの権限（FAIL は 600 以外）</td><td>値には触らず権限だけ直す</td></tr>
+<tr><td>15</td><td>muse 未認証</td><td>SDK のターンが authRequired</td><td>（diag 外）sdk-health.sh / sdk-ask.sh の結果</td><td>serve プロセスから見える認証が要る。サインインは本人の操作</td></tr>
+<tr><td>16</td><td>:auto-review 不可用</td><td>profile_not_applied で弾かれる</td><td>（diag 外）sdk-profiles.sh で available を確認</td><td>一覧で available でも実行時に弾かれることがある。キー設定の有無を確認</td></tr>
+<tr><td>17</td><td>SDK と本体の版ずれ</td><td>SDK が妙なエラーになる</td><td>（diag 外）sdk-health.sh の版表示</td><td>sdk-setup.sh で同版を入れ直す</td></tr>
+<tr><td>18</td><td>muse デーモン未起動</td><td>--listen 前提のクライアントが繋げない</td><td>常駐物: muse デーモン（WARN）</td><td>spawn 方式だけで足りるなら正常。常駐が要る場合は sdk-serve.sh start</td></tr>
+<tr><td>19</td><td>systemd ユニット失敗</td><td>一部機能だけ止まっている</td><td>常駐物: systemd 失敗ユニット（WARN）</td><td>対象ユニットの journal を見る</td></tr>
+<tr><td>20</td><td>ログの異常多発・肥大</td><td>error が急増、ディスク圧迫</td><td>ログ: 直近1時間の error ログ（WARN）、panic/segfault、ジャーナル使用量</td><td>エラーの初出時刻と契機（再起動、push、設定変更）を突き合わせる</td></tr>
+</table>
+</body>
+</html>

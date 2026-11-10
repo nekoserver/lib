@@ -123,6 +123,12 @@ async function updateReview() {
   <div class="body"><!--#include virtual="recent.shtml" --></div>
 </section>
 
+<section class="read" data-frag="diag.shtml">
+  <h2>診断サマリ（全33項目） <span class="badge read">読み取り</span> <span class="ops"><button type="button" onclick="rerun(this)">再実行</button><a href="diag.shtml">開く</a></span></h2>
+  <div class="body"><!--#include virtual="diag.shtml" --></div>
+  <p class="meta">WARN/FAIL の見方: <a href="matrix.html">診断マトリックス</a>（想定インシデントとの対応表）</p>
+</section>
+
 <section class="read" data-frag="execlog.shtml">
   <h2>実行監査ログ <span class="badge read">読み取り</span> <span class="ops"><button type="button" onclick="rerun(this)">再実行</button><a href="execlog.shtml">開く</a></span></h2>
   <div class="body"><!--#include virtual="execlog.shtml" --></div>

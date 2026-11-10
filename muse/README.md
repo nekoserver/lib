@@ -37,4 +37,8 @@ SDK の実体は `.py` 側で、シェルは入口（解決・引数・タイム
 
 注意: ターンの実行にはホスト側の認証（サインイン、または serve プロセスから見える `META_API_KEY`）が要る。未認証だと構造化エラー `authRequired` が返る。`:auto-review` は自動レビュアーが使える状態（キー設定済み）でないと `profile_not_applied` になる。
 
+| `diag.sh` | システム診断（読み取り専用、全33項目、カテゴリ別）。`-s` で件数と WARN/FAIL のみ。終了コード 0/1/2 = 異常なし/WARN/FAIL。`DIAG_QUICK=1` で重い走査を省略 |
+
+`DIAGNOSIS.md` は、diag の項目と想定インシデント20件の対応をまとめた診断マトリックス。
+
 `dashboard/` には、これらを Apache の SSI で呼び出すダッシュボードページがある（`dashboard/README.md` 参照）。

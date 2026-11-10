@@ -9,6 +9,10 @@
 | `jobs.shtml` | `../bridge-jobs.sh` の出力を埋め込む断片 |
 | `pkgs.shtml` | `../pkg-versions.sh` の出力を埋め込む断片 |
 | `vm.shtml` | `../vm-info.sh` の出力を埋め込む断片 |
+| `procs.shtml` | `../procs.sh`（メモリ上位プロセス）の出力を埋め込む断片 |
+| `ports.shtml` | `../ports.sh`（待ち受けポート）の出力を埋め込む断片 |
+| `git.shtml` | `../git-heads.sh`（ローカル git リポジトリの状態）の出力を埋め込む断片 |
+| `recent.shtml` | `../recent-jobs.sh`（直近の完了ジョブ）の出力を埋め込む断片 |
 
 断片側で、出力を HTML エスケープしてから行末に `<br>` を付けている
 （このリポジトリの `date.shtml` / `printenv.shtml` と同じ流儀）。

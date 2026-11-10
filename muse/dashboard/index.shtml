@@ -39,5 +39,25 @@
   <div class="body"><!--#include virtual="vm.shtml" --></div>
 </section>
 
+<section>
+  <h2>プロセス（メモリ上位）</h2>
+  <div class="body"><!--#include virtual="procs.shtml" --></div>
+</section>
+
+<section>
+  <h2>待ち受けポート</h2>
+  <div class="body"><!--#include virtual="ports.shtml" --></div>
+</section>
+
+<section>
+  <h2>ローカル git リポジトリ</h2>
+  <div class="body"><!--#include virtual="git.shtml" --></div>
+</section>
+
+<section>
+  <h2>直近の完了ジョブ</h2>
+  <div class="body"><!--#include virtual="recent.shtml" --></div>
+</section>
+
 </body>
 </html>

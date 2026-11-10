@@ -9,6 +9,10 @@ Muse（muse-vm 上のエージェント）が日常の確認作業で使うシ�
 | `bridge-jobs.sh` | bridge-jobs キューの一覧。処理順（優先度降順、同点は作成順）で表示し、done 件数も出す |
 | `pkg-versions.sh` | Nix プロファイルと .deb の導入済みパッケージを分けて表示。「最新」は引かない |
 | `vm-info.sh` | CPU、メモリ、ディスク、OS の基本情報 |
+| `procs.sh` | メモリ使用量の上位プロセス |
+| `ports.sh` | 待ち受けポートの一覧 |
+| `git-heads.sh` | ローカルの git リポジトリの状態（ブランチ、先頭、未コミット変更数、未 push 数。ネットワークには出ない） |
+| `recent-jobs.sh` | bridge-jobs の直近の完了ジョブ |
 
 前提: POSIX sh、python3（`bridge-jobs.sh` と `pkg-versions.sh` の JSON 読み取り用）、curl（`muse-status.sh` の health 確認用）。
 

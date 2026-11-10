@@ -136,6 +136,10 @@ def cmd_approve(req_id):
     if record.get("status") != "pending":
         print(f"承認待ちではありません（status: {record.get('status')}）", file=sys.stderr)
         sys.exit(1)
+    if os.path.exists(os.path.join(BASE, "STOP")):
+        audit("approve_refused", id=req_id, reason="emergency_stop")
+        print("緊急停止中です（~/.local/share/muse-sdk/STOP）。承認できません。", file=sys.stderr)
+        sys.exit(4)
     if not validate_record(record, req_id):
         sys.exit(3)
     ok, gate_info = diag_gate(record, req_id)

@@ -20,6 +20,10 @@
 想定でもない。常用されている状態が続くなら、それはこの経路を拡張する
 理由ではなく、通常経路側に問題があるという兆候として扱う。
 
+あわせて、この経路には緊急停止装置が付く。万が一制御不能な状態に
+なっても、ホスト側の1操作で受付・承認・実行のすべてを止められること
+（§5.4）。止める手段まで含めて、緊急用の装置である。
+
 ## 2. 経路の構成
 
 ```
@@ -43,7 +47,8 @@
   指定（`MUSE_ASK_IMPL`）でのみ行う。Web 側からは指定できない。
 - すべての段で監査ログ `~/.local/share/muse-sdk/exec-audit.jsonl` に
   記録が残る（イベント: submitted / submit_refused / approved / rejected /
-  executed / integrity_failed / diag_blocked / diag_gate_skipped）。
+  executed / integrity_failed / diag_blocked / diag_gate_skipped /
+  emergency_stop / emergency_stop_released / approve_refused）。
 
 ## 3. 正規の使い方（目的内使用）
 
@@ -109,7 +114,15 @@
   記録して通す。0はそのまま通す
 - 二重承認はできない（承認待ちでない依頼は拒否される）
 
-### 5.3 実行時
+### 5.3 緊急停止
+
+- `sdk-emergency-stop.sh stop` で STOP ファイル
+  （`~/.local/share/muse-sdk/STOP`）を置くと、受付と承認はすべて
+  拒否される。解除は同ツールの `resume` のみ
+- 停止・解除・停止中の拒否はすべて監査に残る
+- 操作はホストのシェルからのみ。Web 側に停止・解除の手段は置かない
+
+### 5.4 実行時
 
 - プロファイルは SDK 側でも require で必須とし、適用されなければ
   黙って落とさずエラーにする（読み戻し確認はその例外処理としてのみ）

@@ -77,6 +77,10 @@ def main():
     profile = field("profile", ":auto-review").strip()
     workspace = field("workspace").strip()
 
+    if os.path.exists(os.path.join(BASE, "STOP")):
+        audit("submit_refused", reason="emergency_stop")
+        fail(["緊急停止中です。現在、実行依頼は受け付けていません"])
+
     errors = []
     if profile not in ALLOWED_PROFILES:
         errors.append(f"プロファイルは {', '.join(ALLOWED_PROFILES)} のみ許可されています: {profile}")

@@ -35,6 +35,7 @@ SDK の実体は `.py` 側で、シェルは入口（解決・引数・タイム
 | `sdk-approve.sh` | 受ける側ホストでの承認ツール（`list` / `show` / `approve` / `reject`）。承認した場合にだけ `sdk-ask.sh` を実行する。実行は受ける側の承認なしには成立しない。承認直前に整合性の再検証（改竄・許可リスト・symlink 解決後の範囲）と診断ゲート（`diag.sh` に FAIL がある間は実行しない）が入る |
 | `sdk-ts-*.sh` / `ts/` | TypeScript 版 SDK（`@muse-code/sdk`）の同等ツール群（health / profiles / sessions / ask / serve）。診断・制御は Python 版と両方で機能する。導入は `sdk-ts-setup.sh`。実行コアは承認ツールの `MUSE_ASK_IMPL=ts` で切り替える（ホスト側の指定のみ）。Web からは直結しない |
 | `pending.sh` | 承認待ちの一覧（読み取り専用） |
+| `sdk-emergency-stop.sh` | 緊急停止装置（ホスト側専用）。`stop` で受付・承認・実行をすべて止め、`resume` で解除する。停止中は監査に残る形で全て拒否される |
 | `exec-log.sh` | SDK 実行系の監査ログ（`~/.local/share/muse-sdk/exec-audit.jsonl`）の表示（読み取り専用） |
 | `sdk-common.sh` | 上記が読み込む共通の解決処理（単体では使わない） |
 

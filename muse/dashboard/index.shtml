@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>muse dashboard</title>
+<style>
+  body { font-family: sans-serif; margin: 1em; background: #111; color: #ddd; }
+  h1 { font-size: 1.2em; }
+  h2 { font-size: 1em; border-bottom: 1px solid #444; padding-bottom: .2em; }
+  h3 { font-size: .95em; margin: .6em 0 .3em; }
+  section { background: #1b1b1b; border: 1px solid #333; border-radius: 6px;
+            padding: .6em 1em; margin-bottom: 1em; }
+  .body { font-family: monospace; font-size: .9em; line-height: 1.5; overflow-x: auto; }
+  .meta { color: #888; font-size: .85em; }
+  .ops { float: right; font-size: .85em; }
+  .ops button { background: #2a2a2a; color: #ddd; border: 1px solid #555;
+                border-radius: 4px; padding: .1em .6em; cursor: pointer; }
+  .ops a { color: #8ab; margin-left: .6em; }
+  .grow { display: flex; align-items: center; gap: .5em; margin: .15em 0; }
+  .glabel { width: 9em; text-align: right; font-family: monospace;
+            font-size: .85em; overflow: hidden; white-space: nowrap; }
+  .gbar { display: inline-block; height: .8em; background: #4a9; min-width: 1px; }
+  .gval { font-family: monospace; font-size: .85em; color: #aaa; }
+</style>
+<script>
+function rerun(btn) {
+  var sec = btn.closest('section');
+  var body = sec.querySelector('.body');
+  var frag = sec.getAttribute('data-frag');
+  btn.disabled = true;
+  fetch(frag + '?t=' + Date.now(), { cache: 'no-store' })
+    .then(function (r) { return r.text(); })
+    .then(function (t) { body.innerHTML = t; })
+    .catch(function (e) { body.textContent = 'error: ' + e; })
+    .finally(function () { btn.disabled = false; });
+}
+function rerunAll() {
+  document.querySelectorAll('section[data-frag] .ops button').forEach(function (b) { rerun(b); });
+}
+</script>
+</head>
+<body>
+<h1>muse dashboard
+  <span class="ops"><button type="button" onclick="rerunAll()">全て再実行</button></span>
+</h1>
+<p class="meta">generated: <!--#echo var="DATE_LOCAL" --> / 各区画の「再実行」で、その場でスクリプトを再実行して表示を更新します</p>
+
+<section data-frag="graphs.shtml">
+  <h2>グラフ <span class="ops"><button type="button" onclick="rerun(this)">再実行</button><a href="graphs.shtml">開く</a></span></h2>
+  <div class="body"><!--#include virtual="graphs.shtml" --></div>
+</section>
+
+<section data-frag="status.shtml">
+  <h2>常駐物（tailscaled / API Bridge） <span class="ops"><button type="button" onclick="rerun(this)">再実行</button><a href="status.shtml">開く</a></span></h2>
+  <div class="body"><!--#include virtual="status.shtml" --></div>
+</section>
+
+<section data-frag="jobs.shtml">
+  <h2>ジョブキュー <span class="ops"><button type="button" onclick="rerun(this)">再実行</button><a href="jobs.shtml">開く</a></span></h2>
+  <div class="body"><!--#include virtual="jobs.shtml" --></div>
+</section>
+
+<section data-frag="pkgs.shtml">
+  <h2>パッケージ（Nix / .deb） <span class="ops"><button type="button" onclick="rerun(this)">再実行</button><a href="pkgs.shtml">開く</a></span></h2>
+  <div class="body"><!--#include virtual="pkgs.shtml" --></div>
+</section>
+
+<section data-frag="vm.shtml">
+  <h2>VM 情報 <span class="ops"><button type="button" onclick="rerun(this)">再実行</button><a href="vm.shtml">開く</a></span></h2>
+  <div class="body"><!--#include virtual="vm.shtml" --></div>
+</section>
+
+<section data-frag="procs.shtml">
+  <h2>プロセス（メモリ上位） <span class="ops"><button type="button" onclick="rerun(this)">再実行</button><a href="procs.shtml">開く</a></span></h2>
+  <div class="body"><!--#include virtual="procs.shtml" --></div>
+</section>
+
+<section data-frag="ports.shtml">
+  <h2>待ち受けポート <span class="ops"><button type="button" onclick="rerun(this)">再実行</button><a href="ports.shtml">開く</a></span></h2>
+  <div class="body"><!--#include virtual="ports.shtml" --></div>
+</section>
+
+<section data-frag="git.shtml">
+  <h2>ローカル git リポジトリ <span class="ops"><button type="button" onclick="rerun(this)">再実行</button><a href="git.shtml">開く</a></span></h2>
+  <div class="body"><!--#include virtual="git.shtml" --></div>
+</section>
+
+<section data-frag="recent.shtml">
+  <h2>直近の完了ジョブ <span class="ops"><button type="button" onclick="rerun(this)">再実行</button><a href="recent.shtml">開く</a></span></h2>
+  <div class="body"><!--#include virtual="recent.shtml" --></div>
+</section>
+
+</body>
+</html>

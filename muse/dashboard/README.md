@@ -2,6 +2,21 @@
 
 `muse/` のスクリプト群を Apache の SSI（mod_include）で呼び出すダッシュボード。
 
+色分け: 緑（バッジ「読み取り」）は読み取り専用で、ページ表示や再実行ボタンで
+そのまま実行される。赤（バッジ「実行」）は実行系で、ページ表示では実行されず、
+精査表示と確認チェックを経た手動送信でのみ動く。
+
+実行系は `ask.cgi`（実体は `../sdk-ask-cgi.py`）が受ける。厳密な精査の仕掛け:
+
+- 送信前に、実行されるコマンド・プロファイル・ワークスペース・指示の文字数と
+  SHA-256 がページ上に表示され、確認チェックを入れるまで実行ボタンは無効
+- プロファイルは許可リスト（`:read-only` / `:ask-me` / `:auto-review`）のみで、
+  `:unrestricted` は選べない。ワークスペースはホーム配下の既存ディレクトリのみ。
+  指示は8000文字まで
+- 結果は要約せず JSON 全文と本文を表示する
+- 実行のたびに監査ログ `~/.local/share/muse-sdk/exec-audit.jsonl` へ記録し
+  （指示本文は残さず、SHA-256 と文字数）、`execlog.shtml` 区画で閲覧できる
+
 | ファイル | 内容 |
 |---|---|
 | `index.shtml` | ダッシュボード本体。各区画の「再実行」ボタンで断片を fetch し直し、その場でスクリプトを再実行して表示を更新する。「開く」は断片単体の表示（＝実行結果そのもの） |
@@ -22,10 +37,14 @@
 
 ```apache
 <Directory "/path/to/lib/muse/dashboard">
-    Options +Includes
+    Options +Includes +ExecCGI
     AddOutputFilter INCLUDES .shtml
+    AddHandler cgi-script .cgi
 </Directory>
 ```
+
+- `ask.cgi` は実際に Muse Code を実行する入口なので、このディレクトリは
+  必ず vhost 側の認証・許可リストで制限すること（公開厳禁）
 
 - `#exec` を使うため、`IncludesNoExec` は付けないこと
 - `#exec cmd` の作業ディレクトリは断片ファイルのあるディレクトリになる前提で、

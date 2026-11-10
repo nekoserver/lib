@@ -31,6 +31,8 @@ SDK の実体は `.py` 側で、シェルは入口（解決・引数・タイム
 | `sdk-sessions.sh` | ホストのセッション一覧と使用量（読み取り専用） |
 | `sdk-serve.sh` | `muse serve --listen` のソケットデーモンを start / stop / status。ソケットは well-known の `~/.local/share/muse/session-server/session-server.sock`（この版は任意パス不可） |
 | `daemon-check.sh` | デーモンの起動確認。PID の生存とソケットの有無を見るだけのシェル完結型。起動していれば終了コード 0、いなければ 1。`-q` で無言（cron 向け） |
+| `sdk-ask-cgi.py` | ダッシュボード実行系（`dashboard/ask.cgi`）の実体。許可リスト検証と監査ログ記録をしてから `sdk-ask.sh` を呼ぶ |
+| `exec-log.sh` | SDK 実行系の監査ログ（`~/.local/share/muse-sdk/exec-audit.jsonl`）の表示（読み取り専用） |
 | `sdk-common.sh` | 上記が読み込む共通の解決処理（単体では使わない） |
 
 注意: ターンの実行にはホスト側の認証（サインイン、または serve プロセスから見える `META_API_KEY`）が要る。未認証だと構造化エラー `authRequired` が返る。`:auto-review` は自動レビュアーが使える状態（キー設定済み）でないと `profile_not_applied` になる。

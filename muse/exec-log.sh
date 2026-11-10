@@ -18,7 +18,8 @@ for line in reversed(lines):
     except ValueError:
         continue
     result = r.get("error_kind") or f"{r.get('outcome')}/{r.get('terminal')}"
-    print(f"{r.get('ts')}  {r.get('profile')}  {result}  "
+    event = r.get("event") or "executed"
+    print(f"{r.get('ts')}  {event}  {r.get('profile')}  {result}  "
           f"len={r.get('instruction_len')}  sha256={str(r.get('instruction_sha256'))[:12]}…  "
           f"ws={r.get('workspace')}")
 PY

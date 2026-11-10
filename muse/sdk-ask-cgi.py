@@ -1,30 +1,34 @@
 #!/usr/bin/env python3
-"""dashboard/ask.cgi の実体。ダッシュボードの実行系（赤）の入口。
+"""dashboard/ask.cgi の実体。ダッシュボードの実行系（赤）の受付口。
 
-厳密な精査のための仕掛け:
+原則: 実行は、受ける側の承認なしには成立しない。
+この CGI は送信を受け付けるだけで、実行はしない。検証を通った依頼は
+「承認待ち」として登録され、受ける側ホストの sdk-approve.sh で承認された
+場合にだけ実行される。
+
+検証と記録:
 - プロファイルは許可リスト（:read-only / :ask-me / :auto-review）のみ。
   :unrestricted はここからは選べない
 - ワークスペースはホーム配下の既存ディレクトリのみ
 - 指示は 8000 文字まで
-- 実行のたびに監査ログ（~/.local/share/muse-sdk/exec-audit.jsonl）へ
-  時刻・プロファイル・ワークスペース・指示の SHA-256 と文字数・結果を残す
-  （指示の本文そのものはログに残さない）
-- 結果は要約せず、sdk-ask.sh -j の JSON 全文と本文をそのまま表示する
+- 受付のたびに監査ログ（~/.local/share/muse-sdk/exec-audit.jsonl）へ
+  event=submitted を記録する（指示の本文は残さず、SHA-256 と文字数）
+- 承認待ちの実体は ~/.local/share/muse-sdk/pending/<id>.json
 """
 import datetime
 import hashlib
 import html
 import json
 import os
-import subprocess
 import sys
 import urllib.parse
 
 HOME = os.path.expanduser("~")
 ALLOWED_PROFILES = (":read-only", ":ask-me", ":auto-review")
 MAX_INSTRUCTION = 8000
-AUDIT_LOG = os.path.join(HOME, ".local/share/muse-sdk/exec-audit.jsonl")
-HERE = os.path.dirname(os.path.abspath(__file__))
+BASE = os.path.join(HOME, ".local/share/muse-sdk")
+PENDING_DIR = os.path.join(BASE, "pending")
+AUDIT_LOG = os.path.join(BASE, "exec-audit.jsonl")
 
 
 def page(title, body_html):
@@ -45,9 +49,18 @@ def page(title, body_html):
 </body></html>""")
 
 
+def audit(event, **fields):
+    rec = {"ts": datetime.datetime.now().astimezone().isoformat(timespec="seconds"),
+           "event": event}
+    rec.update(fields)
+    os.makedirs(BASE, exist_ok=True)
+    with open(AUDIT_LOG, "a", encoding="utf-8") as f:
+        f.write(json.dumps(rec, ensure_ascii=False) + "\n")
+
+
 def fail(messages):
     lis = "".join(f'<li class="err">{html.escape(m)}</li>' for m in messages)
-    page("実行できませんでした", f"<ul>{lis}</ul>")
+    page("受け付けできませんでした", f"<ul>{lis}</ul>")
     sys.exit(0)
 
 
@@ -85,47 +98,36 @@ def main():
     if errors:
         fail(errors)
 
-    cmd = [
-        os.path.join(HERE, "sdk-ask.sh"),
-        "-p", profile,
-        "-w", workspace,
-        "-t", "600",
-        "-j", instruction,
-    ]
-    run = subprocess.run(cmd, capture_output=True, text=True, timeout=660)
-    try:
-        summary = json.loads(run.stdout)
-    except (ValueError, TypeError):
-        summary = {"raw_stdout": run.stdout, "raw_stderr": run.stderr, "exit": run.returncode}
-
     digest = hashlib.sha256(instruction.encode("utf-8")).hexdigest()
-    audit = {
-        "ts": datetime.datetime.now().astimezone().isoformat(timespec="seconds"),
+    now = datetime.datetime.now().astimezone()
+    req_id = now.strftime("%Y%m%d-%H%M%S") + "-" + digest[:8]
+    record = {
+        "id": req_id,
+        "ts": now.isoformat(timespec="seconds"),
+        "status": "pending",
         "profile": profile,
         "workspace": workspace,
+        "instruction": instruction,
         "instruction_sha256": digest,
         "instruction_len": len(instruction),
-        "session_id": summary.get("session_id"),
-        "outcome": summary.get("outcome"),
-        "terminal": summary.get("terminal"),
-        "error_kind": (summary.get("error") or {}).get("kind") if summary.get("error") else None,
     }
-    os.makedirs(os.path.dirname(AUDIT_LOG), exist_ok=True)
-    with open(AUDIT_LOG, "a", encoding="utf-8") as f:
-        f.write(json.dumps(audit, ensure_ascii=False) + "\n")
+    os.makedirs(PENDING_DIR, exist_ok=True)
+    with open(os.path.join(PENDING_DIR, req_id + ".json"), "w", encoding="utf-8") as f:
+        json.dump(record, f, ensure_ascii=False, indent=2)
+    audit("submitted", id=req_id, profile=profile, workspace=workspace,
+          instruction_sha256=digest, instruction_len=len(instruction))
 
-    body_text = run.stderr or ""
     body_html = (
-        "<h2>結果サマリ（全文）</h2>"
-        f"<pre>{html.escape(json.dumps(summary, ensure_ascii=False, indent=2))}</pre>"
-        "<h2>本文</h2>"
-        f"<pre>{html.escape(body_text)}</pre>"
-        "<h2>精査情報</h2>"
-        f"<pre>command: sdk-ask.sh -p {html.escape(profile)} -w {html.escape(workspace)} -t 600 -j\n"
-        f"instruction sha256: {digest}\ninstruction length: {len(instruction)}\n"
-        f"audit log: {html.escape(AUDIT_LOG)}</pre>"
+        "<p>受け付けました。<strong>まだ実行されていません。</strong>"
+        "実行には、受ける側ホストでの承認が必要です。</p>"
+        "<h2>受付内容</h2>"
+        f"<pre>id: {html.escape(req_id)}\nprofile: {html.escape(profile)}\n"
+        f"workspace: {html.escape(workspace)}\ninstruction: {len(instruction)} 文字\n"
+        f"instruction sha256: {digest}</pre>"
+        "<h2>承認のしかた（受ける側ホストで）</h2>"
+        f"<pre>sdk-approve.sh list\nsdk-approve.sh approve {html.escape(req_id)}</pre>"
     )
-    page("実行結果", body_html)
+    page("承認待ちとして受け付けました", body_html)
 
 
 main()

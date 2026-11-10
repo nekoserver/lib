@@ -63,9 +63,9 @@ async function updateReview() {
     hash = Array.from(new Uint8Array(buf)).map(function (b) { return b.toString(16).padStart(2, '0'); }).join('');
   }
   document.getElementById('review').textContent =
-    '実行コマンド: sdk-ask.sh -p ' + profile + ' -w ' + ws + ' -t 600 -j\n' +
+    '承認後に実行されるコマンド: sdk-ask.sh -p ' + profile + ' -w ' + ws + ' -t 600 -j\n' +
     '指示: ' + text.length + ' 文字 / sha256: ' + hash + '\n' +
-    '結果は要約されず JSON 全文が表示され、監査ログに記録されます。';
+    '送信では受付のみが行われ、実行には受ける側ホストでの承認が要ります。受付と承認・実行は監査ログに記録されます。';
   document.getElementById('runbtn').disabled = !(document.getElementById('confirm').checked && text.trim());
 }
 </script>
@@ -134,9 +134,16 @@ async function updateReview() {
   <div class="body"><!--#include virtual="execlog.shtml" --></div>
 </section>
 
+<section class="read" data-frag="pending.shtml">
+  <h2>承認待ち（実行系の受付分） <span class="badge read">読み取り</span> <span class="ops"><button type="button" onclick="rerun(this)">再実行</button><a href="pending.shtml">開く</a></span></h2>
+  <div class="body"><!--#include virtual="pending.shtml" --></div>
+  <p class="meta">承認・却下は受ける側ホストの <code>sdk-approve.sh</code> でのみ行えます。</p>
+</section>
+
 <section class="exec">
   <h2>Muse Code 実行（SDK） <span class="badge exec">実行</span></h2>
-  <p class="warn">この区画はページ表示では実行されません。送信すると Muse Code が実際に作業します。
+  <p class="warn">この区画はページ表示では実行されません。送信しても<strong>受付だけ</strong>が行われ、
+  実行は受ける側ホストでの承認（<code>sdk-approve.sh approve</code>）があって初めて成立します。
   プロファイルは許可リストのみ（:unrestricted は選べません）、ワークスペースはホーム配下のみ、指示は8000文字まで。</p>
   <form id="execform" method="post" action="ask.cgi">
     <p>指示<br>
@@ -152,7 +159,7 @@ async function updateReview() {
     <h3>精査</h3>
     <pre id="review">（指示を入力すると、実行される内容がここに出ます）</pre>
     <p><label><input type="checkbox" id="confirm" onchange="updateReview()"> コマンドと指示内容を確認しました</label></p>
-    <p><button type="submit" class="run" id="runbtn" disabled>実行する</button></p>
+    <p><button type="submit" class="run" id="runbtn" disabled>送信する（受付のみ）</button></p>
   </form>
 </section>
 

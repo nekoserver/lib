@@ -126,7 +126,7 @@ async function updateReview() {
 <section class="read" data-frag="diag.shtml">
   <h2>診断サマリ（全33項目） <span class="badge read">読み取り</span> <span class="ops"><button type="button" onclick="rerun(this)">再実行</button><a href="diag.shtml">開く</a></span></h2>
   <div class="body"><!--#include virtual="diag.shtml" --></div>
-  <p class="meta">WARN/FAIL の見方: <a href="matrix.html">診断マトリックス</a>（想定インシデントとの対応表）</p>
+  <p class="meta">WARN/FAIL の見方: <a href="matrix.html">診断マトリックス</a>（想定インシデントとの対応表）。この診断は防波堤として実行系の承認の直前にも走り、FAIL がある間は実行されません。</p>
 </section>
 
 <section class="read" data-frag="execlog.shtml">

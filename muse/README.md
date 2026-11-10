@@ -32,7 +32,8 @@ SDK の実体は `.py` 側で、シェルは入口（解決・引数・タイム
 | `sdk-serve.sh` | `muse serve --listen` のソケットデーモンを start / stop / status。ソケットは well-known の `~/.local/share/muse/session-server/session-server.sock`（この版は任意パス不可） |
 | `daemon-check.sh` | デーモンの起動確認。PID の生存とソケットの有無を見るだけのシェル完結型。起動していれば終了コード 0、いなければ 1。`-q` で無言（cron 向け） |
 | `sdk-ask-cgi.py` | ダッシュボード実行系（`dashboard/ask.cgi`）の実体。許可リスト検証をして「承認待ち」として登録するだけで、実行はしない |
-| `sdk-approve.sh` | 受ける側ホストでの承認ツール（`list` / `show` / `approve` / `reject`）。承認した場合にだけ `sdk-ask.sh` を実行する。実行は受ける側の承認なしには成立しない |
+| `sdk-approve.sh` | 受ける側ホストでの承認ツール（`list` / `show` / `approve` / `reject`）。承認した場合にだけ `sdk-ask.sh` を実行する。実行は受ける側の承認なしには成立しない。承認直前に整合性の再検証（改竄・許可リスト・symlink 解決後の範囲）と診断ゲート（`diag.sh` に FAIL がある間は実行しない）が入る |
+| `sdk-ts-*.sh` / `ts/` | TypeScript 版 SDK（`@muse-code/sdk`）の同等ツール群（health / profiles / sessions / ask / serve）。診断・制御は Python 版と両方で機能する。導入は `sdk-ts-setup.sh`。実行コアは承認ツールの `MUSE_ASK_IMPL=ts` で切り替える（ホスト側の指定のみ）。Web からは直結しない |
 | `pending.sh` | 承認待ちの一覧（読み取り専用） |
 | `exec-log.sh` | SDK 実行系の監査ログ（`~/.local/share/muse-sdk/exec-audit.jsonl`）の表示（読み取り専用） |
 | `sdk-common.sh` | 上記が読み込む共通の解決処理（単体では使わない） |

@@ -45,7 +45,8 @@ def load(req_id):
 
 
 def save(record, path):
-    with open(path, "w", encoding="utf-8") as f:
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w", encoding="utf-8") as f:
         json.dump(record, f, ensure_ascii=False, indent=2)
 
 
@@ -70,15 +71,86 @@ def cmd_show(req_id):
     print(json.dumps(record, ensure_ascii=False, indent=2))
 
 
+def diag_gate(record, req_id):
+    """防波堤: SSI ダッシュボードと同じ diag.sh を承認の直前に走らせる。
+
+    終了コード 2（FAIL あり）のときは実行しない。1（WARN）は記録して通す。
+    ホスト側の環境変数でのみ制御できる（Web 側からは触れない）:
+      MUSE_DIAG_GATE=off  ゲートを無効化（監査に残る）
+      MUSE_DIAG_CMD=<cmd> 診断コマンドの差し替え（テスト用）
+    戻り値: (通してよいか, 診断の記録 dict)
+    """
+    if os.environ.get("MUSE_DIAG_GATE") == "off":
+        audit("diag_gate_skipped", id=req_id)
+        return True, {"gate": "off"}
+    cmd = os.environ.get("MUSE_DIAG_CMD") or os.path.join(HERE, "diag.sh")
+    env = dict(os.environ, DIAG_QUICK="1")
+    run = subprocess.run([cmd, "-s"], capture_output=True, text=True, env=env, timeout=120)
+    info = {"gate": "on", "rc": run.returncode, "summary": (run.stdout or "").strip()}
+    if run.returncode >= 2:
+        audit("diag_blocked", id=req_id, diag_rc=run.returncode)
+        print("診断ゲートで遮断しました（FAIL あり）。実行していません。", file=sys.stderr)
+        print(info["summary"], file=sys.stderr)
+        return False, info
+    return True, info
+
+
+ALLOWED_PROFILES = (":read-only", ":ask-me", ":auto-review")
+MAX_INSTRUCTION = 8000
+
+
+def validate_record(record, req_id):
+    """悪用・改竄の想定: 承認の直前に、登録内容を再検証する。
+
+    承認待ちファイルが登録後に書き換えられていても、ここで止める。
+    - プロファイルが許可リストにあるか（手書きの :unrestricted 等を弾く）
+    - ワークスペースがホーム配下の実在ディレクトリか（symlink 解決後に判定）
+    - 指示の SHA-256 が登録時の値と一致するか（本文の差し替え検知）
+    - 指示の長さが上限以内か
+    問題があれば監査に integrity_failed を残して False を返す。
+    """
+    import hashlib
+
+    problems = []
+    if record.get("profile") not in ALLOWED_PROFILES:
+        problems.append(f"profile not allowed: {record.get('profile')}")
+    ws = os.path.realpath(os.path.expanduser(record.get("workspace") or ""))
+    if not (ws == HOME or ws.startswith(HOME + os.sep)) or not os.path.isdir(ws):
+        problems.append(f"workspace invalid: {record.get('workspace')}")
+    instruction = record.get("instruction") or ""
+    if len(instruction) > MAX_INSTRUCTION:
+        problems.append(f"instruction too long: {len(instruction)}")
+    digest = hashlib.sha256(instruction.encode("utf-8")).hexdigest()
+    if digest != record.get("instruction_sha256"):
+        problems.append("instruction sha256 mismatch (tampered?)")
+    if problems:
+        audit("integrity_failed", id=req_id, problems=problems)
+        for p in problems:
+            print(f"整合性チェックで拒否しました: {p}", file=sys.stderr)
+        return False
+    return True
+
+
 def cmd_approve(req_id):
     record, path = load(req_id)
     if record.get("status") != "pending":
         print(f"承認待ちではありません（status: {record.get('status')}）", file=sys.stderr)
         sys.exit(1)
+    if not validate_record(record, req_id):
+        sys.exit(3)
+    ok, gate_info = diag_gate(record, req_id)
+    record["diag_gate"] = gate_info
+    save(record, path)
+    if not ok:
+        sys.exit(2)
     audit("approved", id=req_id, profile=record["profile"], workspace=record["workspace"],
           instruction_sha256=record["instruction_sha256"],
-          instruction_len=record["instruction_len"])
-    cmd = [os.path.join(HERE, "sdk-ask.sh"), "-p", record["profile"],
+          instruction_len=record["instruction_len"],
+          diag_rc=gate_info.get("rc"))
+    # 実行コアはホスト側の指定でのみ切り替える（Web 側からは指定できない）。
+    # 既定は Python 版。MUSE_ASK_IMPL=ts で TypeScript 版になる。
+    ask_script = "sdk-ts-ask.sh" if os.environ.get("MUSE_ASK_IMPL") == "ts" else "sdk-ask.sh"
+    cmd = [os.path.join(HERE, ask_script), "-p", record["profile"],
            "-w", record["workspace"], "-t", "600", "-j", record["instruction"]]
     run = subprocess.run(cmd, capture_output=True, text=True, timeout=660)
     try:

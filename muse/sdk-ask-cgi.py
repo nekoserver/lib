@@ -98,6 +98,23 @@ def main():
     if errors:
         fail(errors)
 
+    # 悪用の想定: 受付の洪水で承認待ちを溢れさせない（上限はホスト側の環境変数でのみ変更可）
+    max_pending = int(os.environ.get("MUSE_MAX_PENDING") or 20)
+    if os.path.isdir(PENDING_DIR):
+        pending_count = 0
+        for name in os.listdir(PENDING_DIR):
+            if not name.endswith(".json"):
+                continue
+            try:
+                with open(os.path.join(PENDING_DIR, name), encoding="utf-8") as f:
+                    if json.load(f).get("status") == "pending":
+                        pending_count += 1
+            except (ValueError, OSError):
+                continue
+        if pending_count >= max_pending:
+            audit("submit_refused", reason="pending_full", count=pending_count)
+            fail([f"承認待ちが上限（{max_pending} 件）に達しています。先に承認または却下してください"])
+
     digest = hashlib.sha256(instruction.encode("utf-8")).hexdigest()
     now = datetime.datetime.now().astimezone()
     req_id = now.strftime("%Y%m%d-%H%M%S") + "-" + digest[:8]
@@ -111,8 +128,10 @@ def main():
         "instruction_sha256": digest,
         "instruction_len": len(instruction),
     }
-    os.makedirs(PENDING_DIR, exist_ok=True)
-    with open(os.path.join(PENDING_DIR, req_id + ".json"), "w", encoding="utf-8") as f:
+    os.makedirs(PENDING_DIR, mode=0o700, exist_ok=True)
+    fd = os.open(os.path.join(PENDING_DIR, req_id + ".json"),
+                 os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w", encoding="utf-8") as f:
         json.dump(record, f, ensure_ascii=False, indent=2)
     audit("submitted", id=req_id, profile=profile, workspace=workspace,
           instruction_sha256=digest, instruction_len=len(instruction))

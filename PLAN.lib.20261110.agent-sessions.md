@@ -2,6 +2,8 @@
 
 **現在の範囲:** 最新の利用者指定により、実装を進めず段取りの協議に絞る。直近の順序案・協議状態は [次に協議する段取り](projects/muse-code-thin-client/NEXT-STEPS.md) を参照。以下は蓄積した構想・検討記録であり、全項目を最初の作業の前提条件にはしない。
 
+**最新の再協議:** Muse 側の作成報告・CLI 更新・preprint 案を反映して残差を再要約し、Muse の HTTP 200 回答を取得した。[再要約・再協議結果](REPORT.lib.20261110.reconsolidation.md)を現時点の整理とし、作成済み成果の照合→実行条件の分離確認→条件成立後の単発検証の順へ具体化する。実機確認は未実施。
+
 作成日: 2026-11-10 UTC。利用者が指定した[共有ページ](https://cloudflare-workers-github-oauth-1.nekoflare.workers.dev/s/5fbe2ba2/4c2dd78a8e71c177)を読み、Muse と協議してまとめる計画。導入状況・変更履歴・調査中の訂正は [調査記録](REPORT.lib.20261110.muse-code-sdk.md) に分ける。本書は設計・予定であり、実装や配備が完了したことを示さない。
 
 ## 追加依頼: 現稼働 Worker からシンクライアントへの移植

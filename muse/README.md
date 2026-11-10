@@ -11,3 +11,5 @@ Muse（muse-vm 上のエージェント）が日常の確認作業で使うシ�
 | `vm-info.sh` | CPU、メモリ、ディスク、OS の基本情報 |
 
 前提: POSIX sh、python3（`bridge-jobs.sh` と `pkg-versions.sh` の JSON 読み取り用）、curl（`muse-status.sh` の health 確認用）。
+
+`dashboard/` には、これらを Apache の SSI で呼び出すダッシュボードページがある（`dashboard/README.md` 参照）。

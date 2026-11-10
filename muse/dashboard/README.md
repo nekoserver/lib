@@ -4,7 +4,8 @@
 
 | ファイル | 内容 |
 |---|---|
-| `index.shtml` | ダッシュボード本体。60秒で自動再読み込み |
+| `index.shtml` | ダッシュボード本体。各区画の「再実行」ボタンで断片を fetch し直し、その場でスクリプトを再実行して表示を更新する。「開く」は断片単体の表示（＝実行結果そのもの） |
+| `graphs.shtml` | `../graphs.sh` の HTML 出力を埋め込む断片（グラフ表示） |
 | `status.shtml` | `../muse-status.sh` の出力を埋め込む断片 |
 | `jobs.shtml` | `../bridge-jobs.sh` の出力を埋め込む断片 |
 | `pkgs.shtml` | `../pkg-versions.sh` の出力を埋め込む断片 |

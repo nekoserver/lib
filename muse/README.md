@@ -13,6 +13,7 @@ Muse（muse-vm 上のエージェント）が日常の確認作業で使うシ�
 | `ports.sh` | 待ち受けポートの一覧 |
 | `git-heads.sh` | ローカルの git リポジトリの状態（ブランチ、先頭、未コミット変更数、未 push 数。ネットワークには出ない） |
 | `recent-jobs.sh` | bridge-jobs の直近の完了ジョブ |
+| `graphs.sh` | プロセスのメモリ使用量、メモリ／スワップ、ディスクの棒グラフを HTML 断片で出力（SSI から直接呼ばれる前提で、完成した HTML を出す） |
 
 前提: POSIX sh、python3（`bridge-jobs.sh` と `pkg-versions.sh` の JSON 読み取り用）、curl（`muse-status.sh` の health 確認用）。
 

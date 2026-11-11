@@ -12,17 +12,21 @@
 diag・pending・execlog・sdk* はスクリプトが無いので 404 を返す。
 
 muse-vm に負荷をかけないための制御(契約の外。応答の形は変えない):
-- 同時に実行するスクリプトは max_concurrent 本まで(既定4)。超えた分は到着順の待ち行列に並ぶ
+- 同時に実行するスクリプトは max_concurrent 本まで(既定8。既定の項目をすべて同時に走らせられる数)。超えた分は到着順の待ち行列に並ぶ
 - 待ち行列は max_queue 件まで(既定32)。あふれたら待たせずに 503 queue_full
 - queue_wait 秒(既定30)待っても順番が来なければ 503 busy
 - 同じ section への同時の要求は1回の実行にまとめ、同じ結果を返す。成功した結果は cache_seconds 秒(既定5)使い回す
+待ち時間を減らすための工夫:
+- cache_seconds を過ぎても stale_seconds 秒(既定300)以内の成功結果は、待たせずにすぐ返し、裏で1回だけ取り直す
+  (応答の ts は結果を作った時刻なので、古さは ts で分かる)
+- 起動直後に全項目を1回ずつ実行して結果を用意する(最初の要求から待たせない)
 - GET /queue(鍵が必要)で、実行中・待ち・実行中の section を返す
 
 項目の追加: --sections に JSON({"section": "スクリプト名"})を渡すと既定に足す。スクリプトは
 このディレクトリの親(lib/muse)の直下のファイル名に限る。
 
 使い方: TS_API_KEY=... python3 receiver.py [--host 127.0.0.1] [--port 8090] [--sections FILE]
-        [--max-concurrent 4] [--max-queue 32]
+        [--max-concurrent 8] [--max-queue 32]
 既定で 127.0.0.1 にだけ待ち受ける。tailnet に出すときは --host にそのアドレスを指定する。
 """
 import argparse
@@ -52,10 +56,11 @@ SECTIONS = {
 }
 OUTPUT_LIMIT = 64 * 1024
 TIMEOUT_SECONDS = 60
-MAX_CONCURRENT = 4
+MAX_CONCURRENT = 8
 MAX_QUEUE = 32
 QUEUE_WAIT_SECONDS = 30
 CACHE_SECONDS = 5
+STALE_SECONDS = 300
 SECTION_NAME = re.compile(r'^[a-z][a-z0-9_-]{0,31}$')
 SCRIPT_NAME = re.compile(r'^[A-Za-z0-9_-][A-Za-z0-9._-]{0,63}$')
 
@@ -90,7 +95,7 @@ def run_section(script, timeout=TIMEOUT_SECONDS, limit=OUTPUT_LIMIT):
             os.killpg(proc.pid, signal.SIGKILL)
         except ProcessLookupError:
             pass
-        proc.wait()
+        proc.communicate()  # 出力のパイプも閉じる
         raise TimeoutError(str(e)) from e
     truncated = len(data) > limit
     if truncated:
@@ -101,10 +106,11 @@ def run_section(script, timeout=TIMEOUT_SECONDS, limit=OUTPUT_LIMIT):
 class Runner:
     """同時実行の上限・到着順の待ち行列・同じ section のまとめ・成功結果の使い回しを受け持つ。"""
 
-    def __init__(self, timeout, limit, max_concurrent, max_queue, queue_wait, cache_seconds):
+    def __init__(self, timeout, limit, max_concurrent, max_queue, queue_wait, cache_seconds, stale_seconds=0):
         self.timeout, self.limit = timeout, limit
         self.max_concurrent, self.max_queue = max_concurrent, max_queue
         self.queue_wait, self.cache_seconds = queue_wait, cache_seconds
+        self.stale_seconds = stale_seconds
         self.cond = threading.Condition()
         self.waiting = deque()
         self.running = []
@@ -120,25 +126,50 @@ class Runner:
         """(HTTPの状態, 本文) を返す。"""
         with self.cond:
             cached = self.cache.get(section)
-            if cached and time.monotonic() - cached[0] < self.cache_seconds:
-                return cached[1]
+            if cached:
+                age = time.monotonic() - cached[0]
+                if age < self.cache_seconds:
+                    return cached[1]
+                if age < self.stale_seconds:
+                    # 古い結果をすぐ返し、取り直しは裏で1回だけ。待ち行列があふれていれば取り直さない
+                    if section not in self.inflight and len(self.waiting) < self.max_queue:
+                        entry = self._claim(section)
+                        threading.Thread(target=self._lead, args=(section, script, entry), daemon=True).start()
+                    return cached[1]
             entry = self.inflight.get(section)
             leader = entry is None
             if leader:
                 if len(self.waiting) >= self.max_queue:
                     return 503, {'error': 'queue_full', 'section': section, 'maxQueue': self.max_queue}
-                entry = {'done': threading.Event(), 'result': None}
-                self.inflight[section] = entry
+                entry = self._claim(section)
         if not leader:
             entry['done'].wait()
             return entry['result']
+        return self._lead(section, script, entry)
+
+    def warm(self, sections, scripts_dir):
+        """全項目を並べて1回ずつ実行し、結果を用意する。終わるまで待つ。"""
+        threads = [threading.Thread(target=self.request, args=(name, Path(scripts_dir) / script), daemon=True)
+                   for name, script in sections.items() if (Path(scripts_dir) / script).is_file()]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+
+    def _claim(self, section):
+        """self.cond を持った状態で呼ぶ。section の実行を1つに決める。"""
+        entry = {'done': threading.Event(), 'result': None}
+        self.inflight[section] = entry
+        return entry
+
+    def _lead(self, section, script, entry):
         try:
             result = self._run_in_turn(section, script)
         except Exception as e:  # 待っている要求を取り残さない
             result = 500, {'error': 'receiver_error', 'section': section, 'message': str(e)[:200]}
         with self.cond:
             self.inflight.pop(section, None)
-            if result[0] == 200 and self.cache_seconds > 0:
+            if result[0] == 200 and (self.cache_seconds > 0 or self.stale_seconds > 0):
                 self.cache[section] = (time.monotonic(), result)
         entry['result'] = result
         entry['done'].set()
@@ -172,9 +203,10 @@ class Runner:
 
 
 def make_handler(key, scripts_dir=SCRIPTS_DIR, sections=None, timeout=TIMEOUT_SECONDS, limit=OUTPUT_LIMIT,
-                 max_concurrent=MAX_CONCURRENT, max_queue=MAX_QUEUE, queue_wait=QUEUE_WAIT_SECONDS, cache_seconds=CACHE_SECONDS):
+                 max_concurrent=MAX_CONCURRENT, max_queue=MAX_QUEUE, queue_wait=QUEUE_WAIT_SECONDS, cache_seconds=CACHE_SECONDS,
+                 stale_seconds=STALE_SECONDS):
     sections = SECTIONS if sections is None else sections
-    runner = Runner(timeout, limit, max_concurrent, max_queue, queue_wait, cache_seconds)
+    runner = Runner(timeout, limit, max_concurrent, max_queue, queue_wait, cache_seconds, stale_seconds)
 
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, *args):
@@ -211,6 +243,7 @@ def make_handler(key, scripts_dir=SCRIPTS_DIR, sections=None, timeout=TIMEOUT_SE
         def do_POST(self):
             self.reply(405, {'error': 'method_not_allowed'})
 
+    Handler.runner, Handler.sections, Handler.scripts_dir = runner, sections, scripts_dir
     return Handler
 
 
@@ -225,6 +258,7 @@ def main():
     handler = make_handler(os.environ.get('TS_API_KEY', ''), sections=load_sections(args.sections),
                            max_concurrent=args.max_concurrent, max_queue=args.max_queue)
     server = ThreadingHTTPServer((args.host, args.port), handler)
+    threading.Thread(target=handler.runner.warm, args=(handler.sections, handler.scripts_dir), daemon=True).start()
     print(f'listening on {args.host}:{args.port}', flush=True)
     server.serve_forever()
 

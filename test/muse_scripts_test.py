@@ -257,6 +257,21 @@ class ScriptRulesTest(unittest.TestCase):
         for name in DashboardTest.used_scripts():
             self.assertEqual(modes.get(f'muse/{name}'), '100755', name)
 
+    def test_every_file_with_a_shebang_is_executable_in_git(self):
+        # pending.sh は sdk-approve.sh を直接 exec する。sdk-approve.py も sdk-ask.sh を直接起動する。
+        # 実行権限が無いと「Permission denied」で止まる(2026-11-11 に muse-vm で起きた)。
+        # 先頭が #! のファイルは直接実行されうるので、すべて 100755 にする。読み込むだけ(sdk-common.sh など)は #! を持たない。
+        out = subprocess.run(['git', '-C', str(ROOT), 'ls-files', '-s', 'muse'], capture_output=True, text=True, check=True).stdout
+        missing = []
+        for line in out.splitlines():
+            mode, _, _, path = line.split(None, 3)
+            if mode not in ('100644', '100755'):
+                continue
+            with open(ROOT / path, 'rb') as f:
+                if f.read(2) == b'#!' and mode != '100755':
+                    missing.append(path)
+        self.assertEqual(missing, [])
+
 
 class DashboardTest(unittest.TestCase):
     EXEC = re.compile(r'<!--#exec cmd="([^"]*)" -->')

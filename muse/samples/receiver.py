@@ -3,7 +3,7 @@
 
 契約は nekoserver/muse-monitor の docs/RECEIVER.md:
 - GET /monitor/<section>、Authorization: Bearer <鍵> が必須
-- 鍵は環境変数 MUSE_CODE_WASM_API_KEY(muse-monitor 側の TS_API_KEY と同じ値)
+- 鍵は環境変数 TS_API_KEY
 - 鍵が未設定なら 503、ヘッダーが無い・不一致なら 401、未知の section は 404
 - 応答は {"section", "rc", "output", "truncated", "ts"}。output は 64 KiB で切り詰め、60 秒で 504
 - GET /health は認証なしで {"status": "ok"}(muse-monitor が相手を探すときに叩く)
@@ -21,7 +21,7 @@ muse-vm に負荷をかけないための制御(契約の外。応答の形は�
 項目の追加: --sections に JSON({"section": "スクリプト名"})を渡すと既定に足す。スクリプトは
 このディレクトリの親(lib/muse)の直下のファイル名に限る。
 
-使い方: MUSE_CODE_WASM_API_KEY=... python3 receiver.py [--host 127.0.0.1] [--port 8090] [--sections FILE]
+使い方: TS_API_KEY=... python3 receiver.py [--host 127.0.0.1] [--port 8090] [--sections FILE]
         [--max-concurrent 4] [--max-queue 32]
 既定で 127.0.0.1 にだけ待ち受ける。tailnet に出すときは --host にそのアドレスを指定する。
 """
@@ -222,7 +222,7 @@ def main():
     parser.add_argument('--max-concurrent', type=int, default=MAX_CONCURRENT)
     parser.add_argument('--max-queue', type=int, default=MAX_QUEUE)
     args = parser.parse_args()
-    handler = make_handler(os.environ.get('MUSE_CODE_WASM_API_KEY', ''), sections=load_sections(args.sections),
+    handler = make_handler(os.environ.get('TS_API_KEY', ''), sections=load_sections(args.sections),
                            max_concurrent=args.max_concurrent, max_queue=args.max_queue)
     server = ThreadingHTTPServer((args.host, args.port), handler)
     print(f'listening on {args.host}:{args.port}', flush=True)

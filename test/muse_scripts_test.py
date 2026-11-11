@@ -320,5 +320,23 @@ class DashboardTest(unittest.TestCase):
             self.assertIn(f'`{name}`', readme)
 
 
+
+class NoticeToMuseTest(unittest.TestCase):
+    """muse/NOTICE-TO-MUSE.md(Muse への伝達事項)。更新のたびに新しい日付の節を先頭に書き足す。"""
+
+    def test_newest_first_with_dated_sections_and_actions(self):
+        text = (MUSE / 'NOTICE-TO-MUSE.md').read_text(encoding='utf-8')
+        dates = re.findall(r'(?m)^## (\d{4}-\d{2}-\d{2})', text)
+        self.assertTrue(dates)
+        self.assertEqual(dates, sorted(dates, reverse=True))
+        self.assertEqual(len(dates), len(set(dates)), '同じ日は1つの節にまとめる')
+        for section in re.split(r'(?m)^## ', text)[1:]:
+            self.assertIn('### やること', section, section.splitlines()[0])
+
+    def test_rules_require_appending_on_every_change(self):
+        rules = (ROOT / 'CLAUDE.md').read_text(encoding='utf-8')
+        self.assertIn('muse/NOTICE-TO-MUSE.md', rules)
+
+
 if __name__ == '__main__':
     unittest.main()

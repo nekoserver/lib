@@ -11,6 +11,11 @@
   h3 { font-size: .95em; margin: .6em 0 .3em; }
   section { background: #1b1b1b; border: 1px solid #333; border-radius: 6px;
             padding: .6em 1em; margin-bottom: 1em; }
+  section.read { border-left: 5px solid #3a3; }
+  section.exec { border: 1px solid #a33; border-left: 5px solid #c33; background: #201414; }
+  .badge { font-size: .75em; border-radius: 3px; padding: .1em .5em; vertical-align: middle; }
+  .badge.read { background: #2e7d32; color: #fff; }
+  .badge.exec { background: #b71c1c; color: #fff; }
   .body { font-family: monospace; font-size: .9em; line-height: 1.5; overflow-x: auto; }
   .meta { color: #888; font-size: .85em; }
   .ops { float: right; font-size: .85em; }
@@ -22,6 +27,15 @@
             font-size: .85em; overflow: hidden; white-space: nowrap; }
   .gbar { display: inline-block; height: .8em; background: #4a9; min-width: 1px; }
   .gval { font-family: monospace; font-size: .85em; color: #aaa; }
+  .exec textarea, .exec input[type="text"] { width: 100%; box-sizing: border-box;
+    background: #111; color: #ddd; border: 1px solid #633; border-radius: 4px; }
+  .exec select { background: #111; color: #ddd; border: 1px solid #633; border-radius: 4px; }
+  .exec pre { background: #170d0d; border: 1px solid #633; border-radius: 4px;
+    padding: .5em; white-space: pre-wrap; font-size: .85em; }
+  .exec .run { background: #b71c1c; color: #fff; border: none; border-radius: 4px;
+    padding: .4em 1.2em; cursor: pointer; }
+  .exec .run:disabled { background: #555; cursor: not-allowed; }
+  .warn { color: #f88; font-size: .85em; }
 </style>
 <script>
 function rerun(btn) {
@@ -36,59 +50,117 @@ function rerun(btn) {
     .finally(function () { btn.disabled = false; });
 }
 function rerunAll() {
-  document.querySelectorAll('section[data-frag] .ops button').forEach(function (b) { rerun(b); });
+  document.querySelectorAll('section.read[data-frag] .ops button').forEach(function (b) { rerun(b); });
+}
+async function updateReview() {
+  var f = document.getElementById('execform');
+  var profile = f.profile.value;
+  var ws = f.workspace.value.trim() || '~/sdk-ask-workspace（自動作成）';
+  var text = f.instruction.value;
+  var hash = '(計算中)';
+  if (window.crypto && crypto.subtle && text) {
+    var buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+    hash = Array.from(new Uint8Array(buf)).map(function (b) { return b.toString(16).padStart(2, '0'); }).join('');
+  }
+  document.getElementById('review').textContent =
+    '承認後に実行されるコマンド: sdk-ask.sh -p ' + profile + ' -w ' + ws + ' -t 600 -j\n' +
+    '指示: ' + text.length + ' 文字 / sha256: ' + hash + '\n' +
+    '送信では受付のみが行われ、実行には受ける側ホストでの承認が要ります。受付と承認・実行は監査ログに記録されます。';
+  document.getElementById('runbtn').disabled = !(document.getElementById('confirm').checked && text.trim());
 }
 </script>
 </head>
 <body>
 <h1>muse dashboard
-  <span class="ops"><button type="button" onclick="rerunAll()">全て再実行</button></span>
+  <span class="ops"><button type="button" onclick="rerunAll()">読み取り系を全て再実行</button></span>
 </h1>
-<p class="meta">generated: <!--#echo var="DATE_LOCAL" --> / 各区画の「再実行」で、その場でスクリプトを再実行して表示を更新します</p>
+<p class="meta">generated: <!--#echo var="DATE_LOCAL" --> /
+  <span class="badge read">読み取り</span> 緑は読み取り専用（表示時に実行） /
+  <span class="badge exec">実行</span> 赤は実行系（ページ表示では実行されず、下部の精査を経て手動実行のみ）</p>
 
-<section data-frag="graphs.shtml">
-  <h2>グラフ <span class="ops"><button type="button" onclick="rerun(this)">再実行</button><a href="graphs.shtml">開く</a></span></h2>
+<section class="read" data-frag="graphs.shtml">
+  <h2>グラフ <span class="badge read">読み取り</span> <span class="ops"><button type="button" onclick="rerun(this)">再実行</button><a href="graphs.shtml">開く</a></span></h2>
   <div class="body"><!--#include virtual="graphs.shtml" --></div>
 </section>
 
-<section data-frag="status.shtml">
-  <h2>常駐物（tailscaled / API Bridge） <span class="ops"><button type="button" onclick="rerun(this)">再実行</button><a href="status.shtml">開く</a></span></h2>
+<section class="read" data-frag="status.shtml">
+  <h2>常駐物（tailscaled / API Bridge） <span class="badge read">読み取り</span> <span class="ops"><button type="button" onclick="rerun(this)">再実行</button><a href="status.shtml">開く</a></span></h2>
   <div class="body"><!--#include virtual="status.shtml" --></div>
 </section>
 
-<section data-frag="jobs.shtml">
-  <h2>ジョブキュー <span class="ops"><button type="button" onclick="rerun(this)">再実行</button><a href="jobs.shtml">開く</a></span></h2>
+<section class="read" data-frag="jobs.shtml">
+  <h2>ジョブキュー <span class="badge read">読み取り</span> <span class="ops"><button type="button" onclick="rerun(this)">再実行</button><a href="jobs.shtml">開く</a></span></h2>
   <div class="body"><!--#include virtual="jobs.shtml" --></div>
 </section>
 
-<section data-frag="pkgs.shtml">
-  <h2>パッケージ（Nix / .deb） <span class="ops"><button type="button" onclick="rerun(this)">再実行</button><a href="pkgs.shtml">開く</a></span></h2>
+<section class="read" data-frag="pkgs.shtml">
+  <h2>パッケージ（Nix / .deb） <span class="badge read">読み取り</span> <span class="ops"><button type="button" onclick="rerun(this)">再実行</button><a href="pkgs.shtml">開く</a></span></h2>
   <div class="body"><!--#include virtual="pkgs.shtml" --></div>
 </section>
 
-<section data-frag="vm.shtml">
-  <h2>VM 情報 <span class="ops"><button type="button" onclick="rerun(this)">再実行</button><a href="vm.shtml">開く</a></span></h2>
+<section class="read" data-frag="vm.shtml">
+  <h2>VM 情報 <span class="badge read">読み取り</span> <span class="ops"><button type="button" onclick="rerun(this)">再実行</button><a href="vm.shtml">開く</a></span></h2>
   <div class="body"><!--#include virtual="vm.shtml" --></div>
 </section>
 
-<section data-frag="procs.shtml">
-  <h2>プロセス（メモリ上位） <span class="ops"><button type="button" onclick="rerun(this)">再実行</button><a href="procs.shtml">開く</a></span></h2>
+<section class="read" data-frag="procs.shtml">
+  <h2>プロセス（メモリ上位） <span class="badge read">読み取り</span> <span class="ops"><button type="button" onclick="rerun(this)">再実行</button><a href="procs.shtml">開く</a></span></h2>
   <div class="body"><!--#include virtual="procs.shtml" --></div>
 </section>
 
-<section data-frag="ports.shtml">
-  <h2>待ち受けポート <span class="ops"><button type="button" onclick="rerun(this)">再実行</button><a href="ports.shtml">開く</a></span></h2>
+<section class="read" data-frag="ports.shtml">
+  <h2>待ち受けポート <span class="badge read">読み取り</span> <span class="ops"><button type="button" onclick="rerun(this)">再実行</button><a href="ports.shtml">開く</a></span></h2>
   <div class="body"><!--#include virtual="ports.shtml" --></div>
 </section>
 
-<section data-frag="git.shtml">
-  <h2>ローカル git リポジトリ <span class="ops"><button type="button" onclick="rerun(this)">再実行</button><a href="git.shtml">開く</a></span></h2>
+<section class="read" data-frag="git.shtml">
+  <h2>ローカル git リポジトリ <span class="badge read">読み取り</span> <span class="ops"><button type="button" onclick="rerun(this)">再実行</button><a href="git.shtml">開く</a></span></h2>
   <div class="body"><!--#include virtual="git.shtml" --></div>
 </section>
 
-<section data-frag="recent.shtml">
-  <h2>直近の完了ジョブ <span class="ops"><button type="button" onclick="rerun(this)">再実行</button><a href="recent.shtml">開く</a></span></h2>
+<section class="read" data-frag="recent.shtml">
+  <h2>直近の完了ジョブ <span class="badge read">読み取り</span> <span class="ops"><button type="button" onclick="rerun(this)">再実行</button><a href="recent.shtml">開く</a></span></h2>
   <div class="body"><!--#include virtual="recent.shtml" --></div>
+</section>
+
+<section class="read" data-frag="diag.shtml">
+  <h2>診断サマリ（全33項目） <span class="badge read">読み取り</span> <span class="ops"><button type="button" onclick="rerun(this)">再実行</button><a href="diag.shtml">開く</a></span></h2>
+  <div class="body"><!--#include virtual="diag.shtml" --></div>
+  <p class="meta">WARN/FAIL の見方: <a href="matrix.html">診断マトリックス</a>（想定インシデントとの対応表）。この診断は防波堤として実行系の承認の直前にも走り、FAIL がある間は実行されません。</p>
+</section>
+
+<section class="read" data-frag="execlog.shtml">
+  <h2>実行監査ログ <span class="badge read">読み取り</span> <span class="ops"><button type="button" onclick="rerun(this)">再実行</button><a href="execlog.shtml">開く</a></span></h2>
+  <div class="body"><!--#include virtual="execlog.shtml" --></div>
+</section>
+
+<section class="read" data-frag="pending.shtml">
+  <h2>承認待ち（実行系の受付分） <span class="badge read">読み取り</span> <span class="ops"><button type="button" onclick="rerun(this)">再実行</button><a href="pending.shtml">開く</a></span></h2>
+  <div class="body"><!--#include virtual="pending.shtml" --></div>
+  <p class="meta">承認・却下は受ける側ホストの <code>sdk-approve.sh</code> でのみ行えます。</p>
+</section>
+
+<section class="exec">
+  <h2>Muse Code 実行（SDK） <span class="badge exec">実行</span></h2>
+  <p class="warn">この区画はページ表示では実行されません。送信しても<strong>受付だけ</strong>が行われ、
+  実行は受ける側ホストでの承認（<code>sdk-approve.sh approve</code>）があって初めて成立します。
+  プロファイルは許可リストのみ（:unrestricted は選べません）、ワークスペースはホーム配下のみ、指示は8000文字まで。</p>
+  <form id="execform" method="post" action="ask.cgi">
+    <p>指示<br>
+    <textarea name="instruction" rows="5" oninput="updateReview()"></textarea></p>
+    <p>プロファイル
+    <select name="profile" onchange="updateReview()">
+      <option value=":read-only">:read-only（読み取りのみ）</option>
+      <option value=":ask-me">:ask-me（承認は人のレビュアー）</option>
+      <option value=":auto-review" selected>:auto-review（AI レビュー）</option>
+    </select></p>
+    <p>ワークスペース（空欄なら ~/sdk-ask-workspace）<br>
+    <input type="text" name="workspace" oninput="updateReview()"></p>
+    <h3>精査</h3>
+    <pre id="review">（指示を入力すると、実行される内容がここに出ます）</pre>
+    <p><label><input type="checkbox" id="confirm" onchange="updateReview()"> コマンドと指示内容を確認しました</label></p>
+    <p><button type="submit" class="run" id="runbtn" disabled>送信する（受付のみ）</button></p>
+  </form>
 </section>
 
 </body>

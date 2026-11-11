@@ -17,8 +17,36 @@ Muse（muse-vm 上のエージェント）が日常の確認作業で使うシ�
 
 前提: POSIX sh、python3（`bridge-jobs.sh` と `pkg-versions.sh` の JSON 読み取り用）、curl（`muse-status.sh` の health 確認用）。
 
+## Muse Code SDK 連携
+
+Muse（本体）と Muse Code SDK（Python、`muse_code` パッケージ）に連動するもの。
+SDK の実体は `.py` 側で、シェルは入口（解決・引数・タイムアウト）を担う。
+
+| スクリプト | 内容 |
+|---|---|
+| `sdk-setup.sh` | SDK 用 venv（`~/.local/share/muse-sdk-venv`）を作り、本体と同版の `muse-code-sdk` を入れる。冪等 |
+| `sdk-health.sh` | 本体と SDK の版、認証キーの有無（値自体は出さない）、serve デーモンの状態 |
+| `sdk-ask.sh` | SDK で1ターンだけ指示を実行する。プロファイルは `-p`（既定 `:auto-review`、環境変数 `MUSE_PROFILE` でも指定可）。適用されなければ黙って落とさずエラー。`:unrestricted` は `MUSE_ALLOW_UNRESTRICTED=1` のときだけ。`-j` で結果サマリを JSON 出力 |
+| `sdk-profiles.sh` | ホストの権限プロファイルとモデルを一覧（読み取り専用） |
+| `sdk-sessions.sh` | ホストのセッション一覧と使用量（読み取り専用） |
+| `sdk-serve.sh` | `muse serve --listen` のソケットデーモンを start / stop / status。ソケットは well-known の `~/.local/share/muse/session-server/session-server.sock`（この版は任意パス不可） |
+| `daemon-check.sh` | デーモンの起動確認。PID の生存とソケットの有無を見るだけのシェル完結型。起動していれば終了コード 0、いなければ 1。`-q` で無言（cron 向け） |
+| `sdk-ask-cgi.py` | ダッシュボード実行系（`dashboard/ask.cgi`）の実体。許可リスト検証をして「承認待ち」として登録するだけで、実行はしない |
+| `sdk-approve.sh` | 受ける側ホストでの承認ツール（`list` / `show` / `approve` / `reject`）。承認した場合にだけ `sdk-ask.sh` を実行する。実行は受ける側の承認なしには成立しない。承認直前に整合性の再検証（改竄・許可リスト・symlink 解決後の範囲）と診断ゲート（`diag.sh` に FAIL がある間は実行しない）が入る |
+| `sdk-ts-*.sh` / `ts/` | TypeScript 版 SDK（`@muse-code/sdk`）の同等ツール群（health / profiles / sessions / ask / serve）。診断・制御は Python 版と両方で機能する。導入は `sdk-ts-setup.sh`。実行コアは承認ツールの `MUSE_ASK_IMPL=ts` で切り替える（ホスト側の指定のみ）。Web からは直結しない |
+| `pending.sh` | 承認待ちの一覧（読み取り専用） |
+| `sdk-emergency-stop.sh` | 緊急停止装置（ホスト側専用）。`stop` で受付・承認・実行をすべて止め、`resume` で解除する。停止中は監査に残る形で全て拒否される |
+| `exec-log.sh` | SDK 実行系の監査ログ（`~/.local/share/muse-sdk/exec-audit.jsonl`）の表示（読み取り専用） |
+| `sdk-common.sh` | 上記が読み込む共通の解決処理（単体では使わない） |
+
+注意: ターンの実行にはホスト側の認証（サインイン、または serve プロセスから見える `META_API_KEY`）が要る。未認証だと構造化エラー `authRequired` が返る。`:auto-review` は自動レビュアーが使える状態（キー設定済み）でないと `profile_not_applied` になる。
+
+| `diag.sh` | システム診断（読み取り専用、全33項目、カテゴリ別）。`-s` で件数と WARN/FAIL のみ。終了コード 0/1/2 = 異常なし/WARN/FAIL。`DIAG_QUICK=1` で重い走査を省略 |
+
+`DIAGNOSIS.md` は、diag の項目と想定インシデント20件の対応をまとめた診断マトリックス。
+
 `dashboard/` には、これらを Apache の SSI で呼び出すダッシュボードページがある（`dashboard/README.md` 参照）。
 
 `samples/` には、muse-monitor が呼ぶ受信側のサンプル（`samples/receiver.py`）と、`bridge-jobs.sh`・`recent-jobs.sh` を試すキューの見本（`samples/bridge-jobs/`）がある。
 
-仕様は `SPEC.md`。テストは `python3 -m unittest test/muse_scripts_test.py test/muse_samples_test.py`（リポジトリの直下で実行）。
+仕様は `SPEC.md`(実行経路)と `SPEC.scripts.md`(読み取り用スクリプト)。テストは `python3 -m unittest test/muse_scripts_test.py test/muse_samples_test.py`（リポジトリの直下で実行）。

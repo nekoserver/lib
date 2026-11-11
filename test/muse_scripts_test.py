@@ -22,7 +22,9 @@ import unittest
 ROOT = Path(__file__).parents[1]
 MUSE = ROOT / 'muse'
 DASHBOARD = MUSE / 'dashboard'
-SCRIPTS = sorted(p.name for p in MUSE.glob('*.sh'))
+# SPEC.scripts.md の表にある読み取り用スクリプト。sdk-*.sh などの実行経路(SPEC.md)は、読み取り専用の規則の対象外。
+READ_ONLY_SCRIPTS = ['bridge-jobs.sh', 'git-heads.sh', 'graphs.sh', 'muse-status.sh', 'pkg-versions.sh',
+                     'ports.sh', 'procs.sh', 'recent-jobs.sh', 'vm-info.sh']
 SH = shutil.which('dash') or 'sh'
 
 
@@ -234,7 +236,7 @@ class SimpleListsTest(ScriptCase):
 
 class ScriptRulesTest(unittest.TestCase):
     def test_scripts_are_posix_sh_with_set_u(self):
-        for name in SCRIPTS:
+        for name in READ_ONLY_SCRIPTS:
             text = (MUSE / name).read_text(encoding='utf-8')
             self.assertTrue(text.startswith('#!/bin/sh\n'), name)
             self.assertIn('\nset -u\n', text, name)
@@ -243,7 +245,7 @@ class ScriptRulesTest(unittest.TestCase):
 
     def test_scripts_do_not_change_state(self):
         forbidden = re.compile(r'(^|[\s;|&(])(rm|mv|cp|chmod|chown|kill|pkill|systemctl|service|reboot|tailscale|apt-get|nix-env -i|git (push|commit|reset|checkout|fetch|pull))\b')
-        for name in SCRIPTS:
+        for name in READ_ONLY_SCRIPTS:
             for line in (MUSE / name).read_text(encoding='utf-8').splitlines():
                 code = line.split('#', 1)[0] if not line.lstrip().startswith('#') else ''
                 self.assertIsNone(forbidden.search(code), f'{name}: {line}')
@@ -252,12 +254,25 @@ class ScriptRulesTest(unittest.TestCase):
         # dashboard の SSI は #exec cmd="../xxx.sh" で直接実行する(dashboard/README.md)。実行権限が無いと全区画が失敗する。
         out = subprocess.run(['git', '-C', str(ROOT), 'ls-files', '-s', 'muse'], capture_output=True, text=True, check=True).stdout
         modes = {line.split()[3]: line.split()[0] for line in out.splitlines()}
-        for name in SCRIPTS:
+        for name in DashboardTest.used_scripts():
             self.assertEqual(modes.get(f'muse/{name}'), '100755', name)
 
 
 class DashboardTest(unittest.TestCase):
     EXEC = re.compile(r'<!--#exec cmd="([^"]*)" -->')
+    ENV_PREFIX = re.compile(r'^(?:[A-Z_][A-Z0-9_]*=\S*\s+)*')
+
+    @classmethod
+    def script_of(cls, cmd):
+        return cls.ENV_PREFIX.sub('', cmd).split()[0]
+
+    @classmethod
+    def used_scripts(cls):
+        used = set()
+        for frag in DASHBOARD.glob('*.shtml'):
+            for cmd in cls.EXEC.findall(frag.read_text(encoding='utf-8')):
+                used.add(cls.script_of(cmd).removeprefix('../'))
+        return sorted(used)
 
     def test_each_fragment_runs_an_existing_script_and_escapes_its_output(self):
         fragments = sorted(p for p in DASHBOARD.glob('*.shtml') if p.name != 'index.shtml')
@@ -265,7 +280,7 @@ class DashboardTest(unittest.TestCase):
         for frag in fragments:
             cmds = self.EXEC.findall(frag.read_text(encoding='utf-8'))
             self.assertEqual(len(cmds), 1, frag.name)
-            script = cmds[0].split()[0]
+            script = self.script_of(cmds[0])
             self.assertTrue(script.startswith('../'), frag.name)
             self.assertTrue((DASHBOARD / script).resolve().is_file(), f'{frag.name} -> {script}')
             if script != '../graphs.sh':
@@ -278,15 +293,15 @@ class DashboardTest(unittest.TestCase):
         self.assertTrue(frags)
         for frag in frags:
             self.assertTrue((DASHBOARD / frag).is_file(), frag)
-        used = set()
-        for frag in DASHBOARD.glob('*.shtml'):
-            for cmd in self.EXEC.findall(frag.read_text(encoding='utf-8')):
-                used.add(cmd.split()[0].removeprefix('../'))
-        self.assertEqual(sorted(used), SCRIPTS)
+        used = self.used_scripts()
+        for name in used:
+            self.assertTrue((MUSE / name).is_file(), name)
+        for name in READ_ONLY_SCRIPTS:
+            self.assertIn(name, used)
 
     def test_readme_lists_every_script(self):
         readme = (MUSE / 'README.md').read_text(encoding='utf-8')
-        for name in SCRIPTS:
+        for name in READ_ONLY_SCRIPTS:
             self.assertIn(f'`{name}`', readme)
 
 

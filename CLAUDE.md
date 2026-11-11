@@ -50,3 +50,15 @@ curl -s -X POST "https://api.github.com/repos/nekoserver/lib/pulls" \
 - **テストが通ったことと、本番で動くことを混同しない。** 報告には、テストで確かめたこと・実物で確かめたこと・確かめていないことを分けて書く。
 - **完成の条件に、実際の経路を1回通すことを入れる。** 偽物を使ったテストの合格だけで「できた」としない。
 - **テストが失敗したまま、push・デプロイしない。**
+
+## muse-vm の受信側は最善の状態に保つ(ユーザー指定、2026-11-11)
+
+受信側(`muse/samples/receiver.py`)を `127.0.0.1` のまま再起動して、muse-monitor から接続拒否(`receiver_not_found`)になった。状態を誰も確かめていなかった。
+
+- **最善の状態は `muse/SPEC.scripts.md` の 4.0 に1つだけ定める。** そこに書いていない起動のしかた・待ち受け・鍵の置き場所を使わない。
+  - 常駐は `muse/samples/muse-receiver.service`(systemd のユーザー単位)。手で起動したままにしない。
+  - 待ち受けは既定の `0.0.0.0:8090`。`--host 127.0.0.1` を付けない。
+  - 鍵は `~/.config/muse-receiver.env`(権限600)の `TS_API_KEY` だけ。別の名前・別の置き場所を足さない。
+- **受信側に触れたら(コードの変更・`git pull`・再起動・muse-vm の再起動)、`sh muse/samples/receiver-check.sh` が全部 OK になるまで作業を終えない。** NG のまま「直した」と報告しない。結果(OK/NG の行)を報告に貼る。
+- 最善の状態を変えるときは、SPEC の 4.0・`muse-receiver.service`・`receiver-check.sh`・テスト(`test/muse_samples_test.py` の `ReceiverBestStateTest`)を同じ変更で直す。テストが食い違いを落とす。
+

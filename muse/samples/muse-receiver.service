@@ -5,13 +5,12 @@
 #   systemctl --user daemon-reload && systemctl --user enable --now muse-receiver
 #   loginctl enable-linger "$USER"   # ログインしていなくても動かす
 #   sh ~/lib/muse/samples/receiver-check.sh   # 全部 OK になること
-# --host は付けない(既定 0.0.0.0)。鍵はこのファイルに書かない。
+# --host は付けない(既定 0.0.0.0)。鍵はこのファイルに書かない(receiver.py が ~/.config/muse-receiver.env を直接読む)。
 [Unit]
 Description=muse receiver for muse-monitor (lib/muse/samples/receiver.py)
 After=network-online.target
 
 [Service]
-EnvironmentFile=%h/.config/muse-receiver.env
 ExecStart=/usr/bin/env python3 %h/lib/muse/samples/receiver.py --port 8090
 Restart=always
 RestartSec=5

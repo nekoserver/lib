@@ -47,6 +47,8 @@ SDK の実体は `.py` 側で、シェルは入口（解決・引数・タイム
 
 `dashboard/` には、これらを Apache の SSI で呼び出すダッシュボードページがある（`dashboard/README.md` 参照）。
 
+Muse への伝達事項は `NOTICE-TO-MUSE.md`(更新のたびに書き足す)。
+
 `samples/` には、muse-monitor が呼ぶ受信側のサンプル（`samples/receiver.py`。muse-vm での最善の状態は `SPEC.scripts.md` の 4.0 で、常駐用の `samples/muse-receiver.service` と確認用の `samples/receiver-check.sh` がある）と、`bridge-jobs.sh`・`recent-jobs.sh` を試すキューの見本（`samples/bridge-jobs/`）がある。
 
 仕様は `SPEC.md`(実行経路)と `SPEC.scripts.md`(読み取り用スクリプト)。テストは `python3 -m unittest test/muse_scripts_test.py test/muse_samples_test.py`（リポジトリの直下で実行）。

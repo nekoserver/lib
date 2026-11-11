@@ -62,3 +62,12 @@ curl -s -X POST "https://api.github.com/repos/nekoserver/lib/pulls" \
 - **受信側に触れたら(コードの変更・`git pull`・再起動・muse-vm の再起動)、`sh muse/samples/receiver-check.sh` が全部 OK になるまで作業を終えない。** NG のまま「直した」と報告しない。結果(OK/NG の行)を報告に貼る。
 - 最善の状態を変えるときは、SPEC の 4.0・`muse-receiver.service`・`receiver-check.sh`・テスト(`test/muse_samples_test.py` の `ReceiverBestStateTest`)を同じ変更で直す。テストが食い違いを落とす。
 
+
+## Muse への伝達事項を更新のたびに書き足す(ユーザー指定、2026-11-11)
+
+Muse に関わる変更(lib・muse-monitor・本体・muse-vm の受信側など、どのリポジトリでも)をしたら、同じ作業の中で `muse/NOTICE-TO-MUSE.md` に伝達事項をまとめて書き足す。
+
+- 新しい日付の節(`## YYYY-MM-DD`)を先頭に置く。同じ日は1つの節にまとめる。
+- 各節に「変わったこと」と「やること」(Muse が手を動かす手順)を書く。やることが無ければ「なし」と書く。
+- 変更を書いたら、Muse が読む前に main へ入るよう、変更と同じ PR か直後の PR に含める。
+- テスト(`test/muse_scripts_test.py` の `NoticeToMuseTest`)が、日付の並びと「やること」の有無を検査する。

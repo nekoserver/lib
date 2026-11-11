@@ -25,9 +25,10 @@ muse-vm に負荷をかけないための制御(契約の外。応答の形は�
 項目の追加: --sections に JSON({"section": "スクリプト名"})を渡すと既定に足す。スクリプトは
 このディレクトリの親(lib/muse)の直下のファイル名に限る。
 
-使い方: TS_API_KEY=... python3 receiver.py [--host 127.0.0.1] [--port 8090] [--sections FILE]
+使い方: TS_API_KEY=... python3 receiver.py [--host 0.0.0.0] [--port 8090] [--sections FILE]
         [--max-concurrent 8] [--max-queue 32]
-既定で 127.0.0.1 にだけ待ち受ける。tailnet に出すときは --host にそのアドレスを指定する。
+既定で全アドレス(0.0.0.0)に待ち受ける。127.0.0.1 では tailnet 経由の muse-monitor から接続拒否になる。
+絞るときは --host に tailnet のアドレスを指定する。TS_API_KEY が無ければ起動しない。
 """
 import argparse
 from collections import deque
@@ -249,12 +250,14 @@ def make_handler(key, scripts_dir=SCRIPTS_DIR, sections=None, timeout=TIMEOUT_SE
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__.split('\n', 1)[0])
-    parser.add_argument('--host', default='127.0.0.1')
+    parser.add_argument('--host', default='0.0.0.0')
     parser.add_argument('--port', type=int, default=8090)
     parser.add_argument('--sections', help='JSON {"section": "script name"} added to the defaults')
     parser.add_argument('--max-concurrent', type=int, default=MAX_CONCURRENT)
     parser.add_argument('--max-queue', type=int, default=MAX_QUEUE)
     args = parser.parse_args()
+    if not os.environ.get('TS_API_KEY'):
+        parser.exit(2, 'receiver.py: TS_API_KEY is not set; refusing to start (muse-monitor sends the same value)\n')
     handler = make_handler(os.environ.get('TS_API_KEY', ''), sections=load_sections(args.sections),
                            max_concurrent=args.max_concurrent, max_queue=args.max_queue)
     server = ThreadingHTTPServer((args.host, args.port), handler)

@@ -52,7 +52,8 @@ muse-monitorが呼ぶ受信側(`docs/RECEIVER.md`、nekoserver/muse-monitor)の�
 
 - 鍵は環境変数 `TS_API_KEY`(muse-monitorの `TS_API_KEY` と同じ値)。
 - 扱う section は、スクリプトのある `status`・`jobs`・`pkgs`・`vm`・`procs`・`ports`・`git`・`recent`。muse-monitorの許可リストのうち、`diag`・`pending`・`execlog`・`sdk*` はスクリプトが無いので404。
-- 既定で `127.0.0.1` にだけ待ち受ける。tailnetに出すときは `--host` で明示する。
+- 既定で全アドレス(`0.0.0.0`)に待ち受ける。`127.0.0.1` では tailnet 経由の muse-monitor から接続拒否になる(2026-11-11 に起きた)。絞るときは `--host` に tailnet のアドレスを指定する。
+- `TS_API_KEY` が無ければ起動しない(鍵なしで全アドレスに出さない)。
 
 ### 4.1 並行処理とキュー(muse-vmに負荷をかけないため)
 

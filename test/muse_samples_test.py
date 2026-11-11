@@ -14,6 +14,7 @@ import os
 from pathlib import Path
 import shutil
 import subprocess
+import sys
 import tempfile
 import threading
 import time
@@ -153,9 +154,17 @@ class ReceiverSectionsTest(unittest.TestCase):
         self.assertEqual(receiver.OUTPUT_LIMIT, 64 * 1024)
         self.assertEqual(receiver.TIMEOUT_SECONDS, 60)
 
-    def test_listens_on_localhost_by_default(self):
+    def test_listens_on_every_address_by_default_so_muse_monitor_can_reach_it(self):
+        # 127.0.0.1 だと tailnet 経由の muse-monitor からは接続拒否になる(2026-11-11 に起きた)。鍵の照合があるので全アドレスで待ち受ける
         text = (SAMPLES / 'receiver.py').read_text(encoding='utf-8')
-        self.assertIn("parser.add_argument('--host', default='127.0.0.1')", text)
+        self.assertIn("parser.add_argument('--host', default='0.0.0.0')", text)
+
+    def test_refuses_to_start_without_the_key(self):
+        # 鍵なしで全アドレスに出さない。起動時に止まり、理由を標準エラーに出す
+        env = {k: v for k, v in os.environ.items() if k != 'TS_API_KEY'}
+        r = subprocess.run([sys.executable, str(SAMPLES / 'receiver.py'), '--port', '0'], capture_output=True, text=True, env=env, timeout=10)
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn('TS_API_KEY', r.stderr)
 
 
 class BridgeJobsSampleTest(unittest.TestCase):

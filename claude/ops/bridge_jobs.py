@@ -18,6 +18,7 @@
 """
 import argparse
 import hashlib
+import hmac
 import json
 import os
 from pathlib import Path
@@ -116,7 +117,13 @@ def candidates(db, limit=10):
 
 def _token_is(db, job_id, token, status):
     row = _one(db, 'SELECT claim_token, status FROM bridge_job_locks WHERE job_id = ?', [job_id])
-    return bool(row) and row['claim_token'] == token and row['status'] == status
+    if not row or row['status'] != status:
+        return False
+    stored = row['claim_token']
+    if not isinstance(stored, str) or not isinstance(token, str) or not stored or not token:
+        return False
+    # トークンは比較の時間から推し量られないよう、定数時間で比べる
+    return hmac.compare_digest(stored.encode('utf-8'), token.encode('utf-8'))
 
 
 def claim(db, job_id, token, worker, lease_seconds=LEASE_SECONDS):

@@ -135,8 +135,27 @@ class ReceiverTest(unittest.TestCase):
             self.assertEqual(status, 404, section)
             self.assertEqual(body['error'], 'unknown_section')
 
+    def test_health_shows_a_short_fingerprint_of_the_key_and_never_the_key(self):
+        status, body = self.get('/health', key=None)
+        self.assertEqual(status, 200)
+        self.assertEqual(body, {'status': 'ok', 'keyFingerprint': receiver.fingerprint(self.KEY)})
+        self.assertEqual(len(body['keyFingerprint']), 8)
+        self.assertNotIn(self.KEY, json.dumps(body))
+
+    def test_401_shows_the_expected_and_presented_fingerprints_so_a_mismatch_can_be_seen(self):
+        status, body = self.get('/monitor/ok', key='wrong')
+        self.assertEqual(status, 401)
+        self.assertEqual(body, {'error': 'unauthorized', 'expectedKeyFingerprint': receiver.fingerprint(self.KEY),
+                                'presentedKeyFingerprint': receiver.fingerprint('wrong')})
+        status, body = self.get('/monitor/ok', key=None)
+        self.assertEqual(body['presentedKeyFingerprint'], None)
+        self.assertNotIn(self.KEY, json.dumps(body))
+
+    def test_a_bearer_with_surrounding_spaces_still_matches(self):
+        self.assertEqual(self.get('/monitor/ok', key=self.KEY, header=f'Bearer  {self.KEY} ')[0], 200)
+
     def test_health_needs_no_key_and_other_paths_are_404(self):
-        self.assertEqual(self.get('/health', key=None), (200, {'status': 'ok'}))
+        self.assertEqual(self.get('/health', key=None)[0], 200)
         self.assertEqual(self.get('/other')[0], 404)
         req = Request(self.base + '/monitor/ok', method='POST', data=b'', headers={'Authorization': f'Bearer {self.KEY}'})
         with self.assertRaises(HTTPError) as ctx:
@@ -159,12 +178,58 @@ class ReceiverSectionsTest(unittest.TestCase):
         text = (SAMPLES / 'receiver.py').read_text(encoding='utf-8')
         self.assertIn("parser.add_argument('--host', default='0.0.0.0')", text)
 
-    def test_refuses_to_start_without_the_key(self):
-        # 鍵なしで全アドレスに出さない。起動時に止まり、理由を標準エラーに出す
-        env = {k: v for k, v in os.environ.items() if k != 'TS_API_KEY'}
-        r = subprocess.run([sys.executable, str(SAMPLES / 'receiver.py'), '--port', '0'], capture_output=True, text=True, env=env, timeout=10)
+    def test_refuses_to_start_without_the_key_file_even_if_the_environment_has_one(self):
+        # 鍵は ~/.config/muse-receiver.env だけから読む。シェルに残った別の TS_API_KEY(例: Tailscale の API キー)は使わない
+        with tempfile.TemporaryDirectory() as home:
+            env = dict(os.environ, HOME=home, TS_API_KEY='stray-value-in-shell')
+            r = subprocess.run([sys.executable, str(SAMPLES / 'receiver.py'), '--port', '0'], capture_output=True, text=True, env=env, timeout=10)
         self.assertNotEqual(r.returncode, 0)
-        self.assertIn('TS_API_KEY', r.stderr)
+        self.assertIn('muse-receiver.env', r.stderr)
+        self.assertNotIn('stray-value-in-shell', r.stderr)
+
+    def test_starts_with_the_key_file_and_prints_its_fingerprint_not_the_key(self):
+        with tempfile.TemporaryDirectory() as home:
+            (Path(home) / '.config').mkdir()
+            key_file = Path(home) / '.config' / 'muse-receiver.env'
+            key_file.write_text('TS_API_KEY="file-key"\n')
+            env = dict(os.environ, HOME=home, TS_API_KEY='stray-value-in-shell')
+            proc = subprocess.Popen([sys.executable, str(SAMPLES / 'receiver.py'), '--host', '127.0.0.1', '--port', '0'],
+                                    stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, env=env)
+            timer = threading.Timer(5, proc.kill)  # 待ち受けの行が出ないまま止まらないように
+            timer.start()
+            lines = []
+            try:
+                for line in proc.stdout:
+                    lines.append(line)
+                    if line.startswith('listening'):
+                        break
+            finally:
+                timer.cancel()
+                proc.kill()
+                proc.communicate()
+        out = ''.join(lines)
+        self.assertIn('listening', out)
+        self.assertIn(receiver.fingerprint('file-key'), out)
+        self.assertNotIn('file-key', out.replace(receiver.fingerprint('file-key'), ''))
+        self.assertNotIn('stray-value-in-shell', out)
+        self.assertIn('ignored', out)  # シェルの TS_API_KEY を使わないことを名前だけで知らせる
+
+    def test_load_key_reads_the_last_assignment_and_strips_quotes_spaces_and_crlf(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = Path(d) / 'k.env'
+            cases = {
+                'TS_API_KEY=abc\n': 'abc',
+                'TS_API_KEY="abc"\r\n': 'abc',
+                "TS_API_KEY='abc'  \n": 'abc',
+                'export TS_API_KEY=abc\n': 'abc',
+                '# comment\nTS_API_KEY=old\nTS_API_KEY=new\n': 'new',
+                'TS_API_KEY=\n': None,
+                'OTHER=abc\n': None,
+            }
+            for text, want in cases.items():
+                path.write_text(text)
+                self.assertEqual(receiver.load_key(path), want, repr(text))
+            self.assertIsNone(receiver.load_key(Path(d) / 'missing.env'))
 
 
 class BridgeJobsSampleTest(unittest.TestCase):
@@ -507,7 +572,7 @@ class ReceiverBestStateTest(unittest.TestCase):
     def test_service_unit_keeps_the_receiver_running_in_the_best_state(self):
         unit = (SAMPLES / 'muse-receiver.service').read_text(encoding='utf-8')
         self.assertIn('Restart=always', unit)
-        self.assertIn('EnvironmentFile=%h/.config/muse-receiver.env', unit)
+        self.assertNotIn('EnvironmentFile', unit)  # 鍵は receiver.py が ~/.config/muse-receiver.env から直接読む
         self.assertIn('muse/samples/receiver.py', unit)
         self.assertNotIn('127.0.0.1', unit)
         self.assertNotIn('TS_API_KEY=', unit)

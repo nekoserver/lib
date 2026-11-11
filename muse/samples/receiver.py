@@ -3,7 +3,7 @@
 
 契約は nekoserver/muse-monitor の docs/RECEIVER.md:
 - GET /monitor/<section>、Authorization: Bearer <鍵> が必須
-- 鍵は環境変数 TS_API_KEY
+- 鍵は ~/.config/muse-receiver.env の TS_API_KEY だけ(シェルの環境変数 TS_API_KEY は使わない)
 - 鍵が未設定なら 503、ヘッダーが無い・不一致なら 401、未知の section は 404
 - 応答は {"section", "rc", "output", "truncated", "ts"}。output は 64 KiB で切り詰め、60 秒で 504
 - GET /health は認証なしで {"status": "ok"}(muse-monitor が相手を探すときに叩く)
@@ -25,14 +25,16 @@ muse-vm に負荷をかけないための制御(契約の外。応答の形は�
 項目の追加: --sections に JSON({"section": "スクリプト名"})を渡すと既定に足す。スクリプトは
 このディレクトリの親(lib/muse)の直下のファイル名に限る。
 
-使い方: TS_API_KEY=... python3 receiver.py [--host 0.0.0.0] [--port 8090] [--sections FILE]
+使い方: python3 receiver.py [--host 0.0.0.0] [--port 8090] [--sections FILE]
         [--max-concurrent 8] [--max-queue 32]
 既定で全アドレス(0.0.0.0)に待ち受ける。127.0.0.1 では tailnet 経由の muse-monitor から接続拒否になる。
-絞るときは --host に tailnet のアドレスを指定する。TS_API_KEY が無ければ起動しない。
+絞るときは --host に tailnet のアドレスを指定する。~/.config/muse-receiver.env に TS_API_KEY が無ければ起動しない。
+起動時に鍵の指紋(sha256 の先頭8桁)を出す。/health と 401 の本文にも指紋を出し、鍵の食い違いを見分けられるようにする。
 """
 import argparse
 from collections import deque
 from datetime import datetime
+import hashlib
 import hmac
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
@@ -62,8 +64,32 @@ MAX_QUEUE = 32
 QUEUE_WAIT_SECONDS = 30
 CACHE_SECONDS = 5
 STALE_SECONDS = 300
+KEY_FILE = Path.home() / '.config' / 'muse-receiver.env'
 SECTION_NAME = re.compile(r'^[a-z][a-z0-9_-]{0,31}$')
 SCRIPT_NAME = re.compile(r'^[A-Za-z0-9_-][A-Za-z0-9._-]{0,63}$')
+
+
+def load_key(path):
+    """鍵ファイルの最後の TS_API_KEY= の値を返す。前後の空白・改行(CRLF)・引用符は除く。無ければ None。"""
+    try:
+        text = Path(path).read_text(encoding='utf-8')
+    except (FileNotFoundError, PermissionError, IsADirectoryError):
+        return None
+    value = None
+    for line in text.splitlines():
+        line = line.strip()
+        if line.startswith('export '):
+            line = line[len('export '):].lstrip()
+        if line.startswith('TS_API_KEY='):
+            value = line[len('TS_API_KEY='):].strip()
+            if len(value) >= 2 and value[0] == value[-1] and value[0] in '"\'':
+                value = value[1:-1].strip()
+    return value or None
+
+
+def fingerprint(key):
+    """鍵を比べるための短い指紋(sha256 の先頭8桁)。鍵そのものは出さない。"""
+    return hashlib.sha256(key.encode('utf-8')).hexdigest()[:8] if key else None
 
 
 def load_sections(path):
@@ -225,14 +251,17 @@ def make_handler(key, scripts_dir=SCRIPTS_DIR, sections=None, timeout=TIMEOUT_SE
         def do_GET(self):
             path = self.path.split('?', 1)[0]
             if path == '/health':
-                return self.reply(200, {'status': 'ok'})
+                return self.reply(200, {'status': 'ok', 'keyFingerprint': fingerprint(key)})
             if path != '/queue' and not path.startswith('/monitor/'):
                 return self.reply(404, {'error': 'not_found'})
             if not key:
                 return self.reply(503, {'error': 'receiver_key_not_configured'})
             given = self.headers.get('Authorization', '')
-            if not given.startswith('Bearer ') or not hmac.compare_digest(given[7:].encode(), key.encode()):
-                return self.reply(401, {'error': 'unauthorized'})
+            presented = given[7:].strip() if given.startswith('Bearer ') else ''
+            if not presented or not hmac.compare_digest(presented.encode(), key.encode()):
+                # 鍵が違うときに、どちらの鍵かを指紋で見分けられるようにする(muse-monitor はこの本文を receiver として返す)
+                return self.reply(401, {'error': 'unauthorized', 'expectedKeyFingerprint': fingerprint(key),
+                                        'presentedKeyFingerprint': fingerprint(presented)})
             if path == '/queue':
                 return self.reply(200, runner.snapshot())
             section = path[len('/monitor/'):]
@@ -256,9 +285,14 @@ def main():
     parser.add_argument('--max-concurrent', type=int, default=MAX_CONCURRENT)
     parser.add_argument('--max-queue', type=int, default=MAX_QUEUE)
     args = parser.parse_args()
-    if not os.environ.get('TS_API_KEY'):
-        parser.exit(2, 'receiver.py: TS_API_KEY is not set; refusing to start (muse-monitor sends the same value)\n')
-    handler = make_handler(os.environ.get('TS_API_KEY', ''), sections=load_sections(args.sections),
+    key = load_key(KEY_FILE)
+    if not key:
+        parser.exit(2, f'receiver.py: no TS_API_KEY in {KEY_FILE}; refusing to start '
+                       '(write TS_API_KEY=<the same value as muse-monitor> there, chmod 600)\n')
+    print(f'key fingerprint: {fingerprint(key)} (from {KEY_FILE})', flush=True)
+    if os.environ.get('TS_API_KEY') and os.environ['TS_API_KEY'] != key:
+        print(f'TS_API_KEY in the environment differs from {KEY_FILE} and is ignored', flush=True)
+    handler = make_handler(key, sections=load_sections(args.sections),
                            max_concurrent=args.max_concurrent, max_queue=args.max_queue)
     server = ThreadingHTTPServer((args.host, args.port), handler)
     threading.Thread(target=handler.runner.warm, args=(handler.sections, handler.scripts_dir), daemon=True).start()

@@ -42,15 +42,16 @@ muse-monitorが呼ぶ受信側(`docs/RECEIVER.md`、nekoserver/muse-monitor)の�
 
 | 要求 | 応答 |
 |---|---|
-| `GET /health` | 200 `{"status": "ok"}`(認証なし。muse-monitorが相手を探すのに使う) |
+| `GET /health` | 200 `{"status": "ok", "keyFingerprint": "<鍵の指紋>"}`(認証なし。muse-monitorが相手を探すのに使う) |
 | `GET /monitor/<section>`、鍵が未設定 | 503 `receiver_key_not_configured` |
-| `Authorization: Bearer <鍵>` が無い・違う | 401 `unauthorized`(比較はタイミングセーフ) |
+| `Authorization: Bearer <鍵>` が無い・違う | 401 `{"error": "unauthorized", "expectedKeyFingerprint", "presentedKeyFingerprint"}`(比較はタイミングセーフ。前後の空白は除いて比べる) |
 | 未知の section、スクリプトが無い | 404 `unknown_section`(何も実行しない) |
 | 正常 | 200 `{"section", "rc", "output", "truncated", "ts"}`。`output` は標準出力と標準エラー、64 KiBで切り詰め |
 | 60秒を超えた | 504 `timeout`。子プロセスごと止める(プロセスグループで起動して `SIGKILL`) |
 | `POST` など | 405 |
 
-- 鍵は環境変数 `TS_API_KEY`(muse-monitorの `TS_API_KEY` と同じ値)。
+- 鍵は `~/.config/muse-receiver.env` の `TS_API_KEY`(muse-monitorの `TS_API_KEY` と同じ値)だけから読む。シェルの環境変数 `TS_API_KEY` は使わない(muse-vm では別の用途の値が入っていることがある。食い違っていれば起動時に名前だけ知らせる)。値の前後の空白・CRLF・引用符は除く。
+- 鍵の指紋は sha256 の先頭8桁。起動時・`/health`・401 の本文に出す。鍵そのものは出さない。muse-monitor の `receiver_unauthorized` は受信側の本文を `receiver` に入れて返すので、`expectedKeyFingerprint`(受信側の鍵)と `presentedKeyFingerprint`(muse-monitor が送った鍵)を見比べれば、どちらが違うか分かる。
 - 扱う section は、スクリプトのある `status`・`jobs`・`pkgs`・`vm`・`procs`・`ports`・`git`・`recent`。muse-monitorの許可リストのうち、`diag`・`pending`・`execlog`・`sdk*` はスクリプトが無いので404。
 - 既定で全アドレス(`0.0.0.0`)に待ち受ける。`127.0.0.1` では tailnet 経由の muse-monitor から接続拒否になる(2026-11-11 に起きた)。絞るときは `--host` に tailnet のアドレスを指定する。
 - `TS_API_KEY` が無ければ起動しない(鍵なしで全アドレスに出さない)。
@@ -63,7 +64,7 @@ muse-monitor が読めるのは、受信側が次の状態のときだけ。ど�
 |---|---|---|
 | 起動のしかた | `samples/muse-receiver.service`(systemd のユーザー単位、`Restart=always`)で常駐。手で `python3 receiver.py` を起動したままにしない | 落ちても戻らない・再起動で消える |
 | 待ち受け | 既定の `0.0.0.0:8090`。`--host 127.0.0.1` を付けない | muse-monitor から接続拒否 |
-| 鍵 | `~/.config/muse-receiver.env` に `TS_API_KEY=<muse-monitor と同じ値>` の1行だけ。権限は600。鍵はこのファイル以外(unit・スクリプト・コマンドの引数)に書かない | 401 / 503。値が漏れる |
+| 鍵 | `~/.config/muse-receiver.env` に `TS_API_KEY=<muse-monitor と同じ値>` の1行だけ。権限は600。`receiver.py` がこのファイルを直接読む。鍵はこのファイル以外(unit・スクリプト・コマンドの引数・シェルの環境変数)に書かない | 401 / 起動しない。値が漏れる |
 | 鍵の名前 | `TS_API_KEY` だけ。別の名前を足さない | どの鍵が使われているか分からなくなる |
 | 確認 | `sh samples/receiver-check.sh` が全部 OK(終了コード0) | — |
 

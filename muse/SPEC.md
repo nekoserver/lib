@@ -50,7 +50,7 @@ muse-monitorが呼ぶ受信側(`docs/RECEIVER.md`、nekoserver/muse-monitor)の�
 | 60秒を超えた | 504 `timeout`。子プロセスごと止める(プロセスグループで起動して `SIGKILL`) |
 | `POST` など | 405 |
 
-- 鍵は環境変数 `MUSE_CODE_WASM_API_KEY`(muse-monitorの `TS_API_KEY` と同じ値)。
+- 鍵は環境変数 `TS_API_KEY`(muse-monitorの `TS_API_KEY` と同じ値)。
 - 扱う section は、スクリプトのある `status`・`jobs`・`pkgs`・`vm`・`procs`・`ports`・`git`・`recent`。muse-monitorの許可リストのうち、`diag`・`pending`・`execlog`・`sdk*` はスクリプトが無いので404。
 - 既定で `127.0.0.1` にだけ待ち受ける。tailnetに出すときは `--host` で明示する。
 

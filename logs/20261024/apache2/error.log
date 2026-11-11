@@ -1,0 +1,11 @@
+[Sat Oct 24 10:28:11.145276 2026] [mpm_event:notice] [pid 155:tid 155] AH00489: Apache/2.4.66 (Ubuntu) OpenSSL/3.5.5 configured -- resuming normal operations
+[Sat Oct 24 10:28:11.145322 2026] [core:notice] [pid 155:tid 155] AH00094: Command line: '/usr/sbin/apache2'
+[Sat Oct 24 10:34:36.310557 2026] [mpm_event:notice] [pid 155:tid 155] AH00493: SIGUSR1 received.  Doing graceful restart
+[Sat Oct 24 10:34:36.470040 2026] [mpm_event:notice] [pid 155:tid 155] AH00489: Apache/2.4.66 (Ubuntu) OpenSSL/3.5.5 configured -- resuming normal operations
+[Sat Oct 24 10:34:36.470055 2026] [core:notice] [pid 155:tid 155] AH00094: Command line: '/usr/sbin/apache2'
+[Sat Oct 24 10:35:21.109891 2026] [mpm_event:notice] [pid 155:tid 155] AH00493: SIGUSR1 received.  Doing graceful restart
+[Sat Oct 24 10:35:21.262089 2026] [mpm_event:notice] [pid 155:tid 155] AH00489: Apache/2.4.66 (Ubuntu) OpenSSL/3.5.5 configured -- resuming normal operations
+[Sat Oct 24 10:35:21.262107 2026] [core:notice] [pid 155:tid 155] AH00094: Command line: '/usr/sbin/apache2'
+[Sat Oct 24 10:52:53.876255 2026] [mpm_event:notice] [pid 155:tid 155] AH00493: SIGUSR1 received.  Doing graceful restart
+[Sat Oct 24 10:52:53.960403 2026] [mpm_event:notice] [pid 155:tid 155] AH00489: Apache/2.4.66 (Ubuntu) OpenSSL/3.5.5 configured -- resuming normal operations
+[Sat Oct 24 10:52:53.960419 2026] [core:notice] [pid 155:tid 155] AH00094: Command line: '/usr/sbin/apache2'

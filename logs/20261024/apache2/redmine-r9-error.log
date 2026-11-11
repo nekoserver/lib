@@ -1,0 +1,2 @@
+[Sat Oct 24 10:52:53.957306 2026] [ssl:warn] [pid 155:tid 155] AH01906: r9.nekomaneki.work:443:0 server certificate is a CA certificate (BasicConstraints: CA == TRUE !?)
+[Sat Oct 24 10:52:53.957338 2026] [ssl:warn] [pid 155:tid 155] AH01909: r9.nekomaneki.work:443:0 server certificate does NOT include an ID which matches the server name

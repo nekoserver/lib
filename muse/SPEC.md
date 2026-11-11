@@ -54,6 +54,30 @@ muse-monitorが呼ぶ受信側(`docs/RECEIVER.md`、nekoserver/muse-monitor)の�
 - 扱う section は、スクリプトのある `status`・`jobs`・`pkgs`・`vm`・`procs`・`ports`・`git`・`recent`。muse-monitorの許可リストのうち、`diag`・`pending`・`execlog`・`sdk*` はスクリプトが無いので404。
 - 既定で `127.0.0.1` にだけ待ち受ける。tailnetに出すときは `--host` で明示する。
 
+### 4.1 並行処理とキュー(muse-vmに負荷をかけないため)
+
+muse-monitorの「全て取得」は15件を同時に送る。スクリプトを一斉に走らせないよう、次のように制御する。応答の形(契約)は変えない。
+
+| 仕組み | 既定 | 内容 |
+|---|---|---|
+| 同時実行の上限 | `max_concurrent` 4 | 同時に動くスクリプトはこの数まで |
+| 待ち行列 | `max_queue` 32 | 上限を超えた要求は到着順に並ぶ(`threading.Condition` と待ち行列で、順番を保証する) |
+| 待ち行列があふれたとき | — | 待たせずにすぐ503 `queue_full`(要求を際限なく溜めない) |
+| 待ち時間 | `queue_wait` 30秒 | この時間内に順番が来なければ503 `busy` |
+| 同じ section のまとめ | — | 実行中の section への要求は、その1回の結果を待って同じ結果を返す(同じスクリプトを重ねて走らせない) |
+| 結果の使い回し | `cache_seconds` 5秒 | 成功(200)した結果だけを使い回す。失敗・時間切れは使い回さない |
+| 状態の確認 | `GET /queue`(鍵が必要) | `running`・`waiting`・`runningSections`・`maxConcurrent`・`maxQueue` |
+
+- 待ち行列に数えるのは、実行を待っている要求だけ。同じ section の結果を待つ要求と、使い回しで返す要求は数えない。
+- 想定外の例外が起きても、同じ section の結果を待つ要求を取り残さない(500 `receiver_error` を返す)。
+- 起動時の指定: `--max-concurrent`・`--max-queue`。
+
+### 4.2 項目の追加
+
+- `--sections FILE` にJSON(`{"section": "スクリプト名"}`)を渡すと、既定の項目に足す(同じ名前なら置き換える)。コードを直さずに項目を増やせる。
+- section の名前は英小文字で始まる32文字まで(英小文字・数字・`_`・`-`)。スクリプトは `lib/muse` の直下のファイル名に限り、`/`・`..` を含むものは起動時に拒否する。
+- 足した項目をmuse-monitorから呼ばせるには、muse-monitorの許可リスト(6章)も合わせる。
+
 ## 5. テスト
 
 ```bash
@@ -61,7 +85,7 @@ python3 -m unittest test/muse_scripts_test.py test/muse_samples_test.py
 ```
 
 - `test/muse_scripts_test.py`: 外部コマンドを `PATH` の先頭の偽物に差し替え、`dash` で各スクリプトの出力を確かめる。原則(1章)とダッシュボードの対応(3章)も検査する。
-- `test/muse_samples_test.py`: 受信側のサンプルを空いているポートで実際に起動し、HTTPで4章の表を確かめる。bridge-jobsの見本を、実際のスクリプトで読めることも確かめる。
+- `test/muse_samples_test.py`: 受信側のサンプルを空いているポートで実際に起動し、HTTPで4章の表を確かめる。並行処理とキュー(4.1、同時実行の上限・到着順・あふれ・待ち時間・まとめ・使い回し・`/queue`)と、項目の追加(4.2、不正な指定の拒否)も確かめる。bridge-jobsの見本を、実際のスクリプトで読めることも確かめる。
 - **確かめていないこと**: muse-vmの実環境(Nix・tailscaled・API Bridge・実際のキュー)での実行と、Apacheに置いたときのSSIの動作。
 
 ## 6. 変えるときの注意

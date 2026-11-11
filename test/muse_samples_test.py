@@ -179,3 +179,156 @@ class BridgeJobsSampleTest(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class ReceiverConcurrencyTest(unittest.TestCase):
+    """同時実行の上限・同じ項目のまとめ・結果の使い回し・設定による項目の追加。"""
+    KEY = 'k'
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.dir = Path(self.tmp.name)
+        self.log = self.dir / 'runs.log'
+        # 実行のたびに開始と終了を1行ずつ記録し、0.4秒かかるスクリプト
+        for name in ('a', 'b', 'c', 'd', 'e', 'f'):
+            (self.dir / f'{name}.sh').write_text(f'#!/bin/sh\necho "start {name}" >> {self.log}\nsleep 0.4\necho "end {name}" >> {self.log}\necho "out {name}"\n')
+        self.servers = []
+
+    def tearDown(self):
+        for server in self.servers:
+            server.shutdown()
+            server.server_close()
+        self.tmp.cleanup()
+
+    def start(self, **options):
+        sections = {n: f'{n}.sh' for n in ('a', 'b', 'c', 'd', 'e', 'f')}
+        server = receiver.ThreadingHTTPServer(('127.0.0.1', 0), receiver.make_handler(self.KEY, self.dir, sections, **options))
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        self.servers.append(server)
+        return f'http://127.0.0.1:{server.server_address[1]}'
+
+    def get(self, base, section):
+        try:
+            with urlopen(Request(f'{base}/monitor/{section}', headers={'Authorization': f'Bearer {self.KEY}'}), timeout=20) as res:
+                return res.status, json.loads(res.read())
+        except HTTPError as e:
+            return e.code, json.loads(e.read())
+
+    def parallel(self, base, sections):
+        results = [None] * len(sections)
+        def work(i, s):
+            results[i] = self.get(base, s)
+        threads = [threading.Thread(target=work, args=(i, s)) for i, s in enumerate(sections)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+        return results
+
+    def max_running(self):
+        running = peak = 0
+        for line in self.log.read_text().splitlines():
+            running += 1 if line.startswith('start') else -1
+            peak = max(peak, running)
+        return peak
+
+    def test_limits_how_many_scripts_run_at_once(self):
+        base = self.start(timeout=5, max_concurrent=2, cache_seconds=0)
+        results = self.parallel(base, ['a', 'b', 'c', 'd', 'e', 'f'])
+        self.assertTrue(all(status == 200 for status, _ in results), results)
+        self.assertLessEqual(self.max_running(), 2)
+        self.assertEqual(self.log.read_text().count('start'), 6)
+
+    def test_answers_busy_when_no_slot_frees_up_in_time(self):
+        base = self.start(timeout=5, max_concurrent=1, cache_seconds=0, queue_wait=0.1)
+        results = self.parallel(base, ['a', 'b'])
+        statuses = sorted(status for status, _ in results)
+        self.assertEqual(statuses, [200, 503])
+        busy = next(body for status, body in results if status == 503)
+        self.assertEqual(busy['error'], 'busy')
+
+    def test_waiting_requests_run_in_arrival_order(self):
+        base = self.start(timeout=5, max_concurrent=1, cache_seconds=0)
+        order = ['a', 'b', 'c', 'd']
+        threads = []
+        for section in order:
+            t = threading.Thread(target=self.get, args=(base, section))
+            t.start()
+            threads.append(t)
+            time.sleep(0.05)
+        for t in threads:
+            t.join()
+        starts = [line.split()[1] for line in self.log.read_text().splitlines() if line.startswith('start')]
+        self.assertEqual(starts, order)
+
+    def test_refuses_at_once_when_the_queue_is_full(self):
+        base = self.start(timeout=5, max_concurrent=1, max_queue=1, cache_seconds=0)
+        started = time.monotonic()
+        results = self.parallel(base, ['a', 'b', 'c'])
+        statuses = sorted(status for status, _ in results)
+        self.assertEqual(statuses, [200, 200, 503])
+        full = next(body for status, body in results if status == 503)
+        self.assertEqual(full['error'], 'queue_full')
+        self.assertEqual(self.log.read_text().count('start'), 2)
+        self.assertLess(time.monotonic() - started, 3)
+
+    def test_queue_endpoint_shows_running_and_waiting_and_needs_the_key(self):
+        base = self.start(timeout=5, max_concurrent=1, cache_seconds=0)
+        threads = [threading.Thread(target=self.get, args=(base, s)) for s in ('a', 'b')]
+        for t in threads:
+            t.start()
+        time.sleep(0.15)
+        with urlopen(Request(f'{base}/queue', headers={'Authorization': f'Bearer {self.KEY}'}), timeout=5) as res:
+            snapshot = json.loads(res.read())
+        for t in threads:
+            t.join()
+        self.assertEqual(snapshot['running'], 1)
+        self.assertEqual(snapshot['waiting'], 1)
+        self.assertEqual(snapshot['maxConcurrent'], 1)
+        self.assertEqual(len(snapshot['runningSections']), 1)
+        with self.assertRaises(HTTPError) as ctx:
+            urlopen(f'{base}/queue', timeout=5)
+        self.assertEqual(ctx.exception.code, 401)
+
+    def test_concurrent_requests_for_the_same_section_share_one_run(self):
+        base = self.start(timeout=5, max_concurrent=4, cache_seconds=0)
+        results = self.parallel(base, ['a'] * 5)
+        self.assertTrue(all(status == 200 and body['output'] == 'out a\n' for status, body in results), results)
+        self.assertEqual(self.log.read_text().count('start a'), 1)
+
+    def test_reuses_a_finished_result_for_a_short_time_only(self):
+        base = self.start(timeout=5, cache_seconds=1)
+        first = self.get(base, 'a')[1]
+        second = self.get(base, 'a')[1]
+        self.assertEqual(first['ts'], second['ts'])
+        self.assertEqual(self.log.read_text().count('start a'), 1)
+        time.sleep(1.2)
+        self.get(base, 'a')
+        self.assertEqual(self.log.read_text().count('start a'), 2)
+
+
+class ReceiverSectionsFileTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.dir = Path(self.tmp.name)
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def write(self, data):
+        path = self.dir / 'sections.json'
+        path.write_text(json.dumps(data), encoding='utf-8')
+        return path
+
+    def test_adds_sections_from_a_json_file_on_top_of_the_defaults(self):
+        sections = receiver.load_sections(self.write({'diag': 'diag.sh', 'status': 'muse-status.sh'}))
+        self.assertEqual(sections['diag'], 'diag.sh')
+        self.assertEqual(sections['jobs'], 'bridge-jobs.sh')
+
+    def test_rejects_paths_and_bad_names(self):
+        for bad in ({'x': '../x.sh'}, {'x': 'sub/x.sh'}, {'x': '/bin/sh'}, {'x': ''}, {'bad name': 'x.sh'}, {'x': 1}, ['x']):
+            with self.assertRaises(ValueError, msg=bad):
+                receiver.load_sections(self.write(bad))
+
+    def test_without_a_file_uses_the_defaults(self):
+        self.assertEqual(receiver.load_sections(None), receiver.SECTIONS)

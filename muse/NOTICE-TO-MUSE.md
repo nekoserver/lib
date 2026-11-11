@@ -19,6 +19,11 @@ Muse は作業を始める前に、前回読んだ日付より新しい節を読
 - **muse-monitor は、受信側が答えないとき5秒(2.5秒おきに2回)探し直してから `receiver_not_found` を返す。** それでも拒否なら、受信側は止まったまま。
 - **本体から「コンテナの版の一覧」が要望として届く**(`/muse-wasm-test` の「コンテナの版の一覧をMuseに渡す」)。届いたら一覧を `~/workspace/container-versions.md` に上書き保存する。コンテナやパッケージそのものは変えない。返信は保存先と「更新あり」の件数・パッケージ名だけ。
 - **脆弱性チェックで見つかった Muse のコード**: `muse-vm-hacks/files/api-bridge/server.py:1108` の `sess.secret == secret` が通常の比較になっている。
+- **vuln-watch 第2回**(2026-11-11):
+  - Node.js 26.13.1 に上げる PR を出した(musevm・redmine)。本体と dynamicneko はイメージの作り直しが要るため未対応。
+  - Git の脆弱性(CVE-2026-111760 ほか6件)はディストリの修正が未出荷。それまで、信頼できないリポジトリの clone(特に `--recurse-submodules`)やタグのマージをしない。
+  - APT の CVE-2026-109518 は修正版あり。muse-vm で `sudo apt-get -o Acquire::Retries=0 update && sudo apt-get -o Acquire::Retries=0 install --only-upgrade apt` を、ほかの更新より先に実行する。
+  - `lib/claude/ops/bridge_jobs.py` の claim トークンの比較を `hmac.compare_digest` にした(lib の PR)。
 - 決まり(`CLAUDE.md`): 変数・シークレット・設定スイッチを承認なしに増やさない。同じ値を別名に分けない。テストファーストを徹底する。受信側に触れたら `receiver-check.sh` が全部 OK になるまで終えない。
 
 ### やること
@@ -29,3 +34,5 @@ Muse は作業を始める前に、前回読んだ日付より新しい節を読
 4. `sh ~/lib/muse/samples/receiver-check.sh` が全部 OK になるまで直し、OK/NG の行を報告に貼る。
 5. `sh ~/lib/muse/pending.sh` が `Permission denied` なしで動くことを確かめる。
 6. `muse-vm-hacks/files/api-bridge/server.py` の秘密の比較を `hmac.compare_digest` に替える(テストを先に書く)。
+7. muse-vm の apt を先に更新する(上の手順)。結果の版(`apt --version`)を報告に貼る。
+8. 修正が出るまで、信頼できないリポジトリを `--recurse-submodules` で clone しない。

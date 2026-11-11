@@ -1,0 +1,20 @@
+# muse-vm の受信側(receiver.py)を常駐させる systemd のユーザー単位。最善の状態は muse/SPEC.scripts.md の 4.0。
+# 置き方:
+#   mkdir -p ~/.config/systemd/user && cp ~/lib/muse/samples/muse-receiver.service ~/.config/systemd/user/
+#   ~/.config/muse-receiver.env に鍵を1行書き、chmod 600(書き方は muse/SPEC.scripts.md の 4.0)
+#   systemctl --user daemon-reload && systemctl --user enable --now muse-receiver
+#   loginctl enable-linger "$USER"   # ログインしていなくても動かす
+#   sh ~/lib/muse/samples/receiver-check.sh   # 全部 OK になること
+# --host は付けない(既定 0.0.0.0)。鍵はこのファイルに書かない。
+[Unit]
+Description=muse receiver for muse-monitor (lib/muse/samples/receiver.py)
+After=network-online.target
+
+[Service]
+EnvironmentFile=%h/.config/muse-receiver.env
+ExecStart=/usr/bin/env python3 %h/lib/muse/samples/receiver.py --port 8090
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target

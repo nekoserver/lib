@@ -55,6 +55,35 @@ muse-monitorが呼ぶ受信側(`docs/RECEIVER.md`、nekoserver/muse-monitor)の�
 - 既定で全アドレス(`0.0.0.0`)に待ち受ける。`127.0.0.1` では tailnet 経由の muse-monitor から接続拒否になる(2026-11-11 に起きた)。絞るときは `--host` に tailnet のアドレスを指定する。
 - `TS_API_KEY` が無ければ起動しない(鍵なしで全アドレスに出さない)。
 
+### 4.0 muse-vm での最善の状態(必ずこの状態にする)
+
+muse-monitor が読めるのは、受信側が次の状態のときだけ。どれか1つでも外れると、muse-monitor は `receiver_not_found`(接続拒否)か `receiver_unauthorized` になる。
+
+| 項目 | 最善の状態 | 外れたときの症状 |
+|---|---|---|
+| 起動のしかた | `samples/muse-receiver.service`(systemd のユーザー単位、`Restart=always`)で常駐。手で `python3 receiver.py` を起動したままにしない | 落ちても戻らない・再起動で消える |
+| 待ち受け | 既定の `0.0.0.0:8090`。`--host 127.0.0.1` を付けない | muse-monitor から接続拒否 |
+| 鍵 | `~/.config/muse-receiver.env` に `TS_API_KEY=<muse-monitor と同じ値>` の1行だけ。権限は600。鍵はこのファイル以外(unit・スクリプト・コマンドの引数)に書かない | 401 / 503。値が漏れる |
+| 鍵の名前 | `TS_API_KEY` だけ。別の名前を足さない | どの鍵が使われているか分からなくなる |
+| 確認 | `sh samples/receiver-check.sh` が全部 OK(終了コード0) | — |
+
+置き方:
+
+```bash
+mkdir -p ~/.config/systemd/user
+cp ~/lib/muse/samples/muse-receiver.service ~/.config/systemd/user/
+printf 'TS_API_KEY=%s\n' '<muse-monitorと同じ値>' > ~/.config/muse-receiver.env
+chmod 600 ~/.config/muse-receiver.env
+systemctl --user daemon-reload
+systemctl --user enable --now muse-receiver
+loginctl enable-linger "$USER"
+sh ~/lib/muse/samples/receiver-check.sh
+```
+
+- `receiver-check.sh [ポート]` は読み取りだけで、鍵ファイルの有無と権限、待ち受けのアドレス(127.0.0.1 だけなら NG)、`/health`、鍵の一致(`/queue` が200か)を確かめる。鍵は表示せず、コマンドの引数にも出さない(`curl -K -` で渡す)。
+- 受信側を変えたとき・`git pull` したとき・muse-vm を再起動したときは、`systemctl --user restart muse-receiver` のあと `receiver-check.sh` が全部 OK になるまで直す。
+- muse-monitor 側からは `/health` の `node.receiverProbes` で同じことが見える(`ok` なら届いている)。
+
 ### 4.1 並行処理とキュー(muse-vmに負荷をかけないため)
 
 muse-monitorの「全て取得」は15件を同時に送る。スクリプトを一斉に走らせないよう、次のように制御する。応答の形(契約)は変えない。

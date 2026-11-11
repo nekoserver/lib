@@ -186,8 +186,6 @@ class BridgeJobsSampleTest(unittest.TestCase):
         self.assertRegex(r.stdout.strip(), r'^\d{4}-\d{2}-\d{2} \d{2}:\d{2}  パッケージの版の一覧$')
 
 
-if __name__ == '__main__':
-    unittest.main()
 
 
 class ReceiverConcurrencyTest(unittest.TestCase):
@@ -406,3 +404,121 @@ class ReceiverSectionsFileTest(unittest.TestCase):
 
     def test_without_a_file_uses_the_defaults(self):
         self.assertEqual(receiver.load_sections(None), receiver.SECTIONS)
+
+
+class ReceiverBestStateTest(unittest.TestCase):
+    """muse-vm の受信側の最善の状態(SPEC.scripts.md 4.0)を、receiver-check.sh が見分けられるか。
+
+    受信側は本物を起動する。ss だけは、このコンテナに無いので、待ち受けの表示を偽物で返す。
+    """
+    KEY = 'best-state-key'
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self.tmp.name)
+        self.home = self.root / 'home'
+        (self.home / '.config').mkdir(parents=True)
+        self.bin = self.root / 'bin'
+        self.bin.mkdir()
+        self.servers = []
+
+    def tearDown(self):
+        for server in self.servers:
+            server.shutdown()
+            server.server_close()
+        self.tmp.cleanup()
+
+    def start_receiver(self, host='127.0.0.1', key=KEY):
+        server = receiver.ThreadingHTTPServer((host, 0), receiver.make_handler(key, self.root, {}))
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        self.servers.append(server)
+        return server.server_address[1]
+
+    def write_env(self, key=KEY, mode=0o600):
+        path = self.home / '.config' / 'muse-receiver.env'
+        path.write_text(f'TS_API_KEY={key}\n')
+        path.chmod(mode)
+
+    def fake_ss(self, *listen):
+        lines = ['State Recv-Q Send-Q Local Address:Port Peer Address:Port'] + [f'LISTEN 0 128 {a} 0.0.0.0:*' for a in listen]
+        body = ''.join(f"echo '{line}'\n" for line in lines)
+        (self.bin / 'ss').write_text('#!/bin/sh\n' + body)
+        (self.bin / 'ss').chmod(0o755)
+
+    def check(self, port):
+        env = {'PATH': f'{self.bin}:/usr/bin:/bin', 'HOME': str(self.home), 'LANG': 'C.UTF-8'}
+        return subprocess.run([SH, str(SAMPLES / 'receiver-check.sh'), str(port)], capture_output=True, text=True, env=env, timeout=30)
+
+    def ng_lines(self, r):
+        return [line for line in r.stdout.splitlines() if line.startswith('NG')]
+
+    def test_all_ok_when_listening_on_every_address_with_the_matching_key(self):
+        port = self.start_receiver()
+        self.write_env()
+        self.fake_ss(f'0.0.0.0:{port}')
+        r = self.check(port)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertEqual(self.ng_lines(r), [])
+        self.assertGreaterEqual(r.stdout.count('OK'), 4)
+        self.assertNotIn(self.KEY, r.stdout + r.stderr)
+
+    def test_ng_when_listening_only_on_localhost(self):
+        port = self.start_receiver()
+        self.write_env()
+        self.fake_ss(f'127.0.0.1:{port}')
+        r = self.check(port)
+        self.assertEqual(r.returncode, 1)
+        self.assertTrue(any('127.0.0.1' in line for line in self.ng_lines(r)), r.stdout)
+
+    def test_ng_when_nothing_listens(self):
+        self.write_env()
+        self.fake_ss()
+        r = self.check(1)
+        self.assertEqual(r.returncode, 1)
+        self.assertTrue(any('待ち受けていない' in line for line in self.ng_lines(r)), r.stdout)
+
+    def test_ng_when_the_key_file_differs_from_the_receiver(self):
+        port = self.start_receiver(key='other-key')
+        self.write_env()
+        self.fake_ss(f'0.0.0.0:{port}')
+        r = self.check(port)
+        self.assertEqual(r.returncode, 1)
+        self.assertTrue(any('401' in line for line in self.ng_lines(r)), r.stdout)
+
+    def test_ng_when_the_key_file_is_missing_or_readable_by_others(self):
+        port = self.start_receiver()
+        self.fake_ss(f'0.0.0.0:{port}')
+        r = self.check(port)
+        self.assertEqual(r.returncode, 1)
+        self.assertTrue(any('muse-receiver.env' in line for line in self.ng_lines(r)), r.stdout)
+        self.write_env(mode=0o644)
+        r = self.check(port)
+        self.assertEqual(r.returncode, 1)
+        self.assertTrue(any('600' in line for line in self.ng_lines(r)), r.stdout)
+
+    def test_check_script_is_read_only_posix_sh_and_keeps_the_key_out_of_argv(self):
+        text = (SAMPLES / 'receiver-check.sh').read_text(encoding='utf-8')
+        self.assertTrue(text.startswith('#!/bin/sh\n'))
+        self.assertIn('\nset -u\n', text)
+        self.assertNotRegex(text, r'(^|[\s;|&(])(rm|kill|systemctl (start|stop|restart)|tailscale)\b')
+        self.assertNotIn('Authorization: Bearer $key" ', text)
+        self.assertIn('-K -', text)
+
+    def test_service_unit_keeps_the_receiver_running_in_the_best_state(self):
+        unit = (SAMPLES / 'muse-receiver.service').read_text(encoding='utf-8')
+        self.assertIn('Restart=always', unit)
+        self.assertIn('EnvironmentFile=%h/.config/muse-receiver.env', unit)
+        self.assertIn('muse/samples/receiver.py', unit)
+        self.assertNotIn('127.0.0.1', unit)
+        self.assertNotIn('TS_API_KEY=', unit)
+
+    def test_spec_and_rules_state_the_same_best_state(self):
+        spec = (MUSE / 'SPEC.scripts.md').read_text(encoding='utf-8')
+        rules = (ROOT / 'CLAUDE.md').read_text(encoding='utf-8')
+        for text in (spec, rules):
+            for needle in ('receiver-check.sh', 'muse-receiver.service', 'muse-receiver.env', '0.0.0.0'):
+                self.assertIn(needle, text)
+
+
+if __name__ == '__main__':
+    unittest.main()

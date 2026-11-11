@@ -1,10 +1,10 @@
 """muse/samples のテスト。
 
 receiver.py(muse-monitor が呼ぶ受信側のサンプル)の故障想定:
-- 鍵を求めてしまう(鍵の照合は外した。tailnet の中からだけ呼ばれる)
+- 鍵が未設定でも通してしまう / 鍵の不一致や Bearer 以外を通す
 - 未知の section や存在しないスクリプトで 500 になる、パスの細工でスクリプト以外を実行する
 - 出力の上限・時間切れ・終了コードが契約(docs/RECEIVER.md)と違う
-- /health が 200 を返さず、muse-monitor が相手を見つけられない
+- /health が認証を求めて、muse-monitor が相手を見つけられない
 - section の一覧が muse-monitor の許可リストから外れる、スクリプトが実在しない
 bridge-jobs の見本の故障想定: 見本の形が実際のスクリプトと合わなくなる。
 """
@@ -46,6 +46,8 @@ def alive(pid):
 
 
 class ReceiverTest(unittest.TestCase):
+    KEY = 'receiver-test-key'
+
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.dir = Path(self.tmp.name)
@@ -60,7 +62,7 @@ class ReceiverTest(unittest.TestCase):
             (self.dir / name).write_text('#!/bin/sh\n' + body)
         sections = {'ok': 'ok.sh', 'rc3': 'rc3.sh', 'big': 'big.sh', 'slow': 'slow.sh', 'jp': 'jp.sh', 'missing': 'nothing.sh'}
         self.servers = []
-        self.base = self.start(sections)
+        self.base = self.start(self.KEY, sections)
 
     def tearDown(self):
         for server in self.servers:
@@ -68,14 +70,14 @@ class ReceiverTest(unittest.TestCase):
             server.server_close()
         self.tmp.cleanup()
 
-    def start(self, sections, timeout=1, limit=64 * 1024):
-        server = receiver.ThreadingHTTPServer(('127.0.0.1', 0), receiver.make_handler(self.dir, sections, timeout, limit))
+    def start(self, key, sections, timeout=1, limit=64 * 1024):
+        server = receiver.ThreadingHTTPServer(('127.0.0.1', 0), receiver.make_handler(key, self.dir, sections, timeout, limit))
         threading.Thread(target=server.serve_forever, daemon=True).start()
         self.servers.append(server)
         return f'http://127.0.0.1:{server.server_address[1]}'
 
-    def get(self, path, base=None, headers=None):
-        headers = headers or {}
+    def get(self, path, key=KEY, base=None, header=None):
+        headers = {} if key is None else {'Authorization': header or f'Bearer {key}'}
         try:
             with urlopen(Request((base or self.base) + path, headers=headers), timeout=10) as res:
                 return res.status, json.loads(res.read())
@@ -114,16 +116,17 @@ class ReceiverTest(unittest.TestCase):
         time.sleep(0.3)
         self.assertFalse(alive(pid), '時間切れの後も子プロセスが動いている')
 
-    def test_needs_no_key_and_ignores_any_authorization_header(self):
-        for headers in ({}, {'Authorization': 'Bearer anything'}, {'Authorization': 'Basic x'}):
-            status, body = self.get('/monitor/ok', headers=headers)
-            self.assertEqual(status, 200, headers)
-            self.assertIn('hello', body['output'])
+    def test_rejects_missing_wrong_or_non_bearer_keys_with_401(self):
+        for kwargs in ({'key': None}, {'key': 'wrong'}, {'key': self.KEY, 'header': f'Basic {self.KEY}'}, {'key': self.KEY, 'header': 'Bearer '}):
+            status, body = self.get('/monitor/ok', **kwargs)
+            self.assertEqual(status, 401, kwargs)
+            self.assertEqual(body['error'], 'unauthorized')
 
-    def test_main_reads_no_key_from_the_environment(self):
-        source = (ROOT / 'muse' / 'samples' / 'receiver.py').read_text(encoding='utf-8')
-        self.assertNotIn('os.environ', source)
-        self.assertNotIn('Authorization', source)
+    def test_answers_503_when_the_receiver_has_no_key(self):
+        base = self.start('', {'ok': 'ok.sh'})
+        status, body = self.get('/monitor/ok', base=base)
+        self.assertEqual(status, 503)
+        self.assertEqual(body['error'], 'receiver_key_not_configured')
 
     def test_unknown_missing_or_crafted_sections_are_404_and_run_nothing(self):
         for section in ('nope', 'missing', '../ok', 'ok/extra', '', 'OK'):
@@ -131,10 +134,10 @@ class ReceiverTest(unittest.TestCase):
             self.assertEqual(status, 404, section)
             self.assertEqual(body['error'], 'unknown_section')
 
-    def test_health_is_200_and_other_paths_are_404(self):
-        self.assertEqual(self.get('/health'), (200, {'status': 'ok'}))
+    def test_health_needs_no_key_and_other_paths_are_404(self):
+        self.assertEqual(self.get('/health', key=None), (200, {'status': 'ok'}))
         self.assertEqual(self.get('/other')[0], 404)
-        req = Request(self.base + '/monitor/ok', method='POST', data=b'')
+        req = Request(self.base + '/monitor/ok', method='POST', data=b'', headers={'Authorization': f'Bearer {self.KEY}'})
         with self.assertRaises(HTTPError) as ctx:
             urlopen(req, timeout=10)
         self.assertEqual(ctx.exception.code, 405)
@@ -180,6 +183,7 @@ if __name__ == '__main__':
 
 class ReceiverConcurrencyTest(unittest.TestCase):
     """同時実行の上限・同じ項目のまとめ・結果の使い回し・設定による項目の追加。"""
+    KEY = 'k'
 
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -198,14 +202,14 @@ class ReceiverConcurrencyTest(unittest.TestCase):
 
     def start(self, **options):
         sections = {n: f'{n}.sh' for n in ('a', 'b', 'c', 'd', 'e', 'f')}
-        server = receiver.ThreadingHTTPServer(('127.0.0.1', 0), receiver.make_handler(self.dir, sections, **options))
+        server = receiver.ThreadingHTTPServer(('127.0.0.1', 0), receiver.make_handler(self.KEY, self.dir, sections, **options))
         threading.Thread(target=server.serve_forever, daemon=True).start()
         self.servers.append(server)
         return f'http://127.0.0.1:{server.server_address[1]}'
 
     def get(self, base, section):
         try:
-            with urlopen(f'{base}/monitor/{section}', timeout=20) as res:
+            with urlopen(Request(f'{base}/monitor/{section}', headers={'Authorization': f'Bearer {self.KEY}'}), timeout=20) as res:
                 return res.status, json.loads(res.read())
         except HTTPError as e:
             return e.code, json.loads(e.read())
@@ -268,13 +272,13 @@ class ReceiverConcurrencyTest(unittest.TestCase):
         self.assertEqual(self.log.read_text().count('start'), 2)
         self.assertLess(time.monotonic() - started, 3)
 
-    def test_queue_endpoint_shows_running_and_waiting(self):
+    def test_queue_endpoint_shows_running_and_waiting_and_needs_the_key(self):
         base = self.start(timeout=5, max_concurrent=1, cache_seconds=0)
         threads = [threading.Thread(target=self.get, args=(base, s)) for s in ('a', 'b')]
         for t in threads:
             t.start()
         time.sleep(0.15)
-        with urlopen(f'{base}/queue', timeout=5) as res:
+        with urlopen(Request(f'{base}/queue', headers={'Authorization': f'Bearer {self.KEY}'}), timeout=5) as res:
             snapshot = json.loads(res.read())
         for t in threads:
             t.join()
@@ -282,6 +286,9 @@ class ReceiverConcurrencyTest(unittest.TestCase):
         self.assertEqual(snapshot['waiting'], 1)
         self.assertEqual(snapshot['maxConcurrent'], 1)
         self.assertEqual(len(snapshot['runningSections']), 1)
+        with self.assertRaises(HTTPError) as ctx:
+            urlopen(f'{base}/queue', timeout=5)
+        self.assertEqual(ctx.exception.code, 401)
 
     def test_concurrent_requests_for_the_same_section_share_one_run(self):
         base = self.start(timeout=5, max_concurrent=4, cache_seconds=0)

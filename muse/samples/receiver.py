@@ -2,10 +2,11 @@
 """receiver.py - muse-monitor が呼ぶ受信側(/monitor/<section>)のサンプル。
 
 契約は nekoserver/muse-monitor の docs/RECEIVER.md:
-- GET /monitor/<section>。鍵の照合はしない(tailnet の中からだけ呼ばれる。公開範囲は --host で絞る)
-- 未知の section は 404
+- GET /monitor/<section>、Authorization: Bearer <鍵> が必須
+- 鍵は環境変数 TS_API_KEY
+- 鍵が未設定なら 503、ヘッダーが無い・不一致なら 401、未知の section は 404
 - 応答は {"section", "rc", "output", "truncated", "ts"}。output は 64 KiB で切り詰め、60 秒で 504
-- GET /health は {"status": "ok"}(muse-monitor が相手を探すときに叩く)
+- GET /health は認証なしで {"status": "ok"}(muse-monitor が相手を探すときに叩く)
 
 このサンプルは lib/muse のスクリプトがある section だけを扱う(読み取り専用)。
 diag・pending・execlog・sdk* はスクリプトが無いので 404 を返す。
@@ -15,18 +16,19 @@ muse-vm に負荷をかけないための制御(契約の外。応答の形は�
 - 待ち行列は max_queue 件まで(既定32)。あふれたら待たせずに 503 queue_full
 - queue_wait 秒(既定30)待っても順番が来なければ 503 busy
 - 同じ section への同時の要求は1回の実行にまとめ、同じ結果を返す。成功した結果は cache_seconds 秒(既定5)使い回す
-- GET /queue で、実行中・待ち・実行中の section を返す
+- GET /queue(鍵が必要)で、実行中・待ち・実行中の section を返す
 
 項目の追加: --sections に JSON({"section": "スクリプト名"})を渡すと既定に足す。スクリプトは
 このディレクトリの親(lib/muse)の直下のファイル名に限る。
 
-使い方: python3 receiver.py [--host 127.0.0.1] [--port 8090] [--sections FILE]
+使い方: TS_API_KEY=... python3 receiver.py [--host 127.0.0.1] [--port 8090] [--sections FILE]
         [--max-concurrent 4] [--max-queue 32]
 既定で 127.0.0.1 にだけ待ち受ける。tailnet に出すときは --host にそのアドレスを指定する。
 """
 import argparse
 from collections import deque
 from datetime import datetime
+import hmac
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 import os
@@ -169,7 +171,7 @@ class Runner:
                      'ts': datetime.now().astimezone().strftime('%Y-%m-%dT%H:%M:%S%z')}
 
 
-def make_handler(scripts_dir=SCRIPTS_DIR, sections=None, timeout=TIMEOUT_SECONDS, limit=OUTPUT_LIMIT,
+def make_handler(key, scripts_dir=SCRIPTS_DIR, sections=None, timeout=TIMEOUT_SECONDS, limit=OUTPUT_LIMIT,
                  max_concurrent=MAX_CONCURRENT, max_queue=MAX_QUEUE, queue_wait=QUEUE_WAIT_SECONDS, cache_seconds=CACHE_SECONDS):
     sections = SECTIONS if sections is None else sections
     runner = Runner(timeout, limit, max_concurrent, max_queue, queue_wait, cache_seconds)
@@ -193,6 +195,11 @@ def make_handler(scripts_dir=SCRIPTS_DIR, sections=None, timeout=TIMEOUT_SECONDS
                 return self.reply(200, {'status': 'ok'})
             if path != '/queue' and not path.startswith('/monitor/'):
                 return self.reply(404, {'error': 'not_found'})
+            if not key:
+                return self.reply(503, {'error': 'receiver_key_not_configured'})
+            given = self.headers.get('Authorization', '')
+            if not given.startswith('Bearer ') or not hmac.compare_digest(given[7:].encode(), key.encode()):
+                return self.reply(401, {'error': 'unauthorized'})
             if path == '/queue':
                 return self.reply(200, runner.snapshot())
             section = path[len('/monitor/'):]
@@ -215,7 +222,7 @@ def main():
     parser.add_argument('--max-concurrent', type=int, default=MAX_CONCURRENT)
     parser.add_argument('--max-queue', type=int, default=MAX_QUEUE)
     args = parser.parse_args()
-    handler = make_handler(sections=load_sections(args.sections),
+    handler = make_handler(os.environ.get('TS_API_KEY', ''), sections=load_sections(args.sections),
                            max_concurrent=args.max_concurrent, max_queue=args.max_queue)
     server = ThreadingHTTPServer((args.host, args.port), handler)
     print(f'listening on {args.host}:{args.port}', flush=True)

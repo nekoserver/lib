@@ -46,3 +46,7 @@ SDK の実体は `.py` 側で、シェルは入口（解決・引数・タイム
 `DIAGNOSIS.md` は、diag の項目と想定インシデント20件の対応をまとめた診断マトリックス。
 
 `dashboard/` には、これらを Apache の SSI で呼び出すダッシュボードページがある（`dashboard/README.md` 参照）。
+
+`samples/` には、muse-monitor が呼ぶ受信側のサンプル（`samples/receiver.py`）と、`bridge-jobs.sh`・`recent-jobs.sh` を試すキューの見本（`samples/bridge-jobs/`）がある。
+
+仕様は `SPEC.md`(実行経路)と `SPEC.scripts.md`(読み取り用スクリプト)。テストは `python3 -m unittest test/muse_scripts_test.py test/muse_samples_test.py`（リポジトリの直下で実行）。

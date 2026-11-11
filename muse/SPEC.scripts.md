@@ -42,15 +42,13 @@ muse-monitorが呼ぶ受信側(`docs/RECEIVER.md`、nekoserver/muse-monitor)の�
 
 | 要求 | 応答 |
 |---|---|
-| `GET /health` | 200 `{"status": "ok"}`(認証なし。muse-monitorが相手を探すのに使う) |
-| `GET /monitor/<section>`、鍵が未設定 | 503 `receiver_key_not_configured` |
-| `Authorization: Bearer <鍵>` が無い・違う | 401 `unauthorized`(比較はタイミングセーフ) |
+| `GET /health` | 200 `{"status": "ok"}`(muse-monitorが相手を探すのに使う) |
 | 未知の section、スクリプトが無い | 404 `unknown_section`(何も実行しない) |
 | 正常 | 200 `{"section", "rc", "output", "truncated", "ts"}`。`output` は標準出力と標準エラー、64 KiBで切り詰め |
 | 60秒を超えた | 504 `timeout`。子プロセスごと止める(プロセスグループで起動して `SIGKILL`) |
 | `POST` など | 405 |
 
-- 鍵は環境変数 `TS_API_KEY`(muse-monitorの `TS_API_KEY` と同じ値)。
+- 鍵の照合はしない。環境変数も読まない。`Authorization` ヘッダーは見ない。tailnetの中(muse-monitor)からだけ呼ばれる前提で、公開範囲は `--host` で絞る。
 - 扱う section は、スクリプトのある `status`・`jobs`・`pkgs`・`vm`・`procs`・`ports`・`git`・`recent`。muse-monitorの許可リストのうち、`diag`・`pending`・`execlog`・`sdk*` はスクリプトが無いので404。
 - 既定で `127.0.0.1` にだけ待ち受ける。tailnetに出すときは `--host` で明示する。
 
@@ -66,7 +64,7 @@ muse-monitorの「全て取得」は15件を同時に送る。スクリプトを
 | 待ち時間 | `queue_wait` 30秒 | この時間内に順番が来なければ503 `busy` |
 | 同じ section のまとめ | — | 実行中の section への要求は、その1回の結果を待って同じ結果を返す(同じスクリプトを重ねて走らせない) |
 | 結果の使い回し | `cache_seconds` 5秒 | 成功(200)した結果だけを使い回す。失敗・時間切れは使い回さない |
-| 状態の確認 | `GET /queue`(鍵が必要) | `running`・`waiting`・`runningSections`・`maxConcurrent`・`maxQueue` |
+| 状態の確認 | `GET /queue` | `running`・`waiting`・`runningSections`・`maxConcurrent`・`maxQueue` |
 
 - 待ち行列に数えるのは、実行を待っている要求だけ。同じ section の結果を待つ要求と、使い回しで返す要求は数えない。
 - 想定外の例外が起きても、同じ section の結果を待つ要求を取り残さない(500 `receiver_error` を返す)。

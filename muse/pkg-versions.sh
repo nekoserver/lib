@@ -34,7 +34,7 @@ if command -v dpkg-query >/dev/null 2>&1; then
   echo "installed packages: $total"
   for p in git curl python3 ruby qemu-system-x86 busybox; do
     v=$(dpkg-query -W -f='${Version}' "$p" 2>/dev/null || true)
-    [ -n "$v" ] && echo "$p $v"
+    if [ -n "$v" ]; then echo "$p $v"; fi
   done
 else
   echo "(dpkg not available)"

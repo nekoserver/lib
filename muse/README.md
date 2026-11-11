@@ -18,3 +18,7 @@ Muse（muse-vm 上のエージェント）が日常の確認作業で使うシ�
 前提: POSIX sh、python3（`bridge-jobs.sh` と `pkg-versions.sh` の JSON 読み取り用）、curl（`muse-status.sh` の health 確認用）。
 
 `dashboard/` には、これらを Apache の SSI で呼び出すダッシュボードページがある（`dashboard/README.md` 参照）。
+
+`samples/` には、muse-monitor が呼ぶ受信側のサンプル（`samples/receiver.py`）と、`bridge-jobs.sh`・`recent-jobs.sh` を試すキューの見本（`samples/bridge-jobs/`）がある。
+
+仕様は `SPEC.md`。テストは `python3 -m unittest test/muse_scripts_test.py test/muse_samples_test.py`（リポジトリの直下で実行）。

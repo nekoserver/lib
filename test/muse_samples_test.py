@@ -201,8 +201,12 @@ class ReceiverConcurrencyTest(unittest.TestCase):
         self.tmp.cleanup()
 
     def start(self, **options):
+        # 古い結果の即答は、それを確かめるテストだけで有効にする(他のテストは毎回の実行を数えるため)
+        options.setdefault('stale_seconds', 0)
         sections = {n: f'{n}.sh' for n in ('a', 'b', 'c', 'd', 'e', 'f')}
-        server = receiver.ThreadingHTTPServer(('127.0.0.1', 0), receiver.make_handler(self.KEY, self.dir, sections, **options))
+        handler = receiver.make_handler(self.KEY, self.dir, sections, **options)
+        self.handler = handler
+        server = receiver.ThreadingHTTPServer(('127.0.0.1', 0), handler)
         threading.Thread(target=server.serve_forever, daemon=True).start()
         self.servers.append(server)
         return f'http://127.0.0.1:{server.server_address[1]}'
@@ -305,6 +309,67 @@ class ReceiverConcurrencyTest(unittest.TestCase):
         time.sleep(1.2)
         self.get(base, 'a')
         self.assertEqual(self.log.read_text().count('start a'), 2)
+
+
+    def timed_get(self, base, section):
+        started = time.monotonic()
+        result = self.get(base, section)
+        return time.monotonic() - started, result
+
+    def wait_for_starts(self, section, count, limit=3):
+        deadline = time.monotonic() + limit
+        while time.monotonic() < deadline:
+            if self.log.read_text().count(f'start {section}') >= count and self.log.read_text().count(f'end {section}') >= count:
+                return
+            time.sleep(0.05)
+        self.fail(f'{section} did not run {count} times')
+
+    def test_answers_a_stale_result_at_once_and_refreshes_it_in_the_background(self):
+        base = self.start(timeout=5, cache_seconds=0.2, stale_seconds=10)
+        self.get(base, 'a')
+        time.sleep(0.3)
+        elapsed, (status, body) = self.timed_get(base, 'a')
+        self.assertEqual(status, 200)
+        self.assertEqual(body['output'], 'out a\n')
+        self.assertLess(elapsed, 0.2, 'the stale result should come back without waiting for the 0.4s script')
+        self.wait_for_starts('a', 2)
+        time.sleep(0.1)
+        # 取り直しは1回だけ(続けて来た要求で重ねて走らせない)
+        for _ in range(3):
+            self.get(base, 'a')
+        time.sleep(0.6)
+        self.assertLessEqual(self.log.read_text().count('start a'), 3)
+
+    def test_runs_the_script_again_when_the_result_is_older_than_stale_seconds(self):
+        base = self.start(timeout=5, cache_seconds=0.1, stale_seconds=0.3)
+        self.get(base, 'a')
+        time.sleep(0.5)
+        elapsed, (status, _) = self.timed_get(base, 'a')
+        self.assertEqual(status, 200)
+        self.assertGreaterEqual(elapsed, 0.35)
+        self.assertEqual(self.log.read_text().count('start a'), 2)
+
+    def test_does_not_answer_a_failed_run_as_a_stale_result(self):
+        (self.dir / 'a.sh').write_text('#!/bin/sh\nsleep 2\n')
+        base = self.start(timeout=0.3, cache_seconds=0.1, stale_seconds=10)
+        self.assertEqual(self.get(base, 'a')[0], 504)
+        time.sleep(0.2)
+        self.assertEqual(self.get(base, 'a')[0], 504)
+
+    def test_warm_runs_every_section_once_so_first_requests_answer_at_once(self):
+        base = self.start(timeout=5, max_concurrent=6, cache_seconds=10)
+        started = time.monotonic()
+        self.handler.runner.warm(self.handler.sections, self.dir)
+        self.assertLess(time.monotonic() - started, 1.5, 'warm should run the sections side by side')
+        self.assertEqual(self.log.read_text().count('start'), 6)
+        elapsed, (status, _) = self.timed_get(base, 'f')
+        self.assertEqual(status, 200)
+        self.assertLess(elapsed, 0.2)
+        self.assertEqual(self.log.read_text().count('start'), 6)
+
+    def test_by_default_every_default_section_can_run_at_once(self):
+        self.assertGreaterEqual(receiver.MAX_CONCURRENT, len(receiver.SECTIONS))
+        self.assertGreater(receiver.STALE_SECONDS, receiver.CACHE_SECONDS)
 
 
 class ReceiverSectionsFileTest(unittest.TestCase):

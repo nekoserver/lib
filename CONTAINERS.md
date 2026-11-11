@@ -4,9 +4,9 @@
 
 | リポジトリ | main |
 |---|---|
-| nekoserver/cloudflare-workers-github-oauth-1(本体) | `fa10a4f` |
+| nekoserver/cloudflare-workers-github-oauth-1(本体) | `b63153f` |
 | nekoserver/dynamicneko | `83ef48b` |
-| nekoserver/redmine | `4de171e` |
+| nekoserver/redmine | `ec16806` |
 | nekoserver/musevm | `b624768` |
 | nekoserver/musevm-kernel | `dd35fe6` |
 
@@ -16,9 +16,9 @@
 
 | コンテナ | リポジトリ | Dockerfile | ベース | instance_type | イメージの扱い | 固定のずれの検査 | 作り直しのしかた |
 |---|---|---|---|---|---|---|---|
-| demo(DemoContainer) | 本体 | `containers/demo/Dockerfile` | ubuntu:26.04 | standard-1 | ビルド済みを digest で固定 | `containers/demo/image.lock.json` と `src/cf-containers-image-lock.test.ts` | Docker のある環境で手作業(`npx wrangler containers build -p ...`)。ソースから作る物は別の Ubuntu 26.04 でビルドして `containers/demo/packages/` に置く |
-| sandbox-terminal(SandboxTerminal) | dynamicneko | `containers/sandbox-terminal/Dockerfile` | node:24-trixie-slim | 既定(未指定) | ビルド済みを digest で固定 | `containers/sandbox-terminal/image.lock.json` と `test/terminal-image-lock.test.ts` | Docker のある環境で手作業 |
-| RedmineContainer | redmine | `Dockerfile` | ubuntu:26.04(多段) | standard-1 | ビルド済みを digest で固定(本番・プレビュー) | 導入中: `image.lock.json` と `test/image_lock_test.py`(redmine#27) | 導入中: GitHub Actions `container-image` が作り直して PR を出す(redmine#27)。それまでは手作業 |
+| demo(DemoContainer) | 本体 | `containers/demo/Dockerfile` | ubuntu:26.04 | standard-1 | ビルド済みを digest で固定 | `containers/demo/image.lock.json` と `src/cf-containers-image-lock.test.ts` | 導入中: GitHub Actions `container-image` が作り直して PR を出す。git・Apache のパッケージは `demo-packages` が `ubuntu:26.04` で作って PR を出す(本体#2567)。それまでは Docker のある環境で手作業 |
+| sandbox-terminal(SandboxTerminal) | dynamicneko | `containers/sandbox-terminal/Dockerfile` | node:24-trixie-slim | 既定(未指定) | ビルド済みを digest で固定 | `containers/sandbox-terminal/image.lock.json` と `test/terminal-image-lock.test.ts` | 導入中: GitHub Actions `container-image` が作り直して PR を出す(dynamicneko#449)。それまでは Docker のある環境で手作業 |
+| RedmineContainer | redmine | `Dockerfile` | ubuntu:26.04(多段) | standard-1 | ビルド済みを digest で固定(本番・プレビュー) | `image.lock.json` と `test/image_lock_test.py` | GitHub Actions `container-image` が作り直して PR を出す(シークレットの設定待ち) |
 | musevm | musevm | `Dockerfile` | debian:trixie-slim | basic | デプロイのたびに Dockerfile からビルド | なし(毎回ビルドするので不要) | デプロイ(`wrangler deploy`)で自動 |
 | musevm-kernel | musevm-kernel | `Dockerfile` | debian:trixie-slim(多段) | basic | デプロイのたびに Dockerfile からビルド | なし | デプロイで自動(カーネルは Base64 の分割から組み直す) |
 
@@ -27,8 +27,8 @@
 | 仕組み | 対象 | 根拠(何が起きたか) | 記録 |
 |---|---|---|---|
 | イメージを digest で固定し、デプロイのたびにビルドしない | 本体・dynamicneko・redmine | 本体: Workers Builds の Docker ビルドが `runc ... mounting "proc" ... operation not permitted` で落ち続けた(2026-11-11)。dynamicneko: 毎回のビルドで準備が15分を超えて失敗した(PR #415〜#422)。redmine: 本番のイメージをそのまま固定した(#22、2026-10-28) | 本体 `NOTICE.cloudflare-workers-github-oauth-1.20261111.md`、dynamicneko `CLAUDE.md`、redmine `BUILD.status.md` |
-| 固定のずれの検査(`image.lock.json` の入力ハッシュ) | 本体・dynamicneko・redmine(導入中) | 固定していると、Dockerfile を変えてもイメージを作り直すまで本番に入らない。検査が無い redmine では、Apache 2.4.71(#25)と Node 26.13.1(#26)がマージされても本番に入らなかった | redmine `SPEC.redmine.20261111.image-lock.md` |
-| イメージの作り直しを GitHub Actions で自動にする | redmine(導入中) | Docker のある環境が手元に無く、手作業では更新が止まる | redmine `SPEC.redmine.20261111.image-lock.md` |
+| 固定のずれの検査(`image.lock.json` の入力ハッシュ) | 本体・dynamicneko・redmine | 固定していると、Dockerfile を変えてもイメージを作り直すまで本番に入らない。検査が無い redmine では、Apache 2.4.71(#25)と Node 26.13.1(#26)がマージされても本番に入らなかった | redmine `SPEC.redmine.20261111.image-lock.md` |
+| イメージの作り直しを GitHub Actions で自動にする | redmine・本体(導入中)・dynamicneko(導入中) | Docker のある環境が手元に無く、手作業では更新が止まる。本体の T3 0.1.9・Node.js 26.13.1(#2566)もマージ後に本番へ入らなかった | redmine `SPEC.redmine.20261111.image-lock.md`、本体 `SPEC.cloudflare-workers-github-oauth-1.20261111.container-auto-build.md`、dynamicneko `SPEC.dynamicneko.20261111.terminal-image-auto-build.md` |
 | ソースから作る物は別の環境でビルドしてリポジトリに置き、Dockerfile では COPY と sha256 の照合だけ | 本体(git・OpenSSH・Apache) | cf-container(standard-1)は CPU が足りず、コンパイルで時間切れになる(ユーザー指定 2026-11-07) | 本体 `CLAUDE.md` コンテナビルドのルール8、`containers/demo/packages/README.md` |
 | ソースビルドは許可の表にあるものだけ | 本体 | gh・jj を毎回ソースから作り、本番ビルドで約19分使っていた(2026-10-31) | 本体 `CLAUDE.md` ルール44、`src/cf-containers-source-build-allowlist.test.ts` |
 | ビルド成果物を GitHub Releases に保存して使い回す(`REQUIRE_BUILD_ARTIFACTS=1`) | redmine | 同じソースを毎回コンパイルし直していた(2026-10-27) | redmine `BUILD.artifacts.md`、`POLICY.build-artifacts.md`、`AGENTS.md` |

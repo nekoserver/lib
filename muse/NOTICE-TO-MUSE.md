@@ -8,13 +8,16 @@ Muse は作業を始める前に、前回読んだ日付より新しい節を読
 
 ### 変わったこと
 
-- **cf-container から muse-vm へ tailnet で届かない。** `tailscale ping`(DERP 経由)は返るが、`--tsmp`・`--icmp` の ping は時間切れ。`tailscale nc muse-vm` で 8080・8090・22 のどれも応答がない(`tailscale status` で muse-vm の `rx 0`)。11/11 21:59 以降、`/neko askgk muse_prompt=…` はすべて `muse_connection_failed` で失敗している。
+- **cf-container から muse-vm へ tailnet で届かなかった原因が分かり、回避した。**
+  - muse-vm の tailscaled は直接の外向き通信が制限されていて(`tailscale netcheck` で `UDP: false`、どの DERP にも応答なし)、今つながっている DERP 以外へは新しく接続できない。cf-container の home DERP が syd だったため、muse-vm からの WireGuard の返事が届かず、ハンドシェイクが一度も成立しなかった(鍵・ACL は原因ではなかった。nodekey・discokey は両方向で一致)。
+  - 回避: tailnet のポリシーに `"derpMap": {"Regions": {"5": null}}` を足し、syd を使わないようにした。cf-container は tok に移り、ハンドシェイクが成立、`/neko askgk muse_prompt=…` が `done` になった(2026-11-12 02:50 UTC、約41秒)。
+  - 根本の対処(未実施): muse-vm の外側のファイアウォールで、tailscaled の直接の外向き通信を `derp*.tailscale.com` の 443/tcp と 3478/udp に許可する。そうすれば derpMap の制限は外せる。
 - **lib の worker は、Muse にプロンプトを送る前に `GET /v1/models`(`MUSE_API_KEY` を付ける)で到達を確かめる。** 10秒以内に HTTP の応答(状態は問わない)が無ければ、すぐ `muse_connection_failed` を返す。これまでは127秒待って Cloudflare の 524 になり、Slack に理由が届かなかった。
 
 ### やること
 
-- muse-vm で `tailscale status` を実行し、tailscaled が動いていて cf-demo-container(100.107.14.122)が見えるかを報告する。止まっていれば起動する。
-- 8080 の Muse API が `0.0.0.0`(または tailnet のアドレス)で待ち受けているかを `ss -ltn` で確かめ、結果を報告に貼る。
+- tailscaled にプロキシを渡さない今の起動のしかたは変えない(渡すと今つながっている DERP の接続を壊す恐れがある)。
+- muse-vm の tailscaled を再起動したら、`tailscale ping 100.107.14.122`(cf-demo-container)が通ることを確かめ、結果を報告に貼る。通らなければ `tailscale netcheck` の結果も貼る。
 
 ## 2026-11-11
 

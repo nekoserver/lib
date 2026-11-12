@@ -6,6 +6,7 @@ import subprocess
 import sys
 import tempfile
 import threading
+import time
 import unittest
 from unittest.mock import MagicMock, patch
 
@@ -16,8 +17,11 @@ spec.loader.exec_module(worker)
 base = worker.llm_worker
 
 
-def fake_nc(status, body, seen):
-    """Stand in for `tailscale nc`: answer one HTTP request on the socket it is handed."""
+def fake_nc(status, body, seen, probe_status=404):
+    """Stand in for `tailscale nc`: answer one HTTP request on the socket it is handed.
+
+    The reachability probe (a request without a body) gets `probe_status`; the server
+    answers it with any status, which is enough to show the connection works."""
     def popen(args, stdin, stdout, stderr):
         seen['args'] = args
         remote = stdin.dup()
@@ -28,7 +32,13 @@ def fake_nc(status, body, seen):
                 while b'\r\n\r\n' not in data:
                     data += remote.recv(65536)
                 head, _, rest = data.partition(b'\r\n\r\n')
-                length = int([line for line in head.split(b'\r\n') if line.lower().startswith(b'content-length')][0].split(b':')[1])
+                lengths = [line for line in head.split(b'\r\n') if line.lower().startswith(b'content-length')]
+                if not lengths:
+                    seen.setdefault('probes', []).append(head.decode())
+                    remote.sendall(f'HTTP/1.1 {probe_status} X\r\nContent-Length: 0\r\n\r\n'.encode())
+                    return
+                seen.setdefault('order', []).extend(seen.get('probes', []))
+                length = int(lengths[0].split(b':')[1])
                 while len(rest) < length:
                     rest += remote.recv(65536)
                 seen['head'], seen['body'] = head.decode(), json.loads(rest)
@@ -77,6 +87,44 @@ class MuseAskTest(unittest.TestCase):
         with patch.object(worker.subprocess, 'Popen', popen):
             with self.assertRaisesRegex(worker.MuseError, 'muse_connection_failed'):
                 worker.ask_muse('x')
+
+    def test_reachability_is_checked_before_the_prompt_is_sent(self):
+        seen = {}
+        body = json.dumps({'choices': [{'message': {'content': '六日'}}]}).encode()
+        with answer(body=body, seen=seen):
+            worker.ask_muse('x')
+        self.assertEqual(len(seen['order']), 1)  # the probe came first, then the POST
+        probe = seen['order'][0]
+        self.assertTrue(probe.startswith('GET /v1/models HTTP/1.1\r\n'))
+        self.assertIn('Authorization: Bearer test-key', probe)  # an API that checks keys on every path still answers
+
+    def test_any_http_answer_to_the_probe_counts_as_reachable(self):
+        body = json.dumps({'choices': [{'message': {'content': '六日'}}]}).encode()
+        for probe_status in (200, 401, 404):
+            with self.subTest(probe_status=probe_status), \
+                    patch.object(worker.subprocess, 'Popen', fake_nc(200, body, {}, probe_status)):
+                self.assertEqual(worker.ask_muse('x')[0], '六日')
+
+    def test_an_unanswered_connection_fails_fast_without_sending_the_prompt(self):
+        # 2026-11-12: muse-vm took no packets over the tailnet; `tailscale nc` held the
+        # socket open for 127 s, past Cloudflare's 100 s, and Slack showed HTTP 524.
+        held, posted = [], []
+
+        def popen(args, stdin, stdout, stderr):
+            if held:
+                posted.append(args)
+            held.append(stdin.dup())  # keep the far end open and never answer
+            return MagicMock()
+        self.addCleanup(lambda: [s.close() for s in held])
+        started = time.monotonic()
+        with patch.object(worker, 'MUSE_CONNECT_TIMEOUT', 0.3), patch.object(worker.subprocess, 'Popen', popen):
+            with self.assertRaisesRegex(worker.MuseError, 'muse_connection_failed'):
+                worker.ask_muse('x')
+        self.assertLess(time.monotonic() - started, 3)
+        self.assertEqual(posted, [])
+
+    def test_the_connect_wait_stays_well_under_cloudflares_limit(self):
+        self.assertLessEqual(worker.MUSE_CONNECT_TIMEOUT, 15)
 
 
 class MuseJobTest(unittest.TestCase):

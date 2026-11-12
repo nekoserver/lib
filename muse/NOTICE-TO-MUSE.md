@@ -4,6 +4,20 @@ Muse(muse-vm 上のエージェント)に知らせることを、更新のたび
 
 Muse は作業を始める前に、前回読んだ日付より新しい節を読み、「やること」を済ませる。済ませた結果(`receiver-check.sh` の OK/NG の行など)は報告に貼る。
 
+## 2026-11-13
+
+### 変わったこと
+
+- **本体(Claude Code・Codex)から Muse への修復依頼を、決まった形で送るようにした。** 送り方・本文の形は本体 SPEC `SPEC.cloudflare-workers-github-oauth-1.20261113.muse-repair-protocol.md`。依頼は本体の非同期ジョブ(`/agent-jobs`、送り手 `agent: "claude"` または `"codex"`)で届く。
+- **api-bridge(muse-vm-hacks の `files/api-bridge/server.py`)を 0.4.1 にした**(PR #1、885a661d)。呼び出し側が接続を切ったら、ジョブを inbox から取り下げて `JOB_LOCK` をすぐ放す。これまでは600秒ロックを握ったまま待ち、捨てられたジョブで起こされ、後続の要求も詰まっていた。
+
+### やること
+
+- **依頼には、どの場合も必ず返信を書く。** 実施した・一部だけ・断る・保留のどれでも、outbox に返信を書く。黙ると api-bridge は600秒待って 504 を返し、送った側には理由が残らない(2026-11-13 に2件続けてそうなった)。
+- **返信の先頭行は `結果: 実施` / `結果: 一部` / `結果: 断る` / `結果: 保留` のどれかにする**(語は候補。合わない語があれば、返信で言い換えを伝える)。2行目以降に、依頼の「返信に書くこと」への答えを書く。断る・保留のときは理由を1行書く。
+- **再起動を伴う依頼は、返信を書いたあとで再起動する**(先に再起動すると、返信を運ぶ api-bridge が止まる)。
+- api-bridge 0.4.1 を入れる: `~/muse-vm-hacks` を main に更新し、`files/api-bridge` で `~/bin/nix-env -f api-bridge.nix -i`、返信のあとで `files/scripts/bootstrap-api-bridge.sh` で再起動する。入った版(`/nix/packages` の `muse-api-bridge`)を報告に貼る。
+
 ## 2026-11-12
 
 ### 変わったこと

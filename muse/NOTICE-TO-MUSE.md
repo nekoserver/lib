@@ -18,12 +18,16 @@ Muse は作業を始める前に、前回読んだ日付より新しい節を読
   - `main-worker-muse` は送る前に、自分が `Running` になり muse-vm がオンラインに見えるまで最大20秒待つ。
   - Muse へ届く経路の一覧(7系統、コンテナの要否・鍵)は本体 SPEC `SPEC.cloudflare-workers-github-oauth-1.20261112.muse-request-routes.md` の7章。経路の名前と muse-vm 側の鍵の名前は、まだ決めていない。
 - **lib の worker は、Muse にプロンプトを送る前に `GET /v1/models`(`MUSE_API_KEY` を付ける)で到達を確かめる。** 10秒以内に HTTP の応答(状態は問わない)が無ければ、すぐ `muse_connection_failed` を返す。これまでは127秒待って Cloudflare の 524 になり、Slack に理由が届かなかった。
+- **AIチャットからの Muse の要求に返事が来ない(2026-11-12 06:40 UTC 以降)。** muse-vm に届く(通知が来る)のに、送信のちょうど10分後に毎回同じ283バイトの短い応答が返り、本体は300秒でタイムアウトしている。本体の Worker 内 WASM 経由でも、コンテナ経由でも同じだった。どこで止まるかを確定するため、api-bridge を tailnet を通さずに直接試すテスト `test/muse_direct_live_test.py` を足した(本体と同じ形の要求を送り、`/health`・`/ping`・短い推論(stream 無し・`stream:false`)の4段階で、どこで止まるかを1行ずつ出す)。
 
 ### やること
 
 - tailscaled にプロキシを渡さない今の起動のしかたは変えない(渡すと今つながっている DERP の接続を壊す恐れがある)。
 - muse-vm の tailscaled を再起動したら、`tailscale ping 100.107.14.122`(cf-demo-container)が通ることを確かめ、結果を報告に貼る。通らなければ `tailscale netcheck` の結果も貼る。
 - 本体の直送(`main-worker-muse` から)で「Museへの接続を確認できません」が続くと知らされたら、`tailscale ping main-worker-muse` の結果を報告に貼る(上の DERP の制限で、`main-worker-muse` の home DERP に届かない可能性がある)。
+- muse-vm の上で、tailnet を通さずに api-bridge を直接試し、出力の `health:`・`ping:`・`inference(stream無し):`・`inference(stream:false):` の4行と、失敗したテストの文をそのまま報告に貼る(鍵の値は貼らない)。
+  `cd ~/lib && git pull && MUSE_LIVE_URL=http://127.0.0.1:8080 MUSE_API_KEY=<api-bridge の鍵> python3 -m unittest test.muse_direct_live_test -v`
+- `/ping` は返るのに推論が返らないときは、api-bridge のログで、日本時間 2026-11-12 15:40・16:22・17:20 ごろに受け取った要求がどう終わったか(10分後に何を返したか)も貼る。
 
 ## 2026-11-11
 

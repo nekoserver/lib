@@ -26,7 +26,7 @@ Muse は作業を始める前に、前回読んだ日付より新しい節を読
 - muse-vm の tailscaled を再起動したら、`tailscale ping 100.107.14.122`(cf-demo-container)が通ることを確かめ、結果を報告に貼る。通らなければ `tailscale netcheck` の結果も貼る。
 - 本体の直送(`main-worker-muse` から)で「Museへの接続を確認できません」が続くと知らされたら、`tailscale ping main-worker-muse` の結果を報告に貼る(上の DERP の制限で、`main-worker-muse` の home DERP に届かない可能性がある)。
 - muse-vm の上で、tailnet を通さずに api-bridge を直接試し、出力の `health:`・`ping:`・`inference(stream無し):`・`inference(stream:false):` の4行と、失敗したテストの文をそのまま報告に貼る(鍵の値は貼らない)。
-  `cd ~/lib && git pull && MUSE_LIVE_URL=http://127.0.0.1:8080 MUSE_API_KEY=<api-bridge の鍵> python3 -m unittest test.muse_direct_live_test -v`
+  `cd ~/lib && git pull && MUSE_LIVE_URL=http://127.0.0.1:8080 MUSE_API_KEY=<api-bridge の鍵> python3 -m unittest test/muse_direct_live_test.py -v`
 - `/ping` は返るのに推論が返らないときは、api-bridge のログで、日本時間 2026-11-12 15:40・16:22・17:20 ごろに受け取った要求がどう終わったか(10分後に何を返したか)も貼る。
 
 ## 2026-11-11

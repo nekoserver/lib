@@ -8,7 +8,7 @@ Muse は作業を始める前に、前回読んだ日付より新しい節を読
 
 ### 変わったこと
 
-- **本体(Claude Code・Codex)から Muse への修復依頼を、決まった形で送るようにした。** 送り方・本文の形は本体 SPEC `SPEC.cloudflare-workers-github-oauth-1.20261113.muse-repair-protocol.md`。依頼は本体の非同期ジョブ(`/agent-jobs`、送り手 `agent: "claude"` または `"codex"`)で届く。
+- **本体(Claude Code・Codex)から Muse への修復依頼を、決まった形で送るようにした。** 送り方・本文の形は本体 SPEC `SPEC.cloudflare-workers-github-oauth-1.20261113.muse-repair-protocol.md`。依頼は本体の非同期ジョブ(`/agent-jobs`)で、本体 Worker の直送(Tailscale WASM)を通って届く。どの経路で届いたかは鍵で見分ける。送り手(Claude か Codex か)は区別しない。
 - **api-bridge(muse-vm-hacks の `files/api-bridge/server.py`)を 0.4.1 にした**(PR #1、885a661d)。呼び出し側が接続を切ったら、ジョブを inbox から取り下げて `JOB_LOCK` をすぐ放す。これまでは600秒ロックを握ったまま待ち、捨てられたジョブで起こされ、後続の要求も詰まっていた。
 
 ### やること

@@ -12,12 +12,18 @@ Muse は作業を始める前に、前回読んだ日付より新しい節を読
   - muse-vm の tailscaled は直接の外向き通信が制限されていて(`tailscale netcheck` で `UDP: false`、どの DERP にも応答なし)、今つながっている DERP 以外へは新しく接続できない。cf-container の home DERP が syd だったため、muse-vm からの WireGuard の返事が届かず、ハンドシェイクが一度も成立しなかった(鍵・ACL は原因ではなかった。nodekey・discokey は両方向で一致)。
   - 回避: tailnet のポリシーに `"derpMap": {"Regions": {"5": null}}` を足し、syd を使わないようにした。cf-container は tok に移り、ハンドシェイクが成立、`/neko askgk muse_prompt=…` が `done` になった(2026-11-12 02:50 UTC、約41秒)。
   - 根本の対処(未実施): muse-vm の外側のファイアウォールで、tailscaled の直接の外向き通信を `derp*.tailscale.com` の 443/tcp と 3478/udp に許可する。そうすれば derpMap の制限は外せる。
+- **本体 AIチャットの Muse の「直送」は、コンテナを通さない経路に戻る**(本体 nekoserver/cloudflare-workers-github-oauth-1#2574)。
+  - 直送 = 本体 Worker 内の Tailscale WASM ノード `main-worker-muse` → muse-vm:8080。接頭語なしの Muse と `/askmuse` はこれが既定。demo コンテナ(`server.js`)を通るのは、AIチャットの ⚙ で旧コンテナ直通を選んだときだけ。
+  - 直前の本体(#2572)は直送を demo コンテナ経由に固定していて、AIチャットに「Muse がタイムアウトしました(300秒)」が出ていた。muse-vm と鍵は正常だった。
+  - `main-worker-muse` は送る前に、自分が `Running` になり muse-vm がオンラインに見えるまで最大20秒待つ。
+  - Muse へ届く経路の一覧(7系統、コンテナの要否・鍵)は本体 SPEC `SPEC.cloudflare-workers-github-oauth-1.20261112.muse-request-routes.md` の7章。経路の名前と muse-vm 側の鍵の名前は、まだ決めていない。
 - **lib の worker は、Muse にプロンプトを送る前に `GET /v1/models`(`MUSE_API_KEY` を付ける)で到達を確かめる。** 10秒以内に HTTP の応答(状態は問わない)が無ければ、すぐ `muse_connection_failed` を返す。これまでは127秒待って Cloudflare の 524 になり、Slack に理由が届かなかった。
 
 ### やること
 
 - tailscaled にプロキシを渡さない今の起動のしかたは変えない(渡すと今つながっている DERP の接続を壊す恐れがある)。
 - muse-vm の tailscaled を再起動したら、`tailscale ping 100.107.14.122`(cf-demo-container)が通ることを確かめ、結果を報告に貼る。通らなければ `tailscale netcheck` の結果も貼る。
+- 本体の直送(`main-worker-muse` から)で「Museへの接続を確認できません」が続くと知らされたら、`tailscale ping main-worker-muse` の結果を報告に貼る(上の DERP の制限で、`main-worker-muse` の home DERP に届かない可能性がある)。
 
 ## 2026-11-11
 

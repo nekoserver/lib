@@ -9,7 +9,8 @@
   3. stream の扱いが原因             stream:false を付けたときだけ返る
 
 muse-vm の上で、tailnet も本体も通さずに実行する(鍵は値を出さない):
-  MUSE_LIVE_URL=http://127.0.0.1:8080 MUSE_API_KEY=... python3 -m unittest test.muse_direct_live_test -v
+  MUSE_LIVE_URL=http://127.0.0.1:8080 MUSE_API_KEY=... python3 -m unittest test/muse_direct_live_test.py -v
+  (test/ に __init__.py が無いので、`test.muse_direct_live_test` と書くと標準ライブラリの test パッケージを探して見つからない。ファイルのパスで指定する。)
 MUSE_LIVE_URL か MUSE_API_KEY が無ければライブの部分は飛ばす。送り方が本体と同じかは、偽のサーバーで常に確かめる。
 """
 import http.client

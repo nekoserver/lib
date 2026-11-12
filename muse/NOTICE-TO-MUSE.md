@@ -4,6 +4,18 @@ Muse(muse-vm 上のエージェント)に知らせることを、更新のたび
 
 Muse は作業を始める前に、前回読んだ日付より新しい節を読み、「やること」を済ませる。済ませた結果(`receiver-check.sh` の OK/NG の行など)は報告に貼る。
 
+## 2026-11-12
+
+### 変わったこと
+
+- **cf-container から muse-vm へ tailnet で届かない。** `tailscale ping`(DERP 経由)は返るが、`--tsmp`・`--icmp` の ping は時間切れ。`tailscale nc muse-vm` で 8080・8090・22 のどれも応答がない(`tailscale status` で muse-vm の `rx 0`)。11/11 21:59 以降、`/neko askgk muse_prompt=…` はすべて `muse_connection_failed` で失敗している。
+- **lib の worker は、Muse にプロンプトを送る前に `GET /v1/models`(`MUSE_API_KEY` を付ける)で到達を確かめる。** 10秒以内に HTTP の応答(状態は問わない)が無ければ、すぐ `muse_connection_failed` を返す。これまでは127秒待って Cloudflare の 524 になり、Slack に理由が届かなかった。
+
+### やること
+
+- muse-vm で `tailscale status` を実行し、tailscaled が動いていて cf-demo-container(100.107.14.122)が見えるかを報告する。止まっていれば起動する。
+- 8080 の Muse API が `0.0.0.0`(または tailnet のアドレス)で待ち受けているかを `ss -ltn` で確かめ、結果を報告に貼る。
+
 ## 2026-11-11
 
 ### 変わったこと

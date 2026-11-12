@@ -35,6 +35,10 @@ MUSE_HOST = os.environ.get('LIB_MUSE_HOST', 'muse-vm')
 MUSE_PORT = int(os.environ.get('LIB_MUSE_PORT', '8080'))
 MUSE_MODEL = os.environ.get('LIB_MUSE_MODEL', 'muse')
 MUSE_MAX_BODY = 1_048_576
+# Seconds to wait for muse-vm to answer the reachability probe. `tailscale nc` gives no
+# sign of a failed dial, and an unreachable peer held the socket for 127 s (2026-11-12),
+# past Cloudflare's 100 s limit, so /neko askgk got HTTP 524 instead of an error code.
+MUSE_CONNECT_TIMEOUT = 10
 MODEL_NAME = re.compile(r'[a-zA-Z0-9_.:/-]{1,128}')
 original_command = llm_worker.command
 original_submit = llm_worker.submit
@@ -79,7 +83,20 @@ class TailnetConnection(http.client.HTTPConnection):
             self.nc = None
 
 
+def probe_muse():
+    """Fail fast unless muse-vm answers over the tailnet. Any HTTP status shows it is reachable."""
+    conn = TailnetConnection(MUSE_HOST, MUSE_PORT, timeout=MUSE_CONNECT_TIMEOUT)
+    try:
+        conn.request('GET', '/v1/models', headers={'Authorization': 'Bearer ' + MUSE_API_KEY})
+        conn.getresponse().read(MUSE_MAX_BODY)
+    except (http.client.HTTPException, OSError) as error:
+        raise MuseError('muse_connection_failed') from error
+    finally:
+        conn.close()
+
+
 def ask_muse(prompt):
+    probe_muse()
     conn = TailnetConnection(MUSE_HOST, MUSE_PORT, timeout=llm_worker.TIMEOUT)
     body = json.dumps({'model': MUSE_MODEL, 'messages': [{'role': 'user', 'content': prompt}]})
     try:

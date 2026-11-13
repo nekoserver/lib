@@ -102,3 +102,17 @@
 | トンネル一覧（`status=healthy`） | `nekoroot`のみ。`cfc-tunnel`は出ない（1〜3回目と同じ） |
 
 未確認: Slackからの`/neko askgk`、公開URL経由のWebSocketとSSE（1〜3回目と同じ）。
+
+## 追記: 新しいデモイメージでの実行（2026-11-13）
+
+デモイメージが元のtunnels.rb・worker・observerを起動するようになり、`restore-claude-host.sh`がそのままでは切り替えられなかった（イメージの`ScriptAliasMatch`が先に一致し、元のworker・observerがソケットを持ったまま）。スクリプトを直し（手順は`SETTINGS.claude-host.20261102.md`の「本体のデモイメージ」）、`codex-web`にrootのClaudeのログインを複製してから実行した。`/lib`の管理者専用（2026-11-11の判断）は変えていない。
+
+| 確認 | 結果 |
+|---|---|
+| tunnels API（Apache経由、署名付き）の`claude_prompt`、`codex_prompt`、`muse_prompt`、先頭なし | `done`（`claude-opus-5-5`、`gpt-6.1-sol`、`muse`、先頭なしは`claude-opus-5-5`）。トンネル一覧は`cfc-tunnel`・`nekoroot` |
+| `nemotron_prompt` | `unsupported_engine`（仕様どおり） |
+| SSE、NDJSON、JSON Text Sequence、WebSocket（127.0.0.1:8092・8091へ直接） | claude、codexの8通りで`done`。museはSSEで`done`（約97秒）。`nemotron`は400 |
+| observer（WebSocketの`observe`） | この会話（Claude Codeのセッション）のスナップショットを受信 |
+| 署名なしのPOST | 403（Apacheの`Require expr`） |
+
+未確認: Slackからの`/neko askgk`、管理者のプロキシ（:8080）経由のストリーム、museのNDJSON・JSON Text Sequence・WebSocket。

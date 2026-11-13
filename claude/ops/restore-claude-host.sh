@@ -5,10 +5,13 @@
 #   2. write /etc/apache2/lib-secrets.conf (0600) from ORIGIN_HMAC_SECRET and the Cloudflare token
 #   3. route /lib/api/tunnels to tunnels.claude.rb, and the AI chat embed page and streams
 #      to the stream servers, instead of server.js; then start or reload Apache and check port 8443
-#   4. start the LLM worker, the chat observer and the chat stream servers
+#   4. start the LLM worker, the chat observer and the chat stream servers, replacing the
+#      original worker and observer that the demo image starts on the same sockets
+#   5. restore the main Worker repo's Claude Code hooks (restore-claude-hooks.sh)
 #
 # Token: LIB_TUNNELS_CF_TOKEN, else CF_CONTAINER_API_TOKEN of the caller. The token that
 # entrypoint.sh hands Apache (/etc/profile.d/cf-env.sh) lists no tunnels, so it is not used.
+# LIB_ROUTE_ACCESS_CONTROL=1 (startup option from the main Worker) turns on route-based access control.
 # Paths can be overridden for tests: LIB_WWW, LIB_APACHE_DIR, LIB_APACHE_SITE.
 # LIB_RESTORE_NO_START=1 skips the Apache reload and the daemons.
 set -eu
@@ -34,14 +37,27 @@ chmod -R a+rX "$WWW"
  printf 'SetEnv ORIGIN_HMAC_SECRET "%s"\nSetEnv CF_CONTAINER_API_TOKEN "%s"\n' "$SECRET" "$TOKEN" > "$APACHE/lib-secrets.conf")
 chmod 0600 "$APACHE/lib-secrets.conf"
 sed "s#/etc/apache2/#$APACHE/#; s#/var/www/html/lib/#$WWW/#" "$HERE/apache-lib-tunnels.conf" > "$APACHE/lib-tunnels.conf"
-# The Include must precede `ProxyPass /`, or server.js answers /lib/api/tunnels.
+# The Include must precede `ProxyPass /`, or server.js answers /lib/api/tunnels, and the demo
+# image's `ScriptAliasMatch` to its own tunnels.cgi (the original tunnels.rb): mod_alias takes
+# the first matching alias.
 if ! grep -q "Include $APACHE/lib-tunnels.conf" "$SITE"; then
-  sed -i "0,/^\( *\)ProxyPass \/ /s##\1Include $APACHE/lib-tunnels.conf\n\n&#" "$SITE"
+  sed -i "0,/^\( *\)\(ScriptAliasMatch \"^\/lib\/api\/tunnels\|ProxyPass \/ \)/s##\1Include $APACHE/lib-tunnels.conf\n\n&#" "$SITE"
   grep -q "Include $APACHE/lib-tunnels.conf" "$SITE" || { echo "No 'ProxyPass /' in $SITE" >&2; exit 1; }
 fi
 echo "apache: /lib/api/tunnels -> $WWW/claude/api/tunnels.claude.rb"
-cp "$HERE/apache-lib-chat.conf" "$APACHE/lib-chat.conf"
-# The chat rules must precede the vhost's catch-all WebSocket rewrite to server.js.
+sed "s#/etc/apache2/#$APACHE/#" "$HERE/apache-lib-chat.conf" > "$APACHE/lib-chat.conf"
+# Startup option (main Worker var, passed to the container): only "1" turns on route-based access
+# control, letting chat requests with a known route id through the admin-only lib.
+if [ "${LIB_ROUTE_ACCESS_CONTROL:-}" = 1 ]; then
+  cp "$HERE/apache-lib-chat-route-access.conf" "$APACHE/lib-chat-route-access.conf"
+  echo "apache: route access control: on (chat routes need a known route id)"
+else
+  rm -f "$APACHE/lib-chat-route-access.conf"
+  echo "apache: route access control: off (LIB_ROUTE_ACCESS_CONTROL is not 1)"
+fi
+# The chat rules must precede the vhost's catch-all WebSocket rewrite to server.js. On the demo image,
+# where lib is admin-only (2026-11-11), the Include also follows the deny, so the route access grant
+# (when the startup option installs it) wins for the chat routes alone.
 if ! grep -q "Include $APACHE/lib-chat.conf" "$SITE"; then
   sed -i "0,/^\( *\)RewriteEngine On\$/s##&\n\1Include $APACHE/lib-chat.conf#" "$SITE"
   grep -q "Include $APACHE/lib-chat.conf" "$SITE" || { echo "No 'RewriteEngine On' in $SITE" >&2; exit 1; }
@@ -49,6 +65,8 @@ fi
 echo "apache: /lib/conversation-embed.html, /lib/chat/, /lib/t/, /lib/api/chat/* -> 127.0.0.1:8092 (ws: 8091)"
 
 [ "${LIB_RESTORE_NO_START:-}" = 1 ] && exit 0
+# lib-chat.conf sets the route-id cookie with mod_headers, which the demo image does not enable.
+a2enmod headers >/dev/null
 apache2ctl configtest
 # Not apache2ctl: here it hands over to systemctl, which prints "Running in chroot, ignoring
 # command" and exits 0, so Apache stays down or keeps its old configuration.
@@ -69,6 +87,22 @@ for _ in range(40):
         time.sleep(0.25)
 sys.exit('apache: nothing is listening on 8443 (see /var/log/apache2/nekoroot-error.log)')
 PY_CHECK
+# The demo image starts the originals (lib/ops) on the same sockets, and the start scripts
+# do nothing while a socket answers. A job running in the original worker is lost.
+stop_original() {  # script name in $WWW/ops
+  pattern="^[^ ]*python[^ ]* $WWW/ops/$1\$"
+  pkill -f "$pattern" || return 0
+  for _ in $(seq 40); do
+    pgrep -f "$pattern" >/dev/null || { echo "stopped the original $1"; return 0; }
+    sleep 0.25
+  done
+  echo "the original $1 did not stop" >&2
+  exit 1
+}
+stop_original llm_worker.py
 "$HERE/start-llm-worker-claude.sh"
+stop_original chat_observer.py
 "$HERE/start-chat-observer-claude.sh"
 "$HERE/start-chat-streams-claude.sh"
+# The main Worker repo's Claude Code hooks. A failure is reported but does not undo the services above.
+"$HERE/restore-claude-hooks.sh" || echo "hooks: not restored (see above)" >&2

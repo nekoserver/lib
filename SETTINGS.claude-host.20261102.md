@@ -54,6 +54,7 @@ Slack /neko askgk
 - vhostが`/lib`を管理者専用にしている（利用者の判断、2026-11-11）ときは、AIチャットの経路（`lib-chat.conf`）を入れない。埋め込みページ・`/lib/api/chat/*`は公開側で403のまま。ストリームのサーバーはイメージが起動したものをそのまま使う。
 - 元のworker・observerを止めてから、Claude版を起動する（同じソケットのため）。元のworkerで実行中のジョブは失われる。
 - 署名ヘッダーの無いPOSTは、CGIに届く前にApacheが403を返す（以前は401）。
+- `/lib`の管理者専用で公開側から止まっている機能（tree-viewのワーカータブ、AIチャットのパネル、Dockerのダッシュボードなど）は[`NOTICE.lib.20261113.lib-admin-only-impact.md`](NOTICE.lib.20261113.lib-admin-only-impact.md)にまとめた。
 
 Claudeの認証`/var/lib/codex-web/.claude/.credentials.json`がイメージに無いときは、rootのログインを複製する（2026-11-13、利用者の判断。Codexと同じく、トークンの更新で片方が切れることがある）。
 

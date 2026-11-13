@@ -14,6 +14,22 @@ SITE = """<VirtualHost *:8443>
     ProxyPassReverse / http://127.0.0.1:8080/
 </VirtualHost>
 """
+# The demo image's vhost since 2026-11-12: lib is admin-only except the signed tunnels API
+# (user decision 2026-11-11), which the image routes to the original tunnels.rb.
+IMAGE_SITE = """<VirtualHost *:8443>
+    <LocationMatch "^/(?:debug|admin)(?:/|$)|^/lib(?:$|/(?!api/tunnels(?:[.]rb)?$))">
+        Require all denied
+    </LocationMatch>
+    ProxyRequests Off
+    ProxyPassMatch "^/lib/api/tunnels(?:[.]rb)?$" "!"
+    ScriptAliasMatch "^/lib/api/tunnels(?:[.]rb)?$" "/usr/local/libexec/lib-api/tunnels.cgi"
+    RewriteEngine On
+    RewriteCond %{REQUEST_URI} !^/lib/api/(?:chat/ws|tunnels(?:[.]rb)?)$
+    RewriteCond %{HTTP:Upgrade} =websocket [NC]
+    RewriteRule /(.*) ws://127.0.0.1:8080/$1 [P,L]
+    ProxyPass / http://127.0.0.1:8080/ retry=0
+</VirtualHost>
+"""
 
 
 class RestoreClaudeHostTest(unittest.TestCase):
@@ -76,6 +92,31 @@ class RestoreClaudeHostTest(unittest.TestCase):
         self.assertEqual(secrets.stat().st_mode & 0o777, 0o600)
         self.assertEqual(secrets.read_text(), 'SetEnv ORIGIN_HMAC_SECRET "hmac-test"\n'
                                               'SetEnv CF_CONTAINER_API_TOKEN "cf-explicit"\n')
+
+    def test_image_site_routes_tunnels_before_the_image_cgi(self):
+        # mod_alias takes the first matching alias, so the Include must precede the image's ScriptAliasMatch.
+        self.site.write_text(IMAGE_SITE)
+        self.assertEqual(self.run_script().returncode, 0)
+        lines = self.site.read_text().splitlines()
+        include = lines.index(f'    Include {self.apache}/lib-tunnels.conf')
+        self.assertLess(include, next(i for i, line in enumerate(lines) if 'ScriptAliasMatch' in line))
+        self.run_script()
+        self.assertEqual(self.site.read_text().count('lib-tunnels.conf'), 1)
+
+    def test_image_site_keeps_chat_admin_only(self):
+        self.site.write_text(IMAGE_SITE)
+        result = self.run_script()
+        self.assertEqual(result.returncode, 0)
+        self.assertNotIn('lib-chat.conf', self.site.read_text())
+        self.assertIn('admin-only', result.stdout)
+
+    def test_replaces_the_original_worker_and_observer(self):
+        # The image starts lib/ops/llm_worker.py and chat_observer.py on the same sockets,
+        # and the start scripts do nothing while a socket answers.
+        script = SCRIPT.read_text()
+        stop = script.index('stop_original llm_worker.py')
+        self.assertLess(stop, script.index('start-llm-worker-claude.sh"'))
+        self.assertLess(script.index('stop_original chat_observer.py'), script.index('start-chat-observer-claude.sh"'))
 
     def test_requires_the_secret(self):
         result = self.run_script(ORIGIN_HMAC_SECRET='')

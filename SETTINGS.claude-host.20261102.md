@@ -44,6 +44,21 @@ Slack /neko askgk
 5. `apache2ctl configtest`の後に、`apache2`を直接実行して起動または再読込し、8443の応答を確かめる。`apache2ctl`はこのコンテナでは`systemctl`に渡され、何もしないまま0で終わる。
 6. `start-llm-worker-claude.sh`でworker、`start-chat-observer-claude.sh`でobserver、`start-chat-streams-claude.sh`でストリームのサーバー（`www-data`、ログ`/tmp/chat-http-stream-claude.log`・`/tmp/chat-websocket-claude.log`）を起動する。起動済みなら何もしない。
 
+### 本体のデモイメージ（2026-11-12以降）での違い
+
+デモイメージが元の`tunnels.rb`（`/usr/local/libexec/lib-api/tunnels.cgi`）、元の`llm_worker.py`・`chat_observer.py`、ストリームのサーバー（`/opt/lib-chat`のvenv、`/etc/lib-chat.env`）を起動するようになった。そのままでは`claude_prompt`は`claude_not_authenticated`、`muse_prompt`は`unsupported_engine`、先頭なしはHTTP 500、トンネル一覧は空（`no_api_token`）になる（2026-11-13確認）。`restore-claude-host.sh`はこのイメージで次のように動く。
+
+- `Include lib-tunnels.conf`をイメージの`ScriptAliasMatch "^/lib/api/tunnels…"`より前に入れる。mod_aliasは最初に一致した別名を使うため。
+- vhostが`/lib`を管理者専用にしている（利用者の判断、2026-11-11）ときは、AIチャットの経路（`lib-chat.conf`）を入れない。埋め込みページ・`/lib/api/chat/*`は公開側で403のまま。ストリームのサーバーはイメージが起動したものをそのまま使う。
+- 元のworker・observerを止めてから、Claude版を起動する（同じソケットのため）。元のworkerで実行中のジョブは失われる。
+- 署名ヘッダーの無いPOSTは、CGIに届く前にApacheが403を返す（以前は401）。
+
+Claudeの認証`/var/lib/codex-web/.claude/.credentials.json`がイメージに無いときは、rootのログインを複製する（2026-11-13、利用者の判断。Codexと同じく、トークンの更新で片方が切れることがある）。
+
+```sh
+install -o codex-web -g codex-web -m 0600 /root/.claude/.credentials.json /var/lib/codex-web/.claude/.credentials.json
+```
+
 ### 前提
 
 - 環境変数`ORIGIN_HMAC_SECRET`と、トンネルを読めるCloudflareのトークン（`LIB_TUNNELS_CF_TOKEN`、無ければ`CF_CONTAINER_API_TOKEN`）。Claude Codeのシェルには両方ある。

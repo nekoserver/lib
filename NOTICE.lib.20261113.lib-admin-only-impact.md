@@ -1,14 +1,14 @@
 # NOTICE: 「libは管理者専用」による影響の範囲
 
 日付: 2026-11-13（UTC）
-**対象**: 本体のdemoコンテナ（`mygw.nekomaneki.work`、トンネル`nekoroot`）の公開Apache（:8443） — 2026-11-11の利用者の判断で`/lib`を管理者専用にしたことで、公開側から`/lib`を使っていた機能がどこまで止まっているかの記録。方針そのものは変えない（利用者: 「悪くはない」）。例外は影響の範囲を調べ終え、ポリシーと仕様が固まってから対処する（下の「現状方針」）。
+**対象**: 本体のdemoコンテナ（`mygw.nekomaneki.work`、トンネル`nekoroot`）の公開Apache（:8443） — 2026-11-11の利用者の判断で`/lib`を管理者専用にしたことで、公開側から`/lib`を使っていた機能がどこまで止まっているかの記録。方針そのものは変えない（利用者: 「悪くはない」）。経路の制御と深く関わり単純には片付かないため、無駄に厳格にせず、独自の認証があるチャットの経路だけを暫定で開ける（下の「現状方針」）。
 
 ## 方針と現在の設定
 
 - 本体リポジトリ`containers/demo/apache-demo.conf`の`<LocationMatch "^/(?:debug|admin)(?:/|$)|^/lib(?:$|/(?!api/tunnels(?:[.]rb)?$))">`が`Require all denied`。コメントは「lib (SSI, apache-lib.conf) is for administrators only, via the same proxy (user decision 2026-11-11)」。
 - 例外は`/lib/api/tunnels`（と`.rb`）だけ。`X-Timestamp`・`X-Signature`の両ヘッダーが無ければApacheが403、あればCGIがHMACを検証する（askgkの403修正、本体の`REPORT.cloudflare-workers-github-oauth-1.ASKGK-403.20261113.md`）。
 - 管理者の入口は、管理用プロキシ（:8080、認証あり）から`127.0.0.1:8445`の`apache-lib.conf`（`Require local`）。2026-11-13時点で、本体の作業ツリーに、ここへAIチャットの経路（8091・8092）を足す未コミットの変更がある（別の作業）。
-- libの`claude/ops/restore-claude-host.sh`は、vhostが`/lib`を管理者専用にしているとき、AIチャットの経路（`lib-chat.conf`）を入れない（2026-11-13、PR #147）。
+- libの`claude/ops/restore-claude-host.sh`は、管理者専用のvhostでも`lib-chat.conf`を拒否の後でIncludeし、チャットの経路だけを`Require all granted`にする（暫定、2026-11-13、PR #147）。SSI・CGI・`ops`・Dockerのダッシュボードなど、他の`/lib`は拒否のまま。
 
 ## 影響（公開URL `https://mygw.nekomaneki.work`、2026-11-13に実測）
 
@@ -25,7 +25,11 @@
 
 ## 現状方針（利用者、2026-11-13）
 
-例外は、影響の範囲を調べ終え、ポリシーと仕様が固まってから対処する。それまでは例外を足さず、上の表の機能は止まったままとする。下の候補は、仕様を決めるときの材料として残す。
+「libは管理者専用」は保つ。ただし経路の制御と深く関わり、単純には片付かないため、仕様が固まるのを待って機能を止め続けるような厳格な扱いはしない（利用者、2026-11-13）。
+
+- 暫定の例外: チャットの4経路（`/lib/conversation-embed.html`・`/lib/chat/`・`/lib/t/`・`/lib/api/chat/*`）。独自の認証（ログイン画面、HMACのセッション、`frame-ancestors`で埋め込み元を本体Worker・dynamicnekoなどに限定）があり、tree-viewのワーカータブとAIチャットのパネルが使う。`restore-claude-host.sh`の`lib-chat.conf`で入れる。
+- このコンテナへの反映は未実施（2026-11-13）。Claude Codeからの実行は、公開経路を開ける操作として自動許可の判定で止められた。利用者が`sh ~/lib/claude/ops/restore-claude-host.sh`を実行して反映する。
+- 本体イメージの`apache-demo.conf`には入れていない（別の作業が未コミットで同じファイルを直しているため）。経路の制御の仕様が固まったら、イメージ側と合わせて見直す。
 
 ### まだ調べていない範囲
 
@@ -37,6 +41,5 @@
 
 ### 仕様を決めるときの候補
 
-- ワーカータブとAIチャットのパネル: `/lib/conversation-embed.html`・`/lib/chat/`・`/lib/t/`・`/lib/api/chat/*`の4経路を拒否から外す。外す経路には独自の認証がある（ログイン画面、HMACのセッション、`frame-ancestors`で埋め込み元を本体Worker・dynamicnekoに限定）。
 - Dockerのダッシュボード: 本体Workerが公開URLを経由せず管理者の入口から取る形にするか、例外にする。
 - イメージの`apache-demo.conf`を変えた場合、イメージを作り直すまで本番のコンテナには入らない（本体`CLAUDE.md`のルール39）。

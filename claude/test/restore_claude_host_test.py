@@ -103,12 +103,22 @@ class RestoreClaudeHostTest(unittest.TestCase):
         self.run_script()
         self.assertEqual(self.site.read_text().count('lib-tunnels.conf'), 1)
 
-    def test_image_site_keeps_chat_admin_only(self):
+    def test_image_site_opens_only_the_chat_routes(self):
+        # lib stays admin-only (2026-11-11), but the chat routes have their own login, HMAC session and
+        # frame-ancestors; the tree-view worker tab and the AI chat panel embed them (provisional, 2026-11-13).
         self.site.write_text(IMAGE_SITE)
-        result = self.run_script()
-        self.assertEqual(result.returncode, 0)
-        self.assertNotIn('lib-chat.conf', self.site.read_text())
-        self.assertIn('admin-only', result.stdout)
+        self.assertEqual(self.run_script().returncode, 0)
+        lines = self.site.read_text().splitlines()
+        include = lines.index(f'    Include {self.apache}/lib-chat.conf')
+        # Later <LocationMatch> sections override earlier ones, so the grant must come after the deny.
+        self.assertGreater(include, next(i for i, line in enumerate(lines) if 'Require all denied' in line))
+        conf = (self.apache / 'lib-chat.conf').read_text()
+        grant = conf[conf.index('<LocationMatch'):conf.index('</LocationMatch>')]
+        self.assertIn('Require all granted', grant)
+        self.assertIn('conversation-embed', grant)
+        self.assertIn('api/chat/', grant)
+        for private in ('shtml', 'cgi', 'docker', 'api/tunnels', 'ops'):
+            self.assertNotIn(private, grant)
 
     def test_replaces_the_original_worker_and_observer(self):
         # The image starts lib/ops/llm_worker.py and chat_observer.py on the same sockets,

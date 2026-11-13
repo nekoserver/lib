@@ -44,19 +44,15 @@ if ! grep -q "Include $APACHE/lib-tunnels.conf" "$SITE"; then
   grep -q "Include $APACHE/lib-tunnels.conf" "$SITE" || { echo "No 'ProxyPass /' in $SITE" >&2; exit 1; }
 fi
 echo "apache: /lib/api/tunnels -> $WWW/claude/api/tunnels.claude.rb"
-# The demo image keeps lib admin-only except the tunnels API (user decision 2026-11-11):
-# do not publish the AI chat there. The stream servers still run behind the admin proxy.
-if grep -qF '^/lib(?:$|/(?!api/tunnels' "$SITE"; then
-  echo "apache: /lib is admin-only in $SITE; AI chat routes not added"
-else
-  cp "$HERE/apache-lib-chat.conf" "$APACHE/lib-chat.conf"
-  # The chat rules must precede the vhost's catch-all WebSocket rewrite to server.js.
-  if ! grep -q "Include $APACHE/lib-chat.conf" "$SITE"; then
-    sed -i "0,/^\( *\)RewriteEngine On\$/s##&\n\1Include $APACHE/lib-chat.conf#" "$SITE"
-    grep -q "Include $APACHE/lib-chat.conf" "$SITE" || { echo "No 'RewriteEngine On' in $SITE" >&2; exit 1; }
-  fi
-  echo "apache: /lib/conversation-embed.html, /lib/chat/, /lib/t/, /lib/api/chat/* -> 127.0.0.1:8092 (ws: 8091)"
+cp "$HERE/apache-lib-chat.conf" "$APACHE/lib-chat.conf"
+# The chat rules must precede the vhost's catch-all WebSocket rewrite to server.js. On the demo image,
+# where lib is admin-only (2026-11-11), the Include also follows the deny, so its grant for the chat
+# routes alone wins (provisional, 2026-11-13).
+if ! grep -q "Include $APACHE/lib-chat.conf" "$SITE"; then
+  sed -i "0,/^\( *\)RewriteEngine On\$/s##&\n\1Include $APACHE/lib-chat.conf#" "$SITE"
+  grep -q "Include $APACHE/lib-chat.conf" "$SITE" || { echo "No 'RewriteEngine On' in $SITE" >&2; exit 1; }
 fi
+echo "apache: /lib/conversation-embed.html, /lib/chat/, /lib/t/, /lib/api/chat/* -> 127.0.0.1:8092 (ws: 8091)"
 
 [ "${LIB_RESTORE_NO_START:-}" = 1 ] && exit 0
 apache2ctl configtest

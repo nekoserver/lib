@@ -7,6 +7,7 @@
 #      to the stream servers, instead of server.js; then start or reload Apache and check port 8443
 #   4. start the LLM worker, the chat observer and the chat stream servers, replacing the
 #      original worker and observer that the demo image starts on the same sockets
+#   5. restore the main Worker repo's Claude Code hooks (restore-claude-hooks.sh)
 #
 # Token: LIB_TUNNELS_CF_TOKEN, else CF_CONTAINER_API_TOKEN of the caller. The token that
 # entrypoint.sh hands Apache (/etc/profile.d/cf-env.sh) lists no tunnels, so it is not used.
@@ -95,3 +96,5 @@ stop_original llm_worker.py
 stop_original chat_observer.py
 "$HERE/start-chat-observer-claude.sh"
 "$HERE/start-chat-streams-claude.sh"
+# The main Worker repo's Claude Code hooks. A failure is reported but does not undo the services above.
+"$HERE/restore-claude-hooks.sh" || echo "hooks: not restored (see above)" >&2

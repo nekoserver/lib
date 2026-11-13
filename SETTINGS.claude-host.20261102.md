@@ -43,6 +43,8 @@ Slack /neko askgk
 4. `claude/ops/apache-lib-chat.conf`を`/etc/apache2/lib-chat.conf`に置き、`RewriteEngine On`の直後に`Include`を1行入れる。AIチャットの埋め込みページ・資産・ストリームを8092へ、WebSocketを8091へ送る。既存の「WebSocketはすべて8080へ」の規則より前に置く必要がある。
 5. `apache2ctl configtest`の後に、`apache2`を直接実行して起動または再読込し、8443の応答を確かめる。`apache2ctl`はこのコンテナでは`systemctl`に渡され、何もしないまま0で終わる。
 6. `start-llm-worker-claude.sh`でworker、`start-chat-observer-claude.sh`でobserver、`start-chat-streams-claude.sh`でストリームのサーバー（`www-data`、ログ`/tmp/chat-http-stream-claude.log`・`/tmp/chat-websocket-claude.log`）を起動する。起動済みなら何もしない。
+7. `restore-claude-hooks.sh`で、本体リポジトリ（`/root/cloudflare-workers-github-oauth-1`）のClaude Codeのhookを使える状態に戻す。`node_modules`が無いか、壊れたsymlink（mainに自分自身を指すsymlinkがコミットされている）なら`npm ci`で作り直し、`.claude/settings.json`が呼ぶhookスクリプトがすべて存在し`node --check`を通るかを`hooks: OK/NG`で表示する。hookスクリプト自体は実行しない（`check-migration-table-registry.js`はWorkerへ記録を送るため）。失敗しても上のサービスは止めない。
+   - hookは、Claude Codeを本体リポジトリの中で起動したときだけ読み込まれる。`/root`で起動すると、日本語の強制・全体テストの禁止・push前の検査が効かない（2026-11-13に確認）。本体の作業は`cd ~/cloudflare-workers-github-oauth-1 && claude`で始める。
 
 ### 本体のデモイメージ（2026-11-12以降）での違い
 

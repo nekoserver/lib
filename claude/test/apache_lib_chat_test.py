@@ -1,5 +1,8 @@
 """lib-chat.conf: the chat routes record which caller embedded them (a non-secret route id, 2026-11-13).
 
+Only with the startup option LIB_ROUTE_ACCESS_CONTROL=1 does lib-chat-route-access.conf let requests
+that carry a known route id through the admin-only lib; without it the chat routes stay denied.
+
 The embed URL carries ?via=<id>; Apache keeps it in a cookie so that the page's own requests (assets,
 session, SSE, WebSocket) are attributed too, and writes it to /var/log/apache2/lib-chat-via.log.
 The page signs fixed paths, so the id never goes into the API paths.
@@ -16,6 +19,7 @@ import unittest
 import urllib.request
 
 CONF = Path(__file__).parents[1] / 'ops/apache-lib-chat.conf'
+ACCESS = Path(__file__).parents[1] / 'ops/apache-lib-chat-route-access.conf'
 RESTORE = Path(__file__).parents[1] / 'ops/restore-claude-host.sh'
 APACHE = '/usr/sbin/apache2'
 MODULES = Path('/usr/lib/apache2/modules')
@@ -24,8 +28,8 @@ MODULES = Path('/usr/lib/apache2/modules')
 class LibChatConfTest(unittest.TestCase):
     def test_route_ids_are_an_allowlist_and_precede_the_proxy_rules(self):
         conf = CONF.read_text()
-        self.assertIn('via=(treeview-worker|aichat-panel)', conf)
-        self.assertIn('lib_chat_via=(treeview-worker|aichat-panel)', conf)
+        self.assertIn('via=(treeview-worker|aichat-panel|health)', conf)
+        self.assertIn('lib_chat_via=(treeview-worker|aichat-panel|health)', conf)
         self.assertLess(conf.index('E=LIB_CHAT_VIA:unknown'), conf.index('[P,L]'))
 
     def test_cookie_matches_the_session_cookie_attributes(self):
@@ -56,7 +60,9 @@ def free_port():
 
 @unittest.skipUnless(Path(APACHE).exists() and (MODULES / 'mod_headers.so').exists(), 'needs the host Apache')
 class LibChatApacheTest(unittest.TestCase):
-    """Runs a throwaway Apache on a free port with lib-chat.conf; the host's Apache is not touched."""
+    """Runs a throwaway Apache on a free port with lib-chat.conf; the host's Apache is not touched.
+    This class has the startup option on (lib-chat-route-access.conf installed)."""
+    ACCESS_ON = True
 
     @classmethod
     def setUpClass(cls):
@@ -68,8 +74,11 @@ class LibChatApacheTest(unittest.TestCase):
         cls.port = free_port()
         cls.log = root / 'lib-chat-via.log'
         conf = CONF.read_text().replace('127.0.0.1:8092', f'127.0.0.1:{backend.server_port}') \
-            .replace('/var/log/apache2/lib-chat-via.log', str(cls.log))
+            .replace('/var/log/apache2/lib-chat-via.log', str(cls.log)) \
+            .replace('/etc/apache2/lib-chat-route-access.conf', str(root / 'lib-chat-route-access.conf'))
         (root / 'lib-chat.conf').write_text(conf)
+        if cls.ACCESS_ON:
+            (root / 'lib-chat-route-access.conf').write_text(ACCESS.read_text())
         mods = ''.join(f'LoadModule {m}_module {MODULES}/mod_{m}.so\n'
                        for m in ('mpm_event', 'authz_core', 'rewrite', 'headers', 'proxy', 'proxy_http', 'proxy_wstunnel'))
         (root / 'httpd.conf').write_text(f'''{mods}ServerRoot {root}
@@ -113,28 +122,52 @@ ServerName localhost
         time.sleep(0.3)
         return [l for l in self.log.read_text().splitlines() if f' {path} ' in l or f' {path}"' in l]
 
-    def test_embed_with_a_known_id_sets_the_cookie_and_logs_it(self):
+    def test_embed_with_a_known_id_sets_the_cookie_logs_it_and_is_let_through(self):
         status, cookies = self.get('/lib/conversation-embed.html?via=treeview-worker')
         self.assertEqual(status, 200)
         self.assertTrue(any(c.startswith('lib_chat_via=treeview-worker;') for c in cookies), cookies)
         self.assertIn('via=treeview-worker', self.log_lines('/lib/conversation-embed.html')[-1])
 
-    def test_later_requests_are_attributed_by_the_cookie(self):
+    def test_later_requests_are_attributed_and_let_through_by_the_cookie(self):
         status, cookies = self.get('/lib/chat/app.mjs', cookie='lib_chat_via=aichat-panel')
         self.assertEqual(status, 200)
         self.assertEqual(cookies, [])
         self.assertIn('via=aichat-panel', self.log_lines('/lib/chat/app.mjs')[-1])
 
-    def test_unknown_or_missing_ids_are_logged_as_unknown_without_a_cookie(self):
-        status, cookies = self.get('/lib/api/chat/sse?via=evil')
+    def test_the_health_check_has_its_own_route_id(self):
+        status, _ = self.get('/lib/conversation-embed.html?via=health')
         self.assertEqual(status, 200)
-        self.assertEqual(cookies, [])
+
+    def test_requests_without_route_information_are_denied_but_logged(self):
+        for path in ('/lib/api/chat/sse?via=evil', '/lib/api/chat/session'):
+            with self.subTest(path=path):
+                status, cookies = self.get(path)
+                self.assertEqual(status, 403)
+                self.assertEqual(cookies, [])
         self.assertIn('via=unknown', self.log_lines('/lib/api/chat/sse')[-1])
 
     def test_other_lib_paths_stay_denied_and_unlogged(self):
-        status, _ = self.get('/lib/ip.shtml?via=treeview-worker')
+        status, _ = self.get('/lib/ip.shtml?via=treeview-worker', cookie='lib_chat_via=treeview-worker')
         self.assertEqual(status, 403)
         self.assertEqual(self.log_lines('/lib/ip.shtml'), [])
+
+
+class LibChatApacheOptionOffTest(LibChatApacheTest):
+    """Startup option off: lib stays admin-only for every route, route ids are only logged."""
+    ACCESS_ON = False
+
+    def test_embed_with_a_known_id_sets_the_cookie_logs_it_and_is_let_through(self):
+        status, _ = self.get('/lib/conversation-embed.html?via=treeview-worker')
+        self.assertEqual(status, 403)
+        self.assertIn('via=treeview-worker', self.log_lines('/lib/conversation-embed.html')[-1])
+
+    def test_later_requests_are_attributed_and_let_through_by_the_cookie(self):
+        status, _ = self.get('/lib/chat/app.mjs', cookie='lib_chat_via=aichat-panel')
+        self.assertEqual(status, 403)
+
+    def test_the_health_check_has_its_own_route_id(self):
+        status, _ = self.get('/lib/conversation-embed.html?via=health')
+        self.assertEqual(status, 403)
 
 
 if __name__ == '__main__':

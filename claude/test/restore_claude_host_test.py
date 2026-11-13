@@ -103,22 +103,35 @@ class RestoreClaudeHostTest(unittest.TestCase):
         self.run_script()
         self.assertEqual(self.site.read_text().count('lib-tunnels.conf'), 1)
 
-    def test_image_site_opens_only_the_chat_routes(self):
-        # lib stays admin-only (2026-11-11), but the chat routes have their own login, HMAC session and
-        # frame-ancestors; the tree-view worker tab and the AI chat panel embed them (provisional, 2026-11-13).
+    def test_route_access_control_is_off_unless_the_startup_option_is_1(self):
+        # Without LIB_ROUTE_ACCESS_CONTROL=1 the image's admin-only lib stays as it is: no grant for any route.
         self.site.write_text(IMAGE_SITE)
-        self.assertEqual(self.run_script().returncode, 0)
+        for value in (None, '', '0', 'true'):
+            with self.subTest(value=value):
+                result = self.run_script(**({} if value is None else {'LIB_ROUTE_ACCESS_CONTROL': value}))
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertFalse((self.apache / 'lib-chat-route-access.conf').exists())
+                self.assertNotIn('Require all granted', (self.apache / 'lib-chat.conf').read_text())
+                self.assertIn('route access control: off', result.stdout)
+
+    def test_startup_option_grants_the_chat_routes_only_with_route_information(self):
+        self.site.write_text(IMAGE_SITE)
+        result = self.run_script(LIB_ROUTE_ACCESS_CONTROL='1')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn('route access control: on', result.stdout)
         lines = self.site.read_text().splitlines()
         include = lines.index(f'    Include {self.apache}/lib-chat.conf')
         # Later <LocationMatch> sections override earlier ones, so the grant must come after the deny.
         self.assertGreater(include, next(i for i, line in enumerate(lines) if 'Require all denied' in line))
-        conf = (self.apache / 'lib-chat.conf').read_text()
-        grant = conf[conf.index('<LocationMatch'):conf.index('</LocationMatch>')]
-        self.assertIn('Require all granted', grant)
-        self.assertIn('conversation-embed', grant)
-        self.assertIn('api/chat/', grant)
+        self.assertIn(f'IncludeOptional {self.apache}/lib-chat-route-access.conf', (self.apache / 'lib-chat.conf').read_text())
+        grant = (self.apache / 'lib-chat-route-access.conf').read_text()
+        self.assertIn('Require env LIB_CHAT_VIA_KNOWN', grant)
+        self.assertNotIn('Require all granted', grant)
         for private in ('shtml', 'cgi', 'docker', 'api/tunnels', 'ops'):
             self.assertNotIn(private, grant)
+        # Turning the option off again removes the grant.
+        self.run_script()
+        self.assertFalse((self.apache / 'lib-chat-route-access.conf').exists())
 
     def test_replaces_the_original_worker_and_observer(self):
         # The image starts lib/ops/llm_worker.py and chat_observer.py on the same sockets,

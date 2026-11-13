@@ -124,7 +124,7 @@ python3 -c 'import socket; s=socket.socket(socket.AF_UNIX); s.connect("/run/lib-
 - **反映**: workerは起動時の環境とコードを使い続ける。実行中のジョブが無いときに`llm_worker_claude.py`を止めてから、`MUSE_API_KEY`のある環境で`restore-claude-host.sh`を実行する。
 - **任意の設定**: `LIB_MUSE_HOST`（既定`muse-vm`）、`LIB_MUSE_PORT`（既定`8080`）、`LIB_MUSE_MODEL`（既定`muse`）。
 
-確認は`ruby claude/test/manual/askgk_request.rb claude/api/tunnels.claude.rb 'muse_prompt="今日は何日？"'`。`"via": "muse"`、`"ask_status": "done"`、`reply`が返る。
+確認は`ruby claude/test/manual/askgk_request.rb claude/api/tunnels.claude.rb 'muse_prompt="最新ニュースを出典付きで表示してください"'`。`"via": "muse"`、`"ask_status": "done"`、`reply`が返る。
 
 ## 問い合わせの振り分け
 

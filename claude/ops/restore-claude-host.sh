@@ -55,6 +55,8 @@ fi
 echo "apache: /lib/conversation-embed.html, /lib/chat/, /lib/t/, /lib/api/chat/* -> 127.0.0.1:8092 (ws: 8091)"
 
 [ "${LIB_RESTORE_NO_START:-}" = 1 ] && exit 0
+# lib-chat.conf sets the route-id cookie with mod_headers, which the demo image does not enable.
+a2enmod headers >/dev/null
 apache2ctl configtest
 # Not apache2ctl: here it hands over to systemctl, which prints "Running in chroot, ignoring
 # command" and exits 0, so Apache stays down or keeps its old configuration.

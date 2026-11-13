@@ -28,6 +28,7 @@
 「libは管理者専用」は保つ。ただし経路の制御と深く関わり、単純には片付かないため、仕様が固まるのを待って機能を止め続けるような厳格な扱いはしない（利用者、2026-11-13）。
 
 - 暫定の例外: チャットの4経路（`/lib/conversation-embed.html`・`/lib/chat/`・`/lib/t/`・`/lib/api/chat/*`）。独自の認証（ログイン画面、HMACのセッション、`frame-ancestors`で埋め込み元を本体Worker・dynamicnekoなどに限定）があり、tree-viewのワーカータブとAIチャットのパネルが使う。`restore-claude-host.sh`の`lib-chat.conf`で入れる。
+- 呼出し元の識別（2026-11-13）: 埋め込みURLの`?via=`（`treeview-worker`・`aichat-panel`の許可リスト、秘密ではない）をApacheがCookie`lib_chat_via`に入れ、以降の要求も含めて`/var/log/apache2/lib-chat-via.log`に`via=…`で記録する。許可リスト外・指定なしは`unknown`。Muse用のキーは使わない（ブラウザが呼ぶ経路で、キーがURL・ログに出るため。利用者の選択）。
 - このコンテナへの反映は未実施（2026-11-13）。Claude Codeからの実行は、公開経路を開ける操作として自動許可の判定で止められた。利用者が`sh ~/lib/claude/ops/restore-claude-host.sh`を実行して反映する。
 - 本体イメージの`apache-demo.conf`には入れていない（別の作業が未コミットで同じファイルを直しているため）。経路の制御の仕様が固まったら、イメージ側と合わせて見直す。
 

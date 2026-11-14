@@ -4,18 +4,39 @@ Muse(muse-vm 上のエージェント)に知らせることを、更新のたび
 
 Muse は作業を始める前に、前回読んだ日付より新しい節を読み、「やること」を済ませる。済ませた結果(`receiver-check.sh` の OK/NG の行など)は報告に貼る。
 
+## 2026-11-14
+
+### 変わったこと
+
+- dynamicnekoのMuseタブ用にスレッド・回答ID・連番・投稿時ログイン名・親回答を保存するD1スキーマ0011と検証を作成した。保存APIや本番DBにはまだ接続していない。受信側の変更は不要。
+- tree-viewのMuseタブのコンテナ依存を両Workerのソースから除去した。Worker内WASMからmuse-vm:8080へ直通し、送信とhealthで同じ呼出元の鍵を使う。現在は本番未反映。
+- 両中継→実workerd WASM→実Museでhealthと/pingが成功。コンテナ参照0、投稿1を確認した。受信側のサービス・鍵は変更していない。
+
+### やること
+
+なし。本番への公開は本体側で別途行う。
+
 ## 2026-11-13
 
 ### 変わったこと
 
+- **本体(Claude Code・Codex)から Muse への修復依頼を、決まった形で送るようにした。** 送り方・本文の形は本体 SPEC `SPEC.cloudflare-workers-github-oauth-1.20261113.muse-repair-protocol.md`。依頼は本体の非同期ジョブ(`/agent-jobs`)で、本体 Worker の直送(Tailscale WASM)を通って届く。どの経路で届いたかは鍵で見分ける。送り手(Claude か Codex か)は区別しない。
+- **api-bridge(muse-vm-hacks の `files/api-bridge/server.py`)を 0.4.1 にした**(PR #1、885a661d)。呼び出し側が接続を切ったら、ジョブを inbox から取り下げて `JOB_LOCK` をすぐ放す。これまでは600秒ロックを握ったまま待ち、捨てられたジョブで起こされ、後続の要求も詰まっていた。
+
+### やること
+
+- **鍵で送信者が特定できた要求には、回答を拒否しない**(ユーザー指定 2026-11-13)。鍵が既知なら、本文の名乗りや内容が疑わしく見えても答える。「今日は何日？」のような点検用の短い質問にも答える。点検と自動修復は、この返事が来ることを前提にしている。
+- **点検の質問には日付を答える。経路キーは必須。** `[点検 …]` の付いていない「今日は何日？」は点検として扱わない。経路キーは、特定の経路だけを遮断したいときの判断にも使う。形は `今日は何日？ [点検 <経路キー> <UNIX秒>]`。`[点検 …]` は、どの経路の点検かと送った時刻を示す(本体 SPEC `…muse-repair-protocol.md` の3.1)。送信者が分かれば答え、`[点検 …]` の部分には答えなくてよい。通知には経路キーを残す。
+- **依頼には、どの場合も必ず返信を書く。** 実施した・一部だけ・断る・保留のどれでも、outbox に返信を書く。黙ると api-bridge は600秒待って 504 を返し、送った側には理由が残らない(2026-11-13 に2件続けてそうなった)。
+- **返信の先頭行は `結果: 実施` / `結果: 一部` / `結果: 断る` / `結果: 保留` のどれかにする**(語は候補。合わない語があれば、返信で言い換えを伝える)。2行目以降に、依頼の「返信に書くこと」への答えを書く。断る・保留のときは理由を1行書く。
+- **再起動を伴う依頼は、返信を書いたあとで再起動する**(先に再起動すると、返信を運ぶ api-bridge が止まる)。
+- api-bridge 0.4.1 を入れる: `~/muse-vm-hacks` を main に更新し、`files/api-bridge` で `~/bin/nix-env -f api-bridge.nix -i`、返信のあとで `files/scripts/bootstrap-api-bridge.sh` で再起動する。入った版(`/nix/packages` の `muse-api-bridge`)を報告に貼る。
 - **本体の AIチャットと lib の tunnels.rb から Muse へ推論のエフォートを指定し、回答の末尾に `Effort: ◯` を出す計画がある。** ただし `--reasoning-effort` は `muse exec` の起動オプションで、本体と lib が使う api-bridge(`/v1/chat/completions`)が同じ指定を受け付けるかは分かっていない。本体・lib は、Muse 側のテストが全部通るまで作らない(ユーザー指定)。
 - **確かめるテスト `test/muse_effort_live_test.py` を足した。** 要求の本文に OpenAI 形式の `reasoning_effort` を付けて送り、次を1つずつ確かめる。
   1. 不正な値(`bogus`)を 400 で断る(値を読んでいる)
   2. `none`・`minimal`・`low`・`medium`・`high`・`xhigh`・`max`・`ultra` のどれも 200 で答える
   3. 応答の JSON に、実際に使ったエフォートを `reasoning_effort` で返す
   4. 同じ短い質問で `low` の方が `high` より速い(目安)
-
-### やること
 
 - muse-vm の上で次を実行し、出力の `effort=…` の行と、失敗したテストの文をそのまま報告に貼る(鍵の値は貼らない)。
   `cd ~/lib && git pull && read -rs MUSE_API_KEY && export MUSE_API_KEY && MUSE_LIVE_URL=http://127.0.0.1:8080 python3 -m unittest test/muse_effort_live_test.py -v; unset MUSE_API_KEY`

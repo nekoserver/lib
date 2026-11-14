@@ -31,6 +31,16 @@ Muse は作業を始める前に、前回読んだ日付より新しい節を読
 - **返信の先頭行は `結果: 実施` / `結果: 一部` / `結果: 断る` / `結果: 保留` のどれかにする**(語は候補。合わない語があれば、返信で言い換えを伝える)。2行目以降に、依頼の「返信に書くこと」への答えを書く。断る・保留のときは理由を1行書く。
 - **再起動を伴う依頼は、返信を書いたあとで再起動する**(先に再起動すると、返信を運ぶ api-bridge が止まる)。
 - api-bridge 0.4.1 を入れる: `~/muse-vm-hacks` を main に更新し、`files/api-bridge` で `~/bin/nix-env -f api-bridge.nix -i`、返信のあとで `files/scripts/bootstrap-api-bridge.sh` で再起動する。入った版(`/nix/packages` の `muse-api-bridge`)を報告に貼る。
+- **本体の AIチャットと lib の tunnels.rb から Muse へ推論のエフォートを指定し、回答の末尾に `Effort: ◯` を出す計画がある。** ただし `--reasoning-effort` は `muse exec` の起動オプションで、本体と lib が使う api-bridge(`/v1/chat/completions`)が同じ指定を受け付けるかは分かっていない。本体・lib は、Muse 側のテストが全部通るまで作らない(ユーザー指定)。
+- **確かめるテスト `test/muse_effort_live_test.py` を足した。** 要求の本文に OpenAI 形式の `reasoning_effort` を付けて送り、次を1つずつ確かめる。
+  1. 不正な値(`bogus`)を 400 で断る(値を読んでいる)
+  2. `none`・`minimal`・`low`・`medium`・`high`・`xhigh`・`max`・`ultra` のどれも 200 で答える
+  3. 応答の JSON に、実際に使ったエフォートを `reasoning_effort` で返す
+  4. 同じ短い質問で `low` の方が `high` より速い(目安)
+
+- muse-vm の上で次を実行し、出力の `effort=…` の行と、失敗したテストの文をそのまま報告に貼る(鍵の値は貼らない)。
+  `cd ~/lib && git pull && read -rs MUSE_API_KEY && export MUSE_API_KEY && MUSE_LIVE_URL=http://127.0.0.1:8080 python3 -m unittest test/muse_effort_live_test.py -v; unset MUSE_API_KEY`
+- 失敗したら、api-bridge(`muse-vm-hacks/files/api-bridge/server.py`)を直して、全部通るまで繰り返す。直し方: 本文の `reasoning_effort` を読み、上の8つ以外は 400 で断り、`muse exec --reasoning-effort <値>` に渡し、応答の JSON に `reasoning_effort` を入れる。省略されたときは今までどおり(既定 `high`)。直した内容と、最後に全部通った出力を報告に貼る。
 
 ## 2026-11-12
 

@@ -30,6 +30,23 @@ IMAGE_SITE = """<VirtualHost *:8443>
     ProxyPass / http://127.0.0.1:8080/ retry=0
 </VirtualHost>
 """
+# The demo image's vhost since 2026-11-14: the tunnels alias moved into an included file
+# (lib-askgk-api.conf, ScriptAliasMatch to askgk.cgi), placed after the catch-all WebSocket rewrite.
+INCLUDE_SITE = """<VirtualHost *:8443>
+    <LocationMatch "^/(?:debug|admin|lib)(?:/|$)">
+        Require all denied
+    </LocationMatch>
+    ProxyRequests Off
+    RewriteEngine On
+    RewriteCond %{REQUEST_URI} !^/lib/api/chat/ws$
+    RewriteCond %{HTTP:Upgrade} =websocket [NC]
+    RewriteRule /(.*) ws://127.0.0.1:8080/$1 [P,L]
+
+    Include /etc/apache2/conf-available/lib-askgk-api.conf
+
+    ProxyPass / http://127.0.0.1:8080/ retry=0
+</VirtualHost>
+"""
 
 
 class RestoreClaudeHostTest(unittest.TestCase):
@@ -100,6 +117,17 @@ class RestoreClaudeHostTest(unittest.TestCase):
         lines = self.site.read_text().splitlines()
         include = lines.index(f'    Include {self.apache}/lib-tunnels.conf')
         self.assertLess(include, next(i for i, line in enumerate(lines) if 'ScriptAliasMatch' in line))
+        self.run_script()
+        self.assertEqual(self.site.read_text().count('lib-tunnels.conf'), 1)
+
+    def test_included_image_alias_comes_after_the_tunnels_include(self):
+        # The image's ScriptAliasMatch is inside lib-askgk-api.conf, so the Include of lib-tunnels.conf
+        # must precede that Include line, not just `ProxyPass /`.
+        self.site.write_text(INCLUDE_SITE)
+        self.assertEqual(self.run_script().returncode, 0)
+        lines = self.site.read_text().splitlines()
+        include = lines.index(f'    Include {self.apache}/lib-tunnels.conf')
+        self.assertLess(include, next(i for i, line in enumerate(lines) if 'lib-askgk-api.conf' in line))
         self.run_script()
         self.assertEqual(self.site.read_text().count('lib-tunnels.conf'), 1)
 

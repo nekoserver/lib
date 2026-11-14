@@ -38,10 +38,10 @@ chmod -R a+rX "$WWW"
 chmod 0600 "$APACHE/lib-secrets.conf"
 sed "s#/etc/apache2/#$APACHE/#; s#/var/www/html/lib/#$WWW/#" "$HERE/apache-lib-tunnels.conf" > "$APACHE/lib-tunnels.conf"
 # The Include must precede `ProxyPass /`, or server.js answers /lib/api/tunnels, and the demo
-# image's `ScriptAliasMatch` to its own tunnels.cgi (the original tunnels.rb): mod_alias takes
-# the first matching alias.
+# image's `ScriptAliasMatch` to its own tunnels.cgi (the original tunnels.rb), or since 2026-11-14 the
+# Include of lib-askgk-api.conf that holds it (askgk.cgi): mod_alias takes the first matching alias.
 if ! grep -q "Include $APACHE/lib-tunnels.conf" "$SITE"; then
-  sed -i "0,/^\( *\)\(ScriptAliasMatch \"^\/lib\/api\/tunnels\|ProxyPass \/ \)/s##\1Include $APACHE/lib-tunnels.conf\n\n&#" "$SITE"
+  sed -i "0,/^\( *\)\(ScriptAliasMatch \"^\/lib\/api\/tunnels\|Include [^ ]*lib-askgk-api\.conf\|ProxyPass \/ \)/s##\1Include $APACHE/lib-tunnels.conf\n\n&#" "$SITE"
   grep -q "Include $APACHE/lib-tunnels.conf" "$SITE" || { echo "No 'ProxyPass /' in $SITE" >&2; exit 1; }
 fi
 echo "apache: /lib/api/tunnels -> $WWW/claude/api/tunnels.claude.rb"

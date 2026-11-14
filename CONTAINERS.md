@@ -1,10 +1,10 @@
 # コンテナの一覧(特殊な仕組み・根拠・設定状況・共通項目)
 
-各リポジトリの Cloudflare Containers を1か所で見比べるための表。値は各リポジトリの main(2026-11-11 時点)から集めた。
+各リポジトリの Cloudflare Containers を1か所で見比べるための表。値は各リポジトリの main(2026-11-11 時点。本体は 2026-11-14 時点)から集めた。
 
 | リポジトリ | main |
 |---|---|
-| nekoserver/cloudflare-workers-github-oauth-1(本体) | `b63153f` |
+| nekoserver/cloudflare-workers-github-oauth-1(本体) | `13e7fe4` |
 | nekoserver/dynamicneko | `83ef48b` |
 | nekoserver/redmine | `ec16806` |
 | nekoserver/musevm | `b624768` |
@@ -16,7 +16,7 @@
 
 | コンテナ | リポジトリ | Dockerfile | ベース | instance_type | イメージの扱い | 固定のずれの検査 | 作り直しのしかた |
 |---|---|---|---|---|---|---|---|
-| demo(DemoContainer) | 本体 | `containers/demo/Dockerfile` | ubuntu:26.04 | standard-1 | ビルド済みを digest で固定 | `containers/demo/image.lock.json` と `src/cf-containers-image-lock.test.ts` | 導入中: GitHub Actions `container-image` が作り直して PR を出す。git・Apache のパッケージは `demo-packages` が `ubuntu:26.04` で作って PR を出す(本体#2567)。それまでは Docker のある環境で手作業 |
+| demo(DemoContainer) | 本体 | `containers/demo/Dockerfile` | ubuntu:26.04 | standard-1 | 本番のデプロイ(Workers Builds の `npx wrangler deploy`)で Dockerfile から作る(2026-11-13 に digest の固定から戻した) | `src/cf-containers-image-lock.test.ts`(`wrangler.toml` の Dockerfile のパスとビルド引数、戻す先の digest の書式) | 本番のデプロイのたびに作る。GitHub Actions は使わない(2026-11-13、本体 `CLAUDE.md` ルール39)。git・Apache のパッケージは別の環境で作ってリポジトリに置く |
 | sandbox-terminal(SandboxTerminal) | dynamicneko | `containers/sandbox-terminal/Dockerfile` | node:24-trixie-slim | 既定(未指定) | ビルド済みを digest で固定 | `containers/sandbox-terminal/image.lock.json` と `test/terminal-image-lock.test.ts` | 導入中: GitHub Actions `container-image` が作り直して PR を出す(dynamicneko#449)。それまでは Docker のある環境で手作業 |
 | RedmineContainer | redmine | `Dockerfile` | ubuntu:26.04(多段) | standard-1 | ビルド済みを digest で固定(本番・プレビュー) | `image.lock.json` と `test/image_lock_test.py` | GitHub Actions `container-image` が作り直して PR を出す(シークレットの設定待ち) |
 | musevm | musevm | `Dockerfile` | debian:trixie-slim | basic | デプロイのたびに Dockerfile からビルド | なし(毎回ビルドするので不要) | デプロイ(`wrangler deploy`)で自動 |
@@ -33,6 +33,7 @@
 | ソースビルドは許可の表にあるものだけ | 本体 | gh・jj を毎回ソースから作り、本番ビルドで約19分使っていた(2026-10-31) | 本体 `CLAUDE.md` ルール44、`src/cf-containers-source-build-allowlist.test.ts` |
 | ビルド成果物を GitHub Releases に保存して使い回す(`REQUIRE_BUILD_ARTIFACTS=1`) | redmine | 同じソースを毎回コンパイルし直していた(2026-10-27) | redmine `BUILD.artifacts.md`、`POLICY.build-artifacts.md`、`AGENTS.md` |
 | ソースをリポジトリに同梱(`vendor/sources`) | redmine | 最新版しか置かない配布元(downloads.apache.org)から固定した版が消える | redmine `sources.lock.json`、`AGENTS.md` コンテナビルドのルール1 |
+| npm の全体設定で、Claude CLI のインストール後の処理(`node install.cjs`)だけを許す(`allow-scripts=@anthropic-ai/claude-code`) | 本体 | 起動後の Claude Code の自動更新(2.1.323→2.1.325)が `--allow-scripts` 無しで `npm install -g` を実行し、npm 12 が処理を止めたため、`claude` の入口が仮のファイルのまま残って動かなくなった(2026-11-14) | 本体 `src/cf-containers-claude-cli.test.ts`、lib `SETTINGS.claude-host.20261102.md` |
 | 外部ツールの挙動を契約テストに書き、版を上げる前にテストを直す | 本体(T3・Codex・Tailscale) | T3 の挙動を推測で直しては外すことを繰り返した(2026-10-28〜31) | 本体 `CLAUDE.md` ルール43、`src/cf-containers-t3-contract.test.ts` |
 | Tailscale を Go のソースからビルド | dynamicneko(本体は公式のビルド済みへ戻した) | エージェントのサンドボックスから配布元に届かなかった(本番には関係ない理由)。次の作り直しで公式のビルド済みへ替える予定 | dynamicneko `CLAUDE.md` コンテナイメージの項3 |
 
@@ -40,15 +41,15 @@
 
 | パッケージ | 本体 demo | dynamicneko | redmine | musevm | musevm-kernel |
 |---|---|---|---|---|---|
-| Node.js | 26.13.0 | node:24(ベースイメージのタグ) | 26.12.1(26.13.1 は #26) | 26.13.1 | — |
-| Apache httpd | 2.4.70(別環境でビルドしたパッケージ) | apt の apache2 | 2.4.71(同梱ソース) | 2.4.71(ソースから) | — |
-| Tailscale | 1.104.5 | 1.104.4(Go のソースから) | 1.104.1 | 1.104.5 | 1.104.5 |
-| cloudflared | 2026.10.7 | 2026.10.6 | 2026.10.1 | 2026.10.7 | — |
-| gh | 2.103.3 | — | 2.103.0 | 2.103.3 | — |
-| Codex CLI | 0.167.1 | — | 0.164.0 | 0.166.0 | — |
-| その他 | git 2.56.0、OpenSSH 10.6p2、Ruby 4.0.9、jj 0.47.1、Claude CLI 2.1.322、T3 0.1.7 | — | Ruby 4.0.9、Passenger 6.2.1、Redmine 7.0.2、OpenSSL 3.5.9 | Wrangler 4.156.2 | カーネル 7.3.4 |
+| Node.js | 26.13.1 | node:24(ベースイメージのタグ) | 26.12.1(26.13.1 は #26) | 26.13.1 | — |
+| Apache httpd | 2.4.71(別環境でビルドしたパッケージ) | apt の apache2 | 2.4.71(同梱ソース) | 2.4.71(ソースから) | — |
+| Tailscale | 1.104.7 | 1.104.4(Go のソースから) | 1.104.1 | 1.104.5 | 1.104.5 |
+| cloudflared | 2026.11.0 | 2026.10.6 | 2026.10.1 | 2026.10.7 | — |
+| gh | 2.104.0 | — | 2.103.0 | 2.103.3 | — |
+| Codex CLI | 0.169.0 | — | 0.164.0 | 0.166.0 | — |
+| その他 | git 2.56.1、OpenSSH 10.6p2、Ruby 4.0.9、jj 0.47.1、Claude CLI 2.1.323、T3 0.1.9 | — | Ruby 4.0.9、Passenger 6.2.1、Redmine 7.0.2、OpenSSL 3.5.9 | Wrangler 4.156.2 | カーネル 7.3.4 |
 
-固定しているコンテナ(本体・dynamicneko・redmine)は、Dockerfile の版と本番のイメージの中身が一致するとは限らない。本番の中身は、固定したイメージを作ったときの版である。本体は D1 の `cf_container_snapshots` に実際の版が記録される。
+固定しているコンテナ(dynamicneko・redmine)は、Dockerfile の版と本番のイメージの中身が一致するとは限らない。本体は 2026-11-13 から本番のデプロイで Dockerfile から作るため、デプロイの後は Dockerfile の版になる。ただし起動後の自動更新(Claude CLI など)で版が進むことがある。本番の中身は、固定したイメージを作ったときの版である。本体は D1 の `cf_container_snapshots` に実際の版が記録される。
 
 ## 4. 共通項目(すべてのコンテナに適用)
 

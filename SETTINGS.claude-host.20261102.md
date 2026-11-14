@@ -56,11 +56,28 @@ Slack /neko askgk
 - 署名ヘッダーの無いPOSTは、CGIに届く前にApacheが403を返す（以前は401）。
 - `/lib`の管理者専用で公開側から止まっている機能（tree-viewのワーカータブ、AIチャットのパネル、Dockerのダッシュボードなど）は[`NOTICE.lib.20261113.lib-admin-only-impact.md`](NOTICE.lib.20261113.lib-admin-only-impact.md)にまとめた。
 
+### デモイメージの変更（2026-11-14確認）
+
+- `/lib/api/tunnels`の別名は、vhostに直接ではなく`Include /etc/apache2/conf-available/lib-askgk-api.conf`の中（`askgk.cgi`、中身は`tunnels.claude.rb`）に移った。`restore-claude-host.sh`はこの`Include`より前に`lib-tunnels.conf`を入れる。`askgk.cgi`は`www-data`から読めない`/etc/lib-tunnels.env`のトークンを使えず、トンネル一覧が`no_api_token`になるため、`lib-secrets.conf`を渡すこちらの別名を使う。`/etc/lib-tunnels.env`のトークンでは一覧が`[]`（起動時のトークンと同じ）。
+- イメージのworkerは`/usr/local/libexec/start-lib-llm-worker`（`/var/www/html/lib/claude/ops/llm_worker_claude.py`、`MUSE_API_KEY`は`/etc/lib-llm.json`）で、Claude版そのもの。復元スクリプトはそのまま使う（`worker already running`）。observerは元の`chat_observer.py`なので、Claude版に入れ替わる。
+- `cf`（1.0.0-beta.31）は`tunnels list --json`を`Unknown argument: json`で拒む。`--json`なしの出力は`result_info: {...}`の1行の後にJSONの配列で、`tunnels.claude.rb`は配列の部分だけを読む。
+
 Claudeの認証`/var/lib/codex-web/.claude/.credentials.json`がイメージに無いときは、rootのログインを複製する（2026-11-13、利用者の判断。Codexと同じく、トークンの更新で片方が切れることがある）。
 
 ```sh
 install -o codex-web -g codex-web -m 0600 /root/.claude/.credentials.json /var/lib/codex-web/.claude/.credentials.json
 ```
+
+### Claude CLIが自動更新の後に動かないとき(2026-11-14)
+
+`claude`が「claude native binary not installed」で動かず、シェルの`find`・`grep`も同じエラーで失敗するときは、Claude Codeの自動更新が途中で失敗している。2026-11-14は、自動更新(2.1.323→2.1.325)が`--allow-scripts`を付けずに`npm install -g`を実行し、npm 12がインストール後の処理(`node install.cjs`)を止めたため、`claude`の入口(`/opt/node22/lib/node_modules/@anthropic-ai/claude-code/bin/claude.exe`)が500バイトの仮のファイルのまま残った(`/root/.claude/.last-update-result.json`の`update_apply_native_binary_missing`、`/root/.npm/_logs`の`install-scripts`の警告で確認)。
+
+```sh
+cd /opt/node22/lib/node_modules/@anthropic-ai/claude-code && node install.cjs   # 入口を本体にする
+npm config set allow-scripts=@anthropic-ai/claude-code --location=user          # 次の自動更新でも処理を許す
+```
+
+本体のdemoのDockerfileは、同じ設定をnpmの全体設定に書く(本体`src/cf-containers-claude-cli.test.ts`)。
 
 ### 前提
 

@@ -116,3 +116,17 @@
 | 署名なしのPOST | 403（Apacheの`Require expr`） |
 
 未確認: Slackからの`/neko askgk`、管理者のプロキシ（:8080）経由のストリーム、museのNDJSON・JSON Text Sequence・WebSocket。
+
+## 追記: デモイメージの変更後の実行（2026-11-14）
+
+イメージの`/lib/api/tunnels`の別名が`lib-askgk-api.conf`の`Include`に移り、`restore-claude-host.sh`の`Include`がその後ろに入ってイメージの`askgk.cgi`が先に一致した。トークンが渡らずトンネル一覧が`no_api_token`、こちらの別名に替えると`cf tunnels list --json`が`Unknown argument: json`になった。テストを先に足して、`Include`の位置と`--json`を直した（手順は`SETTINGS.claude-host.20261102.md`の「デモイメージの変更（2026-11-14確認）」）。hookは`npm ci`で`node_modules`を作り直し、5本とも`hooks: OK`。単体テストはclaude 80件、Ruby 7件が通った。
+
+| 確認 | 結果 |
+|---|---|
+| tunnels API（Apache経由、署名付き）の`claude_prompt`、`codex_prompt`、`muse_prompt`、先頭なし | `done`（`claude-opus-5-5`、`gpt-6.1-sol`、`muse`、先頭なしは`claude-opus-5-5`）。一覧は`nekoroot`（`status=healthy`） |
+| `nemotron_prompt` | `unsupported_engine`（仕様どおり） |
+| SSE、NDJSON、JSON Text Sequence、WebSocket（127.0.0.1:8092・8091へ直接） | claude、codex、museの全12通りで`done`。`nemotron`は400 |
+| observer | ソケットの`watch`とWebSocketの`observe`で`conversation`を受信 |
+| 署名なしのPOST | 403 |
+
+未確認: Slackからの`/neko askgk`、管理者のプロキシ（:8080）経由のストリーム。

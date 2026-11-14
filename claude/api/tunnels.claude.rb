@@ -4,7 +4,8 @@
 #
 # Differences from tunnels.rb (original left untouched for the box host):
 #   - shebang uses PATH ruby (no /home/box/.rbenv here)
-#   - `cf tunnels list --json` (plain output is a table, not JSON)
+#   - `cf tunnels list` output may start with a `result_info:` line before the JSON array
+#     (cf 1.0.0-beta.31 rejects `--json`; older cf printed a table without it)
 #   - connections may be an Integer count instead of an Array
 #   - a message waits up to 300 s for the LLM reply (original: 90 s);
 #     the web server's CGI timeout must exceed this
@@ -65,7 +66,9 @@ module TunnelsLib
       "CLOUDFLARE_ACCOUNT_ID" => ACCOUNT_ID,
       "CLOUDFLARE_API_TOKEN" => token
     )
-    out, status = Open3.capture2e(env, CF, "tunnels", "list", "--json")
+    out, status = Open3.capture2e(env, CF, "tunnels", "list")
+    # cf 1.0.0-beta.31 prints a `result_info: {...}` line before the JSON array.
+    out = out[/^\[.*/m] || out if status.success?
     bad = !status.success? ||
           out.match?(/403|forbidden|unauthorized|authentication/i) ||
           out.strip.empty? || out.strip == "[]"

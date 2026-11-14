@@ -8,19 +8,36 @@ require_relative '../api/tunnels.claude'
 class TunnelsClaudeRbTest < Minitest::Test
   Status = Struct.new(:ok) { def success? = ok }
 
-  def test_token_fetch_requests_json_from_cf
+  # cf 1.0.0-beta.31 (checked 2026-11-14): `--json` is "Unknown argument: json", and the plain
+  # output is a `result_info: {...}` line followed by the JSON array.
+  CF_OUTPUT = "result_info: {\"page\":1,\"per_page\":1000,\"count\":1,\"total_count\":1}\n" \
+              "[\n  {\n    \"id\": \"x\",\n    \"name\": \"nekoroot\",\n    \"status\": \"healthy\"\n  }\n]\n"
+
+  def with_cf_output(out, ok = true)
     calls = []
     env = ENV.to_h
     ENV['CF_CONTAINER_API_TOKEN'] = 'test-token'
     capture = Open3.method(:capture2e)
-    Open3.define_singleton_method(:capture2e) { |*args| calls << args; ['[{"name":"a"}]', Status.new(true)] }
-    raw, auth, = TunnelsLib.fetch_with_token
-    assert_equal '[{"name":"a"}]', raw
-    assert_equal 'api_token', auth
-    assert_equal [TunnelsLib::CF, 'tunnels', 'list', '--json'], calls.first.drop(1)
+    Open3.define_singleton_method(:capture2e) { |*args| calls << args; [out, Status.new(ok)] }
+    [TunnelsLib.fetch_with_token, calls]
   ensure
     Open3.define_singleton_method(:capture2e, capture)
     ENV.replace(env)
+  end
+
+  def test_token_fetch_reads_the_json_array_after_result_info
+    (raw, auth, err), calls = with_cf_output(CF_OUTPUT)
+    assert_nil err
+    assert_equal 'api_token', auth
+    assert_equal [TunnelsLib::CF, 'tunnels', 'list'], calls.first.drop(1)
+    assert_equal [{ 'name' => 'nekoroot', 'id' => 'x', 'status' => 'healthy', 'connections' => { 'count' => 0, 'colos' => [] } }],
+                 TunnelsLib.parse_raw(raw).map { |t| t.slice('name', 'id', 'status', 'connections') }
+  end
+
+  def test_token_fetch_rejects_an_empty_listing_after_result_info
+    (raw, _auth, err), = with_cf_output("result_info: {\"count\":0}\n[]\n")
+    assert_nil raw
+    assert_includes err, '[]'
   end
 
   def test_connections_given_as_a_count_are_kept

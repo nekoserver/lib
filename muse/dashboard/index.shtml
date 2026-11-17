@@ -88,6 +88,11 @@ async function updateReview() {
   <div class="body"><!--#include virtual="status.shtml" --></div>
 </section>
 
+<section class="read" data-frag="tailnet.shtml">
+  <h2>ノードのヘルス（tailnet） <span class="badge read">読み取り</span> <span class="ops"><button type="button" onclick="rerun(this)">再実行</button><a href="tailnet.shtml">開く</a></span></h2>
+  <div class="body"><!--#include virtual="tailnet.shtml" --></div>
+</section>
+
 <section class="read" data-frag="jobs.shtml">
   <h2>ジョブキュー <span class="badge read">読み取り</span> <span class="ops"><button type="button" onclick="rerun(this)">再実行</button><a href="jobs.shtml">開く</a></span></h2>
   <div class="body"><!--#include virtual="jobs.shtml" --></div>

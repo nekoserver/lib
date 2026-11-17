@@ -24,7 +24,7 @@ MUSE = ROOT / 'muse'
 DASHBOARD = MUSE / 'dashboard'
 # SPEC.scripts.md の表にある読み取り用スクリプト。sdk-*.sh などの実行経路(SPEC.md)は、読み取り専用の規則の対象外。
 READ_ONLY_SCRIPTS = ['bridge-jobs.sh', 'git-heads.sh', 'graphs.sh', 'muse-status.sh', 'pkg-versions.sh',
-                     'ports.sh', 'procs.sh', 'recent-jobs.sh', 'vm-info.sh']
+                     'ports.sh', 'procs.sh', 'recent-jobs.sh', 'tailnet-health.sh', 'vm-info.sh']
 SH = shutil.which('dash') or 'sh'
 
 
@@ -47,8 +47,10 @@ class ScriptCase(unittest.TestCase):
         path.write_text(f'#!/bin/sh\necho "{name} $*" >> "{self.calls}"\n{body}\n')
         path.chmod(0o755)
 
-    def run_script(self, name, *args):
+    def run_script(self, name, *args, extra_env=None):
         env = {'PATH': f'{self.bin}:/usr/bin:/bin', 'HOME': str(self.home), 'LANG': 'C.UTF-8'}
+        if extra_env:
+            env.update(extra_env)
         return subprocess.run([SH, str(MUSE / name), *args], capture_output=True, text=True, env=env, timeout=30)
 
     def called(self):
@@ -171,6 +173,109 @@ class MuseStatusTest(ScriptCase):
         self.assertIn('PID: 4242', r.stdout)
         self.assertIn('started: Mon Nov 10 09:00:00 2026', r.stdout)
         self.assertIn('{"status":"ok"}', r.stdout)
+
+
+class TailnetHealthTest(ScriptCase):
+    # SPEC.lib.tailnet-health.shtml (REQ-TH-003〜009、版2で REQ-TH-011〜013)。
+    # LocalAPI の応答の形は前提 P2 の実測に基づく。内容の表示は、配信側が立てる
+    # フラグ MUSE_TAILNET_HEALTH_OK=1 がある場合だけ (REQ-TH-011)。
+    FLAG = {'MUSE_TAILNET_HEALTH_OK': '1'}
+    LOCALAPI_JSON = ('{"Version": "1.104.5", "BackendState": "Running", '
+                     '"TailscaleIPs": ["100.64.0.1", "fd7a:115c:a1e0::1"], '
+                     '"Self": {"HostName": "muse-vm", "DNSName": "muse-vm.example.ts.net.", '
+                     '"Online": true, "PublicKey": "nodekey:SECRETKEY"}}')
+
+    def stub_curl(self, localapi_body):
+        self.stub('curl', f'''case "$*" in
+  *localapi*) {localapi_body} ;;
+  *8090*) printf '{{"status": "ok"}}' ;;
+  *8080*) printf '{{"status": "ok"}}' ;;
+  *) exit 7 ;;
+esac''')
+
+    def test_reports_node_state_ip_and_healths(self):
+        self.stub('pgrep', 'echo 4242')
+        self.stub('ps', 'echo "Mon Nov 10 09:00:00 2026"')
+        self.stub_curl(f"printf '%s' '{self.LOCALAPI_JSON}'")
+        r = self.run_script('tailnet-health.sh', extra_env=self.FLAG)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn('PID: 4242', r.stdout)
+        self.assertIn('started: Mon Nov 10 09:00:00 2026', r.stdout)
+        self.assertIn('state: Running', r.stdout)
+        self.assertIn('version: 1.104.5', r.stdout)
+        self.assertIn('IPv4: 100.64.0.1', r.stdout)
+        self.assertIn('host: muse-vm', r.stdout)
+        self.assertIn('DNS: muse-vm.example.ts.net.', r.stdout)
+        self.assertIn('online: true', r.stdout)
+        self.assertEqual(r.stdout.count('{"status": "ok"}'), 2)
+        self.assertNotIn('SECRETKEY', r.stdout)
+        self.assertNotIn('tailscale ', self.called())
+        self.assertIn('curl -s -m 5 --unix-socket /var/run/tailscale/tailscaled.sock http://local-tailscaled.sock/localapi/v0/status', self.called())
+
+    def test_reports_unavailable_when_localapi_fails(self):
+        self.stub('pgrep', 'echo 4242')
+        self.stub('ps', 'echo "Mon Nov 10 09:00:00 2026"')
+        self.stub_curl('exit 7')
+        r = self.run_script('tailnet-health.sh', extra_env=self.FLAG)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn('(local API unavailable)', r.stdout)
+        self.assertEqual(r.stdout.count('{"status": "ok"}'), 2)
+
+    def test_reports_no_ipv4_when_only_ipv6(self):
+        self.stub('pgrep', 'echo 4242')
+        self.stub('ps', 'echo "Mon Nov 10 09:00:00 2026"')
+        body = ('{"Version": "1.104.5", "BackendState": "Running", '
+                '"TailscaleIPs": ["fd7a:115c:a1e0::1"], '
+                '"Self": {"HostName": "muse-vm", "DNSName": "muse-vm.example.ts.net.", "Online": false}}')
+        self.stub_curl(f"printf '%s' '{body}'")
+        r = self.run_script('tailnet-health.sh', extra_env=self.FLAG)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn('IPv4: (no IPv4)', r.stdout)
+        self.assertIn('online: false', r.stdout)
+
+    def test_reports_missing_daemon_and_dead_endpoints(self):
+        self.stub('pgrep', 'exit 1')
+        self.stub('curl', 'exit 7')
+        r = self.run_script('tailnet-health.sh', extra_env=self.FLAG)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn('not running', r.stdout)
+        self.assertIn('(local API unavailable)', r.stdout)
+        self.assertEqual(r.stdout.count('(no response)'), 2)
+
+    def stub_all_healthy(self):
+        self.stub('pgrep', 'echo 4242')
+        self.stub('ps', 'echo "Mon Nov 10 09:00:00 2026"')
+        self.stub_curl(f"printf '%s' '{self.LOCALAPI_JSON}'")
+
+    def test_denies_without_flag(self):
+        # REQ-TH-011 (AC-TH-005): フラグが無ければ、取得が全部成功する条件でも
+        # 拒否の1行だけで、ノード情報を一切出さず、外部コマンドも呼ばない。
+        self.stub_all_healthy()
+        r = self.run_script('tailnet-health.sh')
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(r.stdout.strip(), '(access denied)')
+        self.assertNotIn('PID', r.stdout)
+        self.assertNotIn('Running', r.stdout)
+        self.assertNotIn('100.64.0.1', r.stdout)
+        self.assertNotIn('{"status"', r.stdout)
+        self.assertEqual(self.called(), '')
+
+    def test_denies_with_wrong_flag_value(self):
+        self.stub_all_healthy()
+        for value in ('0', 'yes', ''):
+            r = self.run_script('tailnet-health.sh', extra_env={'MUSE_TAILNET_HEALTH_OK': value})
+            self.assertEqual(r.returncode, 0, r.stderr)
+            self.assertEqual(r.stdout.strip(), '(access denied)', value)
+            self.assertNotIn('100.64.0.1', r.stdout)
+
+    def test_readme_has_setenvif_sample_with_placeholder(self):
+        # REQ-TH-012 (AC-TH-006): 配信側の設定サンプルが dashboard/README.md にあり、
+        # REMOTE_USER との照合でフラグを立てる形で、ユーザー名はプレースホルダ。
+        readme = (DASHBOARD / 'README.md').read_text(encoding='utf-8')
+        self.assertIn('SetEnvIfExpr', readme)
+        self.assertIn('REMOTE_USER', readme)
+        self.assertIn('MUSE_TAILNET_HEALTH_OK=1', readme)
+        self.assertIn('REGULAR_USER', readme)
 
 
 class PkgVersionsTest(ScriptCase):

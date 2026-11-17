@@ -47,6 +47,7 @@
 | `index.shtml` | ダッシュボード本体。各区画の「再実行」ボタンで断片を fetch し直し、その場でスクリプトを再実行して表示を更新する。「開く」は断片単体の表示（＝実行結果そのもの） |
 | `graphs.shtml` | `../graphs.sh` の HTML 出力を埋め込む断片（グラフ表示） |
 | `status.shtml` | `../muse-status.sh` の出力を埋め込む断片 |
+| `tailnet.shtml` | `../tailnet-health.sh` の出力を埋め込む断片（ノードのヘルス） |
 | `jobs.shtml` | `../bridge-jobs.sh` の出力を埋め込む断片 |
 | `pkgs.shtml` | `../pkg-versions.sh` の出力を埋め込む断片 |
 | `vm.shtml` | `../vm-info.sh` の出力を埋め込む断片 |
@@ -70,6 +71,21 @@
 
 - `ask.cgi` は実際に Muse Code を実行する入口なので、このディレクトリは
   必ず vhost 側の認証・許可リストで制限すること（公開厳禁）
+
+tailnet 区画（`tailnet.shtml`）は、ノードの状態や自身の IP を出すため、
+正規ユーザーにだけ表示する。ファイル単位の制限ではなく、認証で渡る
+`REMOTE_USER` を照合してフラグを立て、スクリプト側が動的に拒否する形にする
+（仕様は SPEC.lib.tailnet-health.shtml の REQ-TH-011〜013）:
+
+```apache
+# REGULAR_USER はプレースホルダ。置く側が正規ユーザー名の実名に置き換える。
+# 実名はこのリポジトリには書かない。置き換えない限りフラグは誰にも立たず、
+# tailnet 区画は全員に (access denied) になる (fail-closed)。
+SetEnvIfExpr "%{REMOTE_USER} == 'REGULAR_USER'" MUSE_TAILNET_HEALTH_OK=1
+```
+
+- この照合が効くのは、このディレクトリに認証が課され、`REMOTE_USER` が
+  渡る場合だけである。認証が無い場所ではフラグは立たず、全員が拒否される
 
 - `#exec` を使うため、`IncludesNoExec` は付けないこと
 - `#exec cmd` の作業ディレクトリは断片ファイルのあるディレクトリになる前提で、

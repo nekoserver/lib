@@ -6,7 +6,7 @@
 
 - **読み取り専用。** 状態を変えるコマンド(`rm`・`kill`・`systemctl`・`git push` など)を使わない。テスト(`test/muse_scripts_test.py`)が検査する。
 - **tailscale CLIを呼ばない。** muse-vmでは、nix経由のCLI呼び出しがデーモンの再起動を起こしうる。状態は `ps`・`pgrep`・`curl` で確かめる。
-- **ネットワークに出ない。** 外へ出るのは、`muse-status.sh` の `http://127.0.0.1:8080/health`(API Bridge)だけ。`git fetch` や「最新版」の取得はしない。
+- **ネットワークに出ない。** 外へ出るのは、loopback と unix ソケットだけ（`muse-status.sh` の `http://127.0.0.1:8080/health`、`tailnet-health.sh` の `http://127.0.0.1:8090/health`・`http://127.0.0.1:8080/health` と tailscaled の LocalAPI ソケット）。`git fetch` や「最新版」の取得はしない。
 - **実行の経路を持たない。** 下の表のスクリプトは実行を伴わない。依頼の受付・承認・実行(`sdk-*`)は [`SPEC.md`](SPEC.md) が定める。muse-monitorも見るだけで、実行はしない。
 - **POSIX sh と `set -u`。** 先頭は `#!/bin/sh`。`dash` で動くこと。
 - **実行権限を持つ。** ダッシュボードのSSIが直接実行するので、gitで `100755` にする(テストが検査する)。
@@ -24,6 +24,7 @@
 | `ports.sh` | `tcp/udp <待ち受けアドレス>`。`ss` が無ければ `ss not found` | 0 | `ss -tuln` |
 | `git-heads.sh` | `<HOMEからの相対パス> [<ブランチ>] <短いハッシュ> <件名> (dirty: <件数>, unpushed: <件数か?>)` | 0 | `~/muse-vm-hacks` と `~/workspace` の下(深さ3まで)の `.git` |
 | `graphs.sh` | 棒グラフのHTML断片(プロセスのメモリ、メモリ・スワップ、ディスク)。幅は0〜100% | 0 | `ps`・`free`・`df` |
+| `tailnet-health.sh` | 環境変数 `MUSE_TAILNET_HEALTH_OK` が `1` でない場合は `(access denied)` の1行だけ（配信側が SetEnvIfExpr で正規ユーザーの場合にだけ立てるフラグ。REQ-TH-011）。`1` の場合は `== tailscaled ==`(PIDと開始時刻、または `not running`)、`== node ==`(LocalAPI から抽出した state・版・自身のIPv4・ホスト名・DNS名・online、取得できなければ `(local API unavailable)`)、`== receiver (:8090) ==` と `== API Bridge ==`(`/health` の本文、または `(no response)`)。仕様は SPEC.lib.tailnet-health.shtml | 0 | `pgrep`・`ps`・`curl`(LocalAPI の unix ソケット、`127.0.0.1:8090`、`127.0.0.1:8080`)・`python3`(応答の抽出) |
 
 ### bridge-jobs のジョブの形
 

@@ -122,6 +122,17 @@ def main():
     digest = hashlib.sha256(instruction.encode("utf-8")).hexdigest()
     now = datetime.datetime.now().astimezone()
     req_id = now.strftime("%Y%m%d-%H%M%S") + "-" + digest[:8]
+    # 送信者: 配信層が認証したログイン状態から取る（SPEC.lib.muse.execution-path REQ-EP-026/027）
+    sender_user = os.environ.get("REMOTE_USER", "").strip()
+    login_at = os.environ.get("MUSE_LOGIN_AT", "").strip()
+    sender_token = None
+    if sender_user and login_at:
+        salt_path = os.path.join(BASE, "sender-salt")
+        if os.path.isfile(salt_path):
+            with open(salt_path, encoding="utf-8") as f:
+                salt = f.read().strip()
+            sender_token = hashlib.sha256(
+                f"{salt}\n{sender_user}\n{login_at}".encode("utf-8")).hexdigest()
     record = {
         "id": req_id,
         "ts": now.isoformat(timespec="seconds"),
@@ -131,6 +142,9 @@ def main():
         "instruction": instruction,
         "instruction_sha256": digest,
         "instruction_len": len(instruction),
+        "sender_user": sender_user or None,
+        "login_at": login_at or None,
+        "sender_token": sender_token,
     }
     os.makedirs(PENDING_DIR, mode=0o700, exist_ok=True)
     fd = os.open(os.path.join(PENDING_DIR, req_id + ".json"),
@@ -138,7 +152,8 @@ def main():
     with os.fdopen(fd, "w", encoding="utf-8") as f:
         json.dump(record, f, ensure_ascii=False, indent=2)
     audit("submitted", id=req_id, profile=profile, workspace=workspace,
-          instruction_sha256=digest, instruction_len=len(instruction))
+          instruction_sha256=digest, instruction_len=len(instruction),
+          sender_user=sender_user or None)
 
     body_html = (
         "<p>受け付けました。<strong>まだ実行されていません。</strong>"

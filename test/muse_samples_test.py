@@ -124,10 +124,12 @@ class ReceiverTest(unittest.TestCase):
             self.assertEqual(body['error'], 'unauthorized')
 
     def test_answers_503_when_the_receiver_has_no_key(self):
-        base = self.start('', {'ok': 'ok.sh'})
+        # 鍵が無い(load_key が None を返す)間は、gated な経路を通さず 503 にする。
+        # 起動自体は拒否しないのが正(2026-11-18 に稼働中実装へ統一。NOTICE.lib.20261118.receiver-gate 参照)
+        base = self.start(None, {'ok': 'ok.sh'})
         status, body = self.get('/monitor/ok', base=base)
         self.assertEqual(status, 503)
-        self.assertEqual(body['error'], 'receiver_key_not_configured')
+        self.assertEqual(body['error'], 'receiver_key_missing')
 
     def test_unknown_missing_or_crafted_sections_are_404_and_run_nothing(self):
         for section in ('nope', 'missing', '../ok', 'ok/extra', '', 'OK'):
@@ -135,24 +137,24 @@ class ReceiverTest(unittest.TestCase):
             self.assertEqual(status, 404, section)
             self.assertEqual(body['error'], 'unknown_section')
 
-    def test_health_shows_a_short_fingerprint_of_the_key_and_never_the_key(self):
+    def test_health_answers_ok_only_without_any_key_material(self):
+        # /health は鍵なしで引ける代わりに、鍵の指紋も値も一切出さない(稼働中実装の形)
         status, body = self.get('/health', key=None)
         self.assertEqual(status, 200)
-        self.assertEqual(body, {'status': 'ok', 'keyFingerprint': receiver.fingerprint(self.KEY)})
-        self.assertEqual(len(body['keyFingerprint']), 8)
+        self.assertEqual(body, {'status': 'ok'})
         self.assertNotIn(self.KEY, json.dumps(body))
 
-    def test_401_shows_the_expected_and_presented_fingerprints_so_a_mismatch_can_be_seen(self):
+    def test_401_is_bare_unauthorized_without_fingerprints(self):
+        # 不一致の 401 は {'error': 'unauthorized'} だけ。どちらの鍵が違うかは応答からは
+        # 分からない(切り分けは NOTICE に記録した設定時の指紋で行う)
         status, body = self.get('/monitor/ok', key='wrong')
         self.assertEqual(status, 401)
-        self.assertEqual(body, {'error': 'unauthorized', 'expectedKeyFingerprint': receiver.fingerprint(self.KEY),
-                                'presentedKeyFingerprint': receiver.fingerprint('wrong')})
-        status, body = self.get('/monitor/ok', key=None)
-        self.assertEqual(body['presentedKeyFingerprint'], None)
+        self.assertEqual(body, {'error': 'unauthorized'})
         self.assertNotIn(self.KEY, json.dumps(body))
 
-    def test_a_bearer_with_surrounding_spaces_still_matches(self):
-        self.assertEqual(self.get('/monitor/ok', key=self.KEY, header=f'Bearer  {self.KEY} ')[0], 200)
+    def test_a_bearer_with_surrounding_spaces_is_rejected(self):
+        # 照合は完全一致のみ。前後の空白や Bearer の後の余分な空白は通さない
+        self.assertEqual(self.get('/monitor/ok', key=self.KEY, header=f'Bearer  {self.KEY} ')[0], 401)
 
     def test_health_needs_no_key_and_other_paths_are_404(self):
         self.assertEqual(self.get('/health', key=None)[0], 200)
@@ -178,20 +180,10 @@ class ReceiverSectionsTest(unittest.TestCase):
         text = (SAMPLES / 'receiver.py').read_text(encoding='utf-8')
         self.assertIn("parser.add_argument('--host', default='0.0.0.0')", text)
 
-    def test_refuses_to_start_without_the_key_file_even_if_the_environment_has_one(self):
-        # 鍵は ~/.config/muse-receiver.env だけから読む。シェルに残った別の TS_API_KEY(例: Tailscale の API キー)は使わない
+    def test_starts_without_the_key_file_with_gated_paths_unavailable_and_ignores_the_shell_env(self):
+        # 鍵ファイルが無くても起動はする(gated な経路が 503 になるだけ)。鍵は
+        # ~/.config/muse-receiver.env だけから読み、シェルの TS_API_KEY は使わない
         with tempfile.TemporaryDirectory() as home:
-            env = dict(os.environ, HOME=home, TS_API_KEY='stray-value-in-shell')
-            r = subprocess.run([sys.executable, str(SAMPLES / 'receiver.py'), '--port', '0'], capture_output=True, text=True, env=env, timeout=10)
-        self.assertNotEqual(r.returncode, 0)
-        self.assertIn('muse-receiver.env', r.stderr)
-        self.assertNotIn('stray-value-in-shell', r.stderr)
-
-    def test_starts_with_the_key_file_and_prints_its_fingerprint_not_the_key(self):
-        with tempfile.TemporaryDirectory() as home:
-            (Path(home) / '.config').mkdir()
-            key_file = Path(home) / '.config' / 'muse-receiver.env'
-            key_file.write_text('TS_API_KEY="file-key"\n')
             env = dict(os.environ, HOME=home, TS_API_KEY='stray-value-in-shell')
             proc = subprocess.Popen([sys.executable, str(SAMPLES / 'receiver.py'), '--host', '127.0.0.1', '--port', '0'],
                                     stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, env=env)
@@ -209,19 +201,45 @@ class ReceiverSectionsTest(unittest.TestCase):
                 proc.communicate()
         out = ''.join(lines)
         self.assertIn('listening', out)
-        self.assertIn(receiver.fingerprint('file-key'), out)
-        self.assertNotIn('file-key', out.replace(receiver.fingerprint('file-key'), ''))
+        self.assertIn('auth: unavailable', out)
         self.assertNotIn('stray-value-in-shell', out)
-        self.assertIn('ignored', out)  # シェルの TS_API_KEY を使わないことを名前だけで知らせる
 
-    def test_load_key_reads_the_last_assignment_and_strips_quotes_spaces_and_crlf(self):
+    def test_starts_with_the_key_file_and_prints_auth_on_not_the_key(self):
+        with tempfile.TemporaryDirectory() as home:
+            (Path(home) / '.config').mkdir()
+            key_file = Path(home) / '.config' / 'muse-receiver.env'
+            key_file.write_text('TS_API_KEY=<redacted>\n')
+            env = dict(os.environ, HOME=home, TS_API_KEY='stray-value-in-shell')
+            proc = subprocess.Popen([sys.executable, str(SAMPLES / 'receiver.py'), '--host', '127.0.0.1', '--port', '0'],
+                                    stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, env=env)
+            timer = threading.Timer(5, proc.kill)  # 待ち受けの行が出ないまま止まらないように
+            timer.start()
+            lines = []
+            try:
+                for line in proc.stdout:
+                    lines.append(line)
+                    if line.startswith('listening'):
+                        break
+            finally:
+                timer.cancel()
+                proc.kill()
+                proc.communicate()
+        out = ''.join(lines)
+        self.assertIn('listening', out)
+        self.assertIn('auth: on', out)
+        self.assertNotIn('file-key', out)
+        self.assertNotIn('stray-value-in-shell', out)
+
+    def test_load_key_reads_the_last_assignment_and_strips_whitespace_only(self):
+        # 行頭が TS_API_KEY= の行だけが対象で、最後の代入が勝つ。空白(CRLF 含む)は
+        # 落とすが、引用符や export は解釈しない(付いていれば値の一部になる)
         with tempfile.TemporaryDirectory() as d:
             path = Path(d) / 'k.env'
             cases = {
                 'TS_API_KEY=abc\n': 'abc',
-                'TS_API_KEY="abc"\r\n': 'abc',
-                "TS_API_KEY='abc'  \n": 'abc',
-                'export TS_API_KEY=abc\n': 'abc',
+                'TS_API_KEY="abc"\r\n': '"abc"',
+                "TS_API_KEY='abc'  \n": "'abc'",
+                'export TS_API_KEY=abc\n': None,
                 '# comment\nTS_API_KEY=old\nTS_API_KEY=new\n': 'new',
                 'TS_API_KEY=\n': None,
                 'OTHER=abc\n': None,

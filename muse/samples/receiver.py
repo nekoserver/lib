@@ -2,9 +2,11 @@
 """receiver.py - muse-monitor が呼ぶ受信側(/monitor/<section>)のサンプル。
 
 契約は nekoserver/muse-monitor の docs/RECEIVER.md:
-- GET /monitor/<section>、Authorization: Bearer <鍵> が必須
-- 鍵は ~/.config/muse-receiver.env の TS_API_KEY だけ(シェルの環境変数 TS_API_KEY は使わない)
-- 鍵が未設定なら 503、ヘッダーが無い・不一致なら 401、未知の section は 404
+- GET /monitor/<section> と GET /queue は Authorization: Bearer <TS_API_KEY> を照合する
+  （SPEC.muse-monitor.security.hardening REQ-SEC-001/002/004/020。2026-11-12 の照合無し指示は
+  2026-11-16 のセキュリティ強化指示で置き換えられた）
+- 鍵は ~/.config/muse-receiver.env の TS_API_KEY から読む。読めなければ gated な経路は 503
+- 未知の section は 404
 - 応答は {"section", "rc", "output", "truncated", "ts"}。output は 64 KiB で切り詰め、60 秒で 504
 - GET /health は認証なしで {"status": "ok"}(muse-monitor が相手を探すときに叩く)
 
@@ -20,7 +22,7 @@ muse-vm に負荷をかけないための制御(契約の外。応答の形は�
 - cache_seconds を過ぎても stale_seconds 秒(既定300)以内の成功結果は、待たせずにすぐ返し、裏で1回だけ取り直す
   (応答の ts は結果を作った時刻なので、古さは ts で分かる)
 - 起動直後に全項目を1回ずつ実行して結果を用意する(最初の要求から待たせない)
-- GET /queue(鍵が必要)で、実行中・待ち・実行中の section を返す
+- GET /queue で、実行中・待ち・実行中の section を返す
 
 項目の追加: --sections に JSON({"section": "スクリプト名"})を渡すと既定に足す。スクリプトは
 このディレクトリの親(lib/muse)の直下のファイル名に限る。
@@ -28,13 +30,11 @@ muse-vm に負荷をかけないための制御(契約の外。応答の形は�
 使い方: python3 receiver.py [--host 0.0.0.0] [--port 8090] [--sections FILE]
         [--max-concurrent 8] [--max-queue 32]
 既定で全アドレス(0.0.0.0)に待ち受ける。127.0.0.1 では tailnet 経由の muse-monitor から接続拒否になる。
-絞るときは --host に tailnet のアドレスを指定する。~/.config/muse-receiver.env に TS_API_KEY が無ければ起動しない。
-起動時に鍵の指紋(sha256 の先頭8桁)を出す。/health と 401 の本文にも指紋を出し、鍵の食い違いを見分けられるようにする。
+絞るときは --host に tailnet のアドレスを指定する。
 """
 import argparse
 from collections import deque
 from datetime import datetime
-import hashlib
 import hmac
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
@@ -64,32 +64,23 @@ MAX_QUEUE = 32
 QUEUE_WAIT_SECONDS = 30
 CACHE_SECONDS = 5
 STALE_SECONDS = 300
-KEY_FILE = Path.home() / '.config' / 'muse-receiver.env'
 SECTION_NAME = re.compile(r'^[a-z][a-z0-9_-]{0,31}$')
 SCRIPT_NAME = re.compile(r'^[A-Za-z0-9_-][A-Za-z0-9._-]{0,63}$')
 
 
-def load_key(path):
-    """鍵ファイルの最後の TS_API_KEY= の値を返す。前後の空白・改行(CRLF)・引用符は除く。無ければ None。"""
+def load_key(env_file):
+    """受信側の鍵(TS_API_KEY)を env ファイルから読む。最後の TS_API_KEY 行が勝つ
+    (receiver-check.sh の読み方に合わせる)。読めない・無い・空なら None。
+    None の間は gated な経路を 503 にする(REQ-SEC-002/020: 鍵なしで通さない)。"""
     try:
-        text = Path(path).read_text(encoding='utf-8')
-    except (FileNotFoundError, PermissionError, IsADirectoryError):
+        value = None
+        with open(env_file, encoding='utf-8') as f:
+            for line in f:
+                if line.startswith('TS_API_KEY='):
+                    value = line[len('TS_API_KEY='):].strip()
+        return value or None
+    except OSError:
         return None
-    value = None
-    for line in text.splitlines():
-        line = line.strip()
-        if line.startswith('export '):
-            line = line[len('export '):].lstrip()
-        if line.startswith('TS_API_KEY='):
-            value = line[len('TS_API_KEY='):].strip()
-            if len(value) >= 2 and value[0] == value[-1] and value[0] in '"\'':
-                value = value[1:-1].strip()
-    return value or None
-
-
-def fingerprint(key):
-    """鍵を比べるための短い指紋(sha256 の先頭8桁)。鍵そのものは出さない。"""
-    return hashlib.sha256(key.encode('utf-8')).hexdigest()[:8] if key else None
 
 
 def load_sections(path):
@@ -251,17 +242,17 @@ def make_handler(key, scripts_dir=SCRIPTS_DIR, sections=None, timeout=TIMEOUT_SE
         def do_GET(self):
             path = self.path.split('?', 1)[0]
             if path == '/health':
-                return self.reply(200, {'status': 'ok', 'keyFingerprint': fingerprint(key)})
+                return self.reply(200, {'status': 'ok'})
             if path != '/queue' and not path.startswith('/monitor/'):
                 return self.reply(404, {'error': 'not_found'})
-            if not key:
-                return self.reply(503, {'error': 'receiver_key_not_configured'})
-            given = self.headers.get('Authorization', '')
-            presented = given[7:].strip() if given.startswith('Bearer ') else ''
-            if not presented or not hmac.compare_digest(presented.encode(), key.encode()):
-                # 鍵が違うときに、どちらの鍵かを指紋で見分けられるようにする(muse-monitor はこの本文を receiver として返す)
-                return self.reply(401, {'error': 'unauthorized', 'expectedKeyFingerprint': fingerprint(key),
-                                        'presentedKeyFingerprint': fingerprint(presented)})
+            # Authorization の照合(REQ-SEC-001/002)。鍵は TS_API_KEY のみで、
+            # TS_AUTHKEY(Tailscale の参加鍵)は受信側の鍵として扱わない(REQ-SEC-004)。
+            if key is None:
+                return self.reply(503, {'error': 'receiver_key_missing'})
+            auth = self.headers.get('Authorization', '')
+            token = auth[len('Bearer '):] if auth.startswith('Bearer ') else ''
+            if not hmac.compare_digest(token, key):
+                return self.reply(401, {'error': 'unauthorized'})
             if path == '/queue':
                 return self.reply(200, runner.snapshot())
             section = path[len('/monitor/'):]
@@ -282,21 +273,17 @@ def main():
     parser.add_argument('--host', default='0.0.0.0')
     parser.add_argument('--port', type=int, default=8090)
     parser.add_argument('--sections', help='JSON {"section": "script name"} added to the defaults')
+    parser.add_argument('--key-env-file', default=str(Path.home() / '.config' / 'muse-receiver.env'),
+                        help='file holding TS_API_KEY (the receiver key); gated paths are 503 while unreadable')
     parser.add_argument('--max-concurrent', type=int, default=MAX_CONCURRENT)
     parser.add_argument('--max-queue', type=int, default=MAX_QUEUE)
     args = parser.parse_args()
-    key = load_key(KEY_FILE)
-    if not key:
-        parser.exit(2, f'receiver.py: no TS_API_KEY in {KEY_FILE}; refusing to start '
-                       '(write TS_API_KEY=<the same value as muse-monitor> there, chmod 600)\n')
-    print(f'key fingerprint: {fingerprint(key)} (from {KEY_FILE})', flush=True)
-    if os.environ.get('TS_API_KEY') and os.environ['TS_API_KEY'] != key:
-        print(f'TS_API_KEY in the environment differs from {KEY_FILE} and is ignored', flush=True)
+    key = load_key(args.key_env_file)
     handler = make_handler(key, sections=load_sections(args.sections),
                            max_concurrent=args.max_concurrent, max_queue=args.max_queue)
     server = ThreadingHTTPServer((args.host, args.port), handler)
     threading.Thread(target=handler.runner.warm, args=(handler.sections, handler.scripts_dir), daemon=True).start()
-    print(f'listening on {args.host}:{args.port}', flush=True)
+    print(f'listening on {args.host}:{args.port} (auth: {"on" if key else "unavailable: gated paths return 503"})', flush=True)
     server.serve_forever()
 
 

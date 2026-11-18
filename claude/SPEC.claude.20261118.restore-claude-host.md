@@ -86,7 +86,7 @@
 | 8445の拒否の表 | 本体SPEC 2026-11-13の拒否（`/lib/.git`・`/lib/ops`・`/lib/test`、`.py`・`.md`など）は入れない。bind mountの後は、管理者の入口から`.git/config`やソースが読める（`../EVAL.lib.20261118.opus-5.5.md`のREQ-DEP-3） |
 | 起動オプションの渡し忘れ | 手で実行し直すとき、`LIB_ROUTE_ACCESS_CONTROL`が未設定だと、警告なしに`lib-chat-route-access.conf`を消す（チャットの経路が403に戻る）。entrypointから呼ばれるときは起動時の環境のまま |
 | Cloudflare Tunnel | cloudflaredの起動・設定はしない（entrypointの担当）。`cfc-tunnel`は意図して停止中で、扱わない |
-| Museの実行権限 | `muse/*.sh`などの実行権限は直さない。2026-11-18から7本が`100644`で、ダッシュボードの「tailnet」が空（同EVALのREQ-MUSE-1） |
+| Museの実行権限 | `muse/`のスクリプトの実行権限は直さない。シェバンのある5本が`100644`で、うち`tailnet-health.sh`は作られたとき（2026-11-18）から実行できず、ダッシュボードの「tailnet」が空（`../EVAL.lib.20261118.opus-5.5.md`のREQ-MUSE-1） |
 | 常駐プロセスの監視 | 起動するだけで、落ちたら戻さない（systemdが無い）。もう一度実行すれば起動する |
 | コンテナの再作成 | 再作成の直後に1回で全部戻ることは、2026-11-18の時点で確かめていない（起動済みのコンテナで実行し直しただけ）。起動時のログ`/tmp/restore-claude-host.log`では、段1〜8が最後まで通っている |
 | 公開URL・本体ワーカーから | Cloudflare経由・本体ワーカー経由の結果は、2026-11-18には確かめていない（コンテナの中から8443・8445へ送っただけ） |

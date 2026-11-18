@@ -17,7 +17,7 @@
 
 未充足は2つ。
 
-1. **Museのスクリプト7本が、gitで実行権限を失っている（REQ-MUSE-1）。** 2026-11-18の2つのコミットで`100755`から`100644`に戻った。その結果、**ダッシュボードの「tailnet」の区画が空になる**（Apacheの`www-data`から`Permission denied`）。テスト2件が落ちて検出している。
+1. **シェバンのあるMuseのスクリプト5本が、gitで`100644`になっている（REQ-MUSE-1）。** 動作に影響するのは`tailnet-health.sh`だけで、2026-11-18に作られたとき（`55a6d3a`）から実行権限が無い。ダッシュボードのSSIが直接実行するため、**「tailnet」の区画が空になる**（Apacheの`www-data`から`Permission denied`）。ほかの4本は`python3`経由で呼ばれるか手で実行するもので、動作への影響は無い。テスト2件が落ちて検出している。
 2. **8445で、リポジトリの管理用のファイルが読める（REQ-DEP-3）。** bind mountになったため、`.git/config`・ソース・`CLAUDE.md`が管理者の入口から200で返る。SPECでは既知の状態（目標、未実現）として扱っている。
 
 | 区分 | 要件の数 | 要件 |
@@ -78,9 +78,19 @@
 
 | 要件 | 結果 | 根拠・確認 |
 |---|---|---|
-| REQ-MUSE-1 | **未充足** | `git ls-files -s muse`で、シェバンのある`muse/hooks.sh`・`muse/samples/receiver.py`・`muse/sdk-ask-cgi.py`・`muse/sdk-auto-approve.py`・`muse/sdk-common.sh`・`muse/sdk-ts-common.sh`・`muse/tailnet-health.sh`が`100644`。原因のコミットは`7fb2b20`（2026-11-18「muse: 送信者検証付き自動承認を upstream へ取り込む」、`sdk-ask-cgi.py`を`100755 => 100644`）と`7399ca0`（同日「receiver: 鍵照合を稼働中実装(muse-vm)に統一…」、`receiver.py`を`100755 => 100644`）。11-11の`8ef26c5`で付けた実行権限が戻っている。**影響を実物で確認した**: 8445の`/lib/muse/dashboard/tailnet.shtml`は空の本文を返し、`www-data`で`../tailnet-health.sh`を実行すると`Permission denied`。同じダッシュボードの`status.shtml`（`muse-status.sh`は`100755`）は正常に出る。テスト`ScriptRulesTest.test_scripts_are_executable_in_git`・`test_every_file_with_a_shebang_is_executable_in_git`が落ちて検出している |
+| REQ-MUSE-1 | **未充足** | `git ls-files -s muse`で、シェバンのある5本が`100644`（下の表）。**影響を実物で確認した**: 8445の`/lib/muse/dashboard/tailnet.shtml`は空の本文を返し、`www-data`で`../tailnet-health.sh`を実行すると`Permission denied`。同じダッシュボードの`status.shtml`（`muse-status.sh`は`100755`）は正常に出る。テスト`ScriptRulesTest.test_scripts_are_executable_in_git`（`tailnet-health.sh`）・`test_every_file_with_a_shebang_is_executable_in_git`（5本）が落ちて検出している。`sdk-common.sh`・`sdk-ts-common.sh`はシェバンが無く`.`で読み込むファイルで、`100644`で正しい |
 | REQ-MUSE-2 | 充足（テスト） | `test/muse_scripts_test.py`の原則の検査（状態を変えるコマンドを使わないなど）は通る。muse-vmの実環境では確かめていない |
 | REQ-MUSE-3 | 未確認 | 受付・承認・実行の経路は今回動かしていない。`muse/SPEC.md`の6章の検証（muse-vm上）に頼る |
+
+REQ-MUSE-1の5本の内訳（2026-11-18、PR #157の初版で「7本が実行権限を失った」と書いたのを訂正）:
+
+| ファイル | 呼ばれ方 | 実行権限が無い影響 | 経緯 |
+|---|---|---|---|
+| `muse/tailnet-health.sh` | `dashboard/tailnet.shtml`のSSIが`#exec cmd="../tailnet-health.sh …"`で直接実行 | **あり。「tailnet」の区画が空** | `55a6d3a`（2026-11-18）で`100644`のまま作られ、一度も動いていない |
+| `muse/samples/receiver.py` | `muse-receiver.service`の`ExecStart=/usr/bin/env python3 …/receiver.py` | なし | `7399ca0`（2026-11-18）で`100755 => 100644`。11-11の`8ef26c5`で付けた権限が戻った |
+| `muse/sdk-ask-cgi.py` | `dashboard/ask.cgi`の`exec python3 ../sdk-ask-cgi.py` | なし | `7fb2b20`（2026-11-18）で`100755 => 100644`。同上 |
+| `muse/hooks.sh` | 呼び出し元なし（手で実行） | `./hooks.sh`で実行できないだけ | `7fb2b20`で`100644`のまま作られた |
+| `muse/sdk-auto-approve.py` | 呼び出し元なし（手で実行） | 同上 | `7fb2b20`で`100644`のまま作られた |
 
 ### 7章: リポジトリの約束
 
@@ -104,7 +114,7 @@
 
 | テスト | 原因 | 区分 |
 |---|---|---|
-| `muse_scripts_test.ScriptRulesTest`の2件 | REQ-MUSE-1（実行権限が外れた） | **コードの失敗** |
+| `muse_scripts_test.ScriptRulesTest`の2件 | REQ-MUSE-1（シェバンのある5本が`100644`。うち`tailnet-health.sh`はダッシュボードに影響） | **コードの失敗** |
 | `muse_scripts_test.GitHeadsTest.test_reports_branch_head_dirty_and_unpushed` | テストは`PATH`を`<偽物>:/usr/bin:/bin`に絞るが、このコンテナの`git`は`/usr/local/bin/git`だけ。`git-heads.sh`を手で実行すると期待どおりの行を出す | 環境の不足 |
 | `hmac_auth_env_test.rb` | minitest 6.0.0では`minitest/mock`が本体から外れている | 環境の不足（gemの版） |
 | `chat_session_cookie_test.mjs`の2件 | `ReferenceError: location is not defined`。2026-11-04のSPEC（`SPEC.lib.20261104.console-stream-adhoc.md`の「実測結果」）に書かれている既知の失敗のまま | 既知の失敗（未修正） |
@@ -119,7 +129,7 @@ REQ-TEST-1は**一部充足**。環境の不足を除いても、コードの失
 
 | 優先 | 内容 | 対応する要件 |
 |---|---|---|
-| 1 | `git update-index --chmod=+x`で7本に実行権限を戻す。muse-vmに配る経路で権限が落ちないかも確かめる。`muse/NOTICE-TO-MUSE.md`に書き足す（CLAUDE.mdの約束） | REQ-MUSE-1、REQ-REPO-2・3 |
+| 1 | `git update-index --chmod=+x`で5本に実行権限を付ける（動作に効くのは`tailnet-health.sh`）。muse-vmに配る経路で権限が落ちないかも確かめる。`muse/NOTICE-TO-MUSE.md`に書き足す（CLAUDE.mdの約束） | REQ-MUSE-1、REQ-REPO-2・3 |
 | 2 | 本体のイメージの`010-lib.conf`に、本体SPEC 2026-11-13の拒否の表（少なくとも`/lib/.git`、`/lib/ops`、`/lib/test`、`.py`・`.rb`・`.md`）を入れる | REQ-DEP-3 |
 | 3 | `restore-claude-host.sh`を手で実行し直すとき、`LIB_ROUTE_ACCESS_CONTROL`の渡し忘れで黙って`off`にならないようにする。例えば、未設定で今のファイルがあるときは警告して止める。設定スイッチは足さない（CLAUDE.mdの約束） | REQ-RST-6 |
 | 4 | `GitHeadsTest`の`PATH`に`git`の実際の場所を加える。`hmac_auth_env_test.rb`は`minitest-mock`を使うか、mockに頼らない形にする | REQ-TEST-1 |

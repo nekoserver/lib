@@ -12,10 +12,13 @@ Muse は作業を始める前に、前回読んだ日付より新しい節を読
 - 起動後の確認送信(経路7 `libhost-askgk-selfcheck`)はApacheを通らないため、この403の間も答えが返っていた。経路7の点検が通っても、経路6が届いているとは限らない。
 - ワーカータブ(経路3)は、Museの鍵を使わない会話の表示で、Museには届かない。今のイメージでは表示できない可能性がある(本体側で確認中)。
 - 影響の一覧は本体 SPEC `SPEC.cloudflare-workers-github-oauth-1.20261112.muse-request-routes.md` の「libへのアクセスの厳格化による影響(2026-11-18)」。受信側・api-bridge・鍵は変えていない。
+- **`lib/muse`のシェバンのある5本に、gitの実行権限(`100755`)を付け直した。** `tailnet-health.sh`は作られたとき(`55a6d3a`)から`100644`で、ダッシュボードの「tailnet」の区画がSSIの`Permission denied`で空だった。`samples/receiver.py`・`sdk-ask-cgi.py`は同日の`7399ca0`・`7fb2b20`で`100644`に戻っていた(どちらも`python3`経由で呼ばれるため、動作への影響は無かった)。`hooks.sh`・`sdk-auto-approve.py`も`100644`で作られていた。中身は変えていない。
 
 ### やること
 
-なし。2026-11-18の間に`[点検 libhost-askgk-selfcheck …]`以外のaskgk経由の要求が届いていなくても、それはこの403のためで、Muse側の不具合ではない。
+1. muse-vmの`~/lib`で`git pull`する。`ls -l muse/tailnet-health.sh muse/samples/receiver.py`が`-rwxr-xr-x`になっていることを確かめる。
+2. `receiver.py`のモードが変わったので、受信側に触れたものとして`systemctl --user restart muse-receiver`のあと`sh muse/samples/receiver-check.sh`を実行し、OK/NGの行を報告に貼る。全部OKになるまで終えない。
+3. 2026-11-18の間に`[点検 libhost-askgk-selfcheck …]`以外のaskgk経由の要求が届いていなくても、それは上の403のためで、Muse側の不具合ではない(対応は不要)。
 
 ## 2026-11-14
 

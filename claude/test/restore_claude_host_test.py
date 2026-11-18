@@ -153,6 +153,18 @@ class RestoreClaudeHostTest(unittest.TestCase):
         self.assertEqual(result.returncode, 0)
         self.assertFalse((self.apache / 'sites-available/010-lib.conf').exists())
 
+    def test_a_bind_mounted_www_is_not_copied_onto_itself(self):
+        # The main image's entrypoint bind-mounts /root/lib on /var/www/html/lib (lib-restore-wait.sh, 2026-11-18).
+        # Copying lib onto the same files fails with "are the same file" and stopped the restore under set -e.
+        lib = SCRIPT.parents[2]
+        before = subprocess.run(['git', '-C', str(lib), 'status', '--porcelain'], capture_output=True, text=True).stdout
+        result = self.run_script(LIB_WWW=str(lib))
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn('is the lib checkout itself', result.stdout)
+        self.assertIn(f'ScriptAlias /lib/api/tunnels {lib}/claude/api/tunnels.claude.rb', (self.apache / 'lib-tunnels.conf').read_text())
+        after = subprocess.run(['git', '-C', str(lib), 'status', '--porcelain'], capture_output=True, text=True).stdout
+        self.assertEqual(after, before)
+
     def test_secrets_are_private_and_prefer_the_explicit_token(self):
         self.run_script(LIB_TUNNELS_CF_TOKEN='cf-explicit')
         secrets = self.apache / 'lib-secrets.conf'

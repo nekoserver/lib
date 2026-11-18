@@ -73,19 +73,22 @@
   必ず vhost 側の認証・許可リストで制限すること（公開厳禁）
 
 tailnet 区画（`tailnet.shtml`）は、ノードの状態や自身の IP を出すため、
-正規ユーザーにだけ表示する。ファイル単位の制限ではなく、認証で渡る
-`REMOTE_USER` を照合してフラグを立て、スクリプト側が動的に拒否する形にする
+正規ユーザーにだけ表示する。ファイル単位の制限ではなく、Worker プロキシ
+経路が認証済みユーザー名を載せる `X-Forwarded-User` ヘッダを照合して
+フラグを立て、スクリプト側が動的に拒否する形にする
 （仕様は SPEC.lib.tailnet-health.shtml の REQ-TH-011〜013）:
 
 ```apache
 # REGULAR_USER はプレースホルダ。置く側が正規ユーザー名の実名に置き換える。
 # 実名はこのリポジトリには書かない。置き換えない限りフラグは誰にも立たず、
 # tailnet 区画は全員に (access denied) になる (fail-closed)。
-SetEnvIfExpr "%{REMOTE_USER} == 'REGULAR_USER'" MUSE_TAILNET_HEALTH_OK=1
+SetEnvIf X-Forwarded-User ^REGULAR_USER$ MUSE_TAILNET_HEALTH_OK=1
 ```
 
-- この照合が効くのは、このディレクトリに認証が課され、`REMOTE_USER` が
-  渡る場合だけである。認証が無い場所ではフラグは立たず、全員が拒否される
+- この照合が効くのは、要求が Worker プロキシ経路を通り、`X-Forwarded-User`
+  が Worker によって認証済みユーザー名で設定される場合だけである
+  （ブラウザ由来の同名ヘッダは Worker が除去する）。ヘッダが無い経路では
+  フラグは立たず、全員が拒否される
 
 - `#exec` を使うため、`IncludesNoExec` は付けないこと
 - `#exec cmd` の作業ディレクトリは断片ファイルのあるディレクトリになる前提で、

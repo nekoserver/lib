@@ -269,13 +269,18 @@ esac''')
             self.assertNotIn('100.64.0.1', r.stdout)
 
     def test_readme_has_setenvif_sample_with_placeholder(self):
-        # REQ-TH-012 (AC-TH-006): 配信側の設定サンプルが dashboard/README.md にあり、
-        # REMOTE_USER との照合でフラグを立てる形で、ユーザー名はプレースホルダ。
+        # REQ-TH-012 (AC-TH-006, 版3): 配信側の設定サンプルが dashboard/README.md にあり、
+        # フラグを立てる SetEnvIf の行が X-Forwarded-User ヘッダを照合対象とし、
+        # ユーザー名はプレースホルダ。判定はフラグを立てる行だけを対象とする
+        # (README の説明文中の語の有無では判定しない)。
         readme = (DASHBOARD / 'README.md').read_text(encoding='utf-8')
-        self.assertIn('SetEnvIfExpr', readme)
-        self.assertIn('REMOTE_USER', readme)
-        self.assertIn('MUSE_TAILNET_HEALTH_OK=1', readme)
-        self.assertIn('REGULAR_USER', readme)
+        flag_lines = [line for line in readme.splitlines()
+                      if 'SetEnvIf' in line and 'MUSE_TAILNET_HEALTH_OK=1' in line]
+        self.assertTrue(flag_lines, 'no SetEnvIf line sets MUSE_TAILNET_HEALTH_OK=1')
+        for line in flag_lines:
+            self.assertIn('X-Forwarded-User', line)
+            self.assertIn('REGULAR_USER', line)
+            self.assertNotIn('REMOTE_USER', line)
 
 
 class PkgVersionsTest(ScriptCase):

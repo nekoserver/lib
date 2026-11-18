@@ -1,0 +1,8 @@
+{
+  "state": "response_received",
+  "http_status": 200,
+  "scope": "proposals_only",
+  "preprint_local_version": "0.1.2",
+  "browser_actions_executed": false,
+  "recorded_at": "2026-11-10T01:33:13.033688+00:00"
+}

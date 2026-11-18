@@ -1,0 +1,133 @@
+{
+  "worker": "cloudflare-workers-github-oauth-1",
+  "deployment": {
+    "id": "5b507c10-2210-4e0b-880e-cc21dbbb0ff3",
+    "created_on": "2026-11-09T22:52:20.586017Z",
+    "versions": [
+      {
+        "version_id": "f873a68a-201b-4d7a-9203-45f03dcded8d",
+        "percentage": 100
+      }
+    ]
+  },
+  "compatibility_date": "2024-11-17",
+  "compatibility_flags": [],
+  "bindings": [
+    {
+      "name": "AICHAT_JOB",
+      "type": "durable_object_namespace",
+      "class_name": "AichatJob"
+    },
+    {
+      "name": "MUSE_API_KEY",
+      "type": "secret_text"
+    },
+    {
+      "name": "MUSE_GADGET_RELAY_URL",
+      "type": "plain_text"
+    },
+    {
+      "name": "MUSE_GADGET_SDK_TOKEN",
+      "type": "secret_text"
+    },
+    {
+      "name": "TAILSCALE_AUTHKEY",
+      "type": "secret_text"
+    },
+    {
+      "name": "TAILSCALE_WASM",
+      "type": "durable_object_namespace",
+      "class_name": "TailscaleWasm"
+    }
+  ],
+  "modules": [
+    {
+      "name": "./0664489571f3b068b6b7ba190cf252b63006459b-msb_bg.wasm",
+      "bytes": 62596,
+      "sha256": "5547a4b1693e4e3da41d4dba5e5e88e4848c846c8ba5044733b2b1fe19c88aa7"
+    },
+    {
+      "name": "./3bab1210fc48d5eb7463e4a840908265f4783623-sha256_bg.wasm",
+      "bytes": 25600,
+      "sha256": "547793e7bcbd1a9ff5c7fe11260f02b48a15701899e5f4e16d229e99ee32ccb1"
+    },
+    {
+      "name": "./3e679476a62039e2e5cad30330f0321106a24f36-blake3_js_bg.wasm",
+      "bytes": 34384,
+      "sha256": "560ff7f4aad22343fdc6995df3145365974552f7ba9891456b83955ed9aa4cdb"
+    },
+    {
+      "name": "./750d853547d86772653a0014db1f5f4d0f2a998f-go-diff.wasm",
+      "bytes": 3152752,
+      "sha256": "ea2f1bf1adda24085caf79997d21147974ea021629d9be444ab1ccc53c2df768"
+    },
+    {
+      "name": "./7da8e722be2cd1673f6c43ac34f41f3a427d2526-ls_bg.wasm",
+      "bytes": 35040,
+      "sha256": "38776c39b5228d313e1b1a69ba683bae939627db2622d3c5a4c685ccdefa444f"
+    },
+    {
+      "name": "./81885cacf1394a560d01a6ed83df032ea0b0f4a8-factor_bg.wasm",
+      "bytes": 21248,
+      "sha256": "c835bd99cd8e2a30a55b24959967e7d90eeb3503b956a8340e87783934007c17"
+    },
+    {
+      "name": "./f14bf243cdf8f55db922af481b1299ce830fe9f6-main.wasm",
+      "bytes": 30627317,
+      "sha256": "d3c564f58abf124b9815c9ad3c141a974142e6c374e3831171e54395f02426ab"
+    },
+    {
+      "name": "worker-entry.js",
+      "bytes": 10362413,
+      "sha256": "91eefa022c2236e6bba1490f5323f03d5aa2449fadb23283b6f234cc4daad2d5"
+    },
+    {
+      "name": "./1c39c10b60df92a8244706f4afd81fdd262755ce-gh_bg.wasm",
+      "bytes": 79179,
+      "sha256": "064fd23cdff6eb3fe993bf6a227fea14e7c06841060f9eda4855b6bb0c453ac3"
+    },
+    {
+      "name": "./94013b6f797bcbfbb37f43e9d7858352561332f2-dig_bg.wasm",
+      "bytes": 55686,
+      "sha256": "9c4422464546fc2710ea767972f24259df30f0d8a03b7b26416f84278b5b2ea6"
+    },
+    {
+      "name": "worker-entry.js.map",
+      "bytes": 12480015,
+      "sha256": "faf69a39b564650b3c5ba6a5c890d9542ad4c49fe14b66984324048d4329c274"
+    }
+  ],
+  "sources": [
+    {
+      "source": "src/durable/tailscaleWasm.ts",
+      "snapshot": "migration/source/tailscaleWasm.ts",
+      "sha256": "bc3e52c97fe72a520d4fac04a62e2d661df854af1f87282cebf43ef30d4c0134"
+    },
+    {
+      "source": "src/utils/wasmTailnetService.ts",
+      "snapshot": "migration/source/wasmTailnetService.ts",
+      "sha256": "eaa4911a76577a065b072959cc0fc3653211c5ff147e0a83dbfeffe2978dd96c"
+    },
+    {
+      "source": "src/utils/wasmMuseBridge.ts",
+      "snapshot": "migration/source/wasmMuseBridge.ts",
+      "sha256": "46e60070cd7d374d2285999b0589a6d4129f805f9ed1356b6b03aa74d889d5c4"
+    },
+    {
+      "source": "src/utils/museAgentJobs.ts",
+      "snapshot": "migration/source/museAgentJobs.ts",
+      "sha256": "3242e352157621af2913bb86daaf836279fc72031ef41c4e244059a934ae13c5"
+    },
+    {
+      "source": "src/utils/museMessages.ts",
+      "snapshot": "migration/source/museMessages.ts",
+      "sha256": "4ee5644c7b08845571a03afcad89630976fd38c742de218c890bd51c66d4e11a"
+    }
+  ],
+  "verification": {
+    "wasm_package": "@ai-ecoverse/wasm-tailscale@1.104.1-13",
+    "wasm_sha256": "d3c564f58abf124b9815c9ad3c141a974142e6c374e3831171e54395f02426ab",
+    "glue_sha256": "0c949f4996f9a89698e4b5c586de32249c3b69b7baadb64d220073cc04acba14",
+    "glue_matches_deployed_source": true
+  }
+}

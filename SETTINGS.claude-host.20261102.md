@@ -191,3 +191,17 @@ Claudeへ添えるのは`sanitize_tunnel`後の名前・ID・状態・接続数�
 - 再起動時の自動実行。cf-containerの`entrypoint.sh`から`restore-claude-host.sh`を呼ぶ必要がある。ただし起動時の環境にはトンネルを読めるトークンが無いため、トークンの扱いを先に決める。
 - `/neko askgk`のWorker側の待ち時間（D1、既定120秒）。300秒待たせるには本番の`/settings`の変更が必要。
 - `codex_prompt=`の扱い（DESIGNメモの方針2・3）。
+
+## 2026-11-10: Muse Code SDK の調査・今後の計画
+
+Muse に CLI / SDK の導入状況、認証、最近の変更、検証結果を問い合わせた。Muse の報告では CLI は `1.4.14 (1.4.14-R7309.1)` が導入済みで、SDK は標準の Python / Node 環境では見つからない。別プロジェクト `muse-code-test` の Docker ビルド時に Python SDK を CLI と同じ版で導入する設計があるが、認証済みのコード実行・本番配備の成功は未確認。
+
+既存の `muse_prompt` は API bridge への転送であり、Muse Code SDK のコード実行経路とは別である。今回、bridge の health・パッケージ一覧・質問への回答はこのホストから確認できた。`MUSE_API_KEY`（bridge 用）と `META_API_KEY`（Muse Code 用）を混同しない。
+
+変更履歴、根拠、追加質問、Muse と協議した実施順序・完了条件は [Muse Code SDK 調査記録](REPORT.lib.20261110.muse-code-sdk.md) を参照。SDK のインストールや本番設定変更は今回実施していない。
+
+利用者指定の共有ページにある `muse serve` / `app-server` 等の比較を踏まえた移行方針は [セッション実行基盤の計画](PLAN.lib.20261110.agent-sessions.md) に記載する。単発成功を最初の到達点とし、その後の常駐セッション管理・イベント・承認・取消を段階的に整える案を Muse と協議した。
+
+追加指定の Tailscale WASM / POST 説明も Muse と協議し、[同計画の通信経路方針](PLAN.lib.20261110.agent-sessions.md#tailscale-wasm-の通信経路を加える方針) に追記した。既存 Worker / DO 実装を初期候補にし、本体 Job 統合経路の実回答確認を先に行う。WASM は通信層として扱い、SDK・認証・取消の代替とはしない。ブラウザ直結は初期対象から外し、結果不明時の自動再送・自動 fallback は行わない計画。
+
+CLI オプション表についても固定版 help と SDK 型を照合し、Muse と協議した。[CLI 設定の適用方針](PLAN.lib.20261110.agent-sessions.md#cli-オプションと-sdk-設定の適用方針) に、起動面ごとの引数差、実効 profile の確認、隔離成立、承認待ち・ログ保持・終了判定を追記。参考表の引数を `serve` / SDK へそのまま流用せず、help 確認と実際の動作検証を分ける。

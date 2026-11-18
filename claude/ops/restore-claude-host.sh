@@ -27,13 +27,19 @@ TOKEN=${LIB_TUNNELS_CF_TOKEN:-${CF_CONTAINER_API_TOKEN:-}}
 [ -n "$SECRET" ] || { echo "Set ORIGIN_HMAC_SECRET" >&2; exit 1; }
 [ -n "$TOKEN" ] || { echo "Set LIB_TUNNELS_CF_TOKEN or CF_CONTAINER_API_TOKEN" >&2; exit 1; }
 
-install -d -m 0755 "$WWW/api" "$WWW/claude/api" "$WWW/ops" "$WWW/chat"
-cp -a "$LIB/api/." "$WWW/api/"
-cp -a "$LIB/claude/api/." "$WWW/claude/api/"
-cp -a "$LIB"/ops/*.py "$WWW/ops/"
-cp -a "$LIB/chat/." "$WWW/chat/"
-cp -a "$LIB/conversation-embed.html" "$WWW/"
-chmod -R a+rX "$WWW"
+# The main image's entrypoint bind-mounts /root/lib on /var/www/html/lib (lib-restore-wait.sh); then the files are
+# already there, and copying lib onto itself fails with "are the same file".
+if [ -d "$WWW" ] && [ "$LIB" -ef "$WWW" ]; then
+  echo "lib: $WWW is the lib checkout itself (bind mount), nothing to copy"
+else
+  install -d -m 0755 "$WWW/api" "$WWW/claude/api" "$WWW/ops" "$WWW/chat"
+  cp -a "$LIB/api/." "$WWW/api/"
+  cp -a "$LIB/claude/api/." "$WWW/claude/api/"
+  cp -a "$LIB"/ops/*.py "$WWW/ops/"
+  cp -a "$LIB/chat/." "$WWW/chat/"
+  cp -a "$LIB/conversation-embed.html" "$WWW/"
+  chmod -R a+rX "$WWW"
+fi
 
 (umask 077
  printf 'SetEnv ORIGIN_HMAC_SECRET "%s"\nSetEnv CF_CONTAINER_API_TOKEN "%s"\n' "$SECRET" "$TOKEN" > "$APACHE/lib-secrets.conf")

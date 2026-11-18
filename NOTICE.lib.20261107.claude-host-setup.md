@@ -130,3 +130,61 @@
 | 署名なしのPOST | 403 |
 
 未確認: Slackからの`/neko askgk`、管理者のプロキシ（:8080）経由のストリーム。
+
+## 追記: コンテナ再起動後の実行（2026-11-18）
+
+再起動後、Apache・worker・observer・ストリームのサーバーが止まっていたため、`restore-claude-host.sh`を実行した（利用者が`!`で実行。Claude Codeの自動許可では、`/etc/apache2`への秘密の書込みとサービスの入れ替えのため拒否された）。前提（`ORIGIN_HMAC_SECRET`、`CF_CONTAINER_API_TOKEN`、`MUSE_API_KEY`、`codex-web`のClaude認証、ネイティブバイナリ）は実行前から揃っていた。hookは`npm ci`で作り直し、5本とも`hooks: OK`。単体テストはclaude 80件、Ruby 7件、`llm_prompt` 17件、`chat_websocket` 13件が通った。
+
+| 確認 | 結果 |
+|---|---|
+| tunnels API（CGIを直接、署名付き）の`claude_prompt`、先頭なし | `done`（`claude-opus-5-5`）。先頭なしはトンネル一覧（`nekoroot`・`term-root`）を根拠に答えた |
+| tunnels APIの`muse_prompt` | 1回目は`llm_timeout`（300秒、Muse側の応答待ち。`muse-vm`はtailnetで`active`）。2回目は`done`（約155秒） |
+| tunnels APIの`codex_prompt` | `codex_execution_failed`。`enable-codex-prompt.sh`は未実行。rootにCodexのログイン（`/root/.codex/auth.json`）が無く、実行しても複製元が無い |
+| `nemotron_prompt` | `unsupported_engine`（仕様どおり） |
+| SSE、NDJSON、JSON Text Sequence、WebSocket（127.0.0.1:8092・8091へ直接） | claude、museの全8通りで`done`（muse 20〜102秒）。codexはSSEで`codex_execution_failed`。`nemotron`はSSEで400、WebSocketで`invalid_request` |
+| observer | SSEとWebSocketの`observe`で`conversation`を受信 |
+| Apache経由（8443）、修正前 | 署名の有無にかかわらず`/lib/api/tunnels`も403。Slackの`/neko askgk`も`HTTP 403`で失敗した（下記） |
+| Apache経由（8443）、修正後 | 署名付きの`claude_prompt`は`done`（約7秒）、`muse_prompt`は`done`（約28秒）。署名なしは403、不正な署名は401（CGI）、`/lib`のほかのパスは403 |
+
+- workerは1件ずつ処理するため、同時に5件送ると、museの300秒の待ちの後ろで、claude・codexの応答も約320秒かかった。点検は1件ずつ送る。
+- トンネル一覧の2本目は`cfc-tunnel`ではなく`term-root`になっていた。
+- **askgkの403**: このイメージのvhostは`<LocationMatch "^/(?:debug|admin|lib)(?:/|$)">`で`/lib`をすべて拒否し、以前のイメージにあった公開側の例外（`lib-askgk-api.conf`、本体SPEC`lib-access-control`の「公開Apacheの例外」）が無くなっていた。Workerの署名付きPOSTはCGIに届く前に403になる。`claude/ops/apache-lib-tunnels.conf`に、`/lib/api/tunnels`だけを署名ヘッダーがあるときに通す`<LocationMatch>`を足した（vhostの拒否の後でIncludeされるため優先される）。テストは`claude/test/apache_lib_tunnels_test.py`（使い捨てのApacheで、修正前に403で失敗することを確かめた）。反映には`restore-claude-host.sh`の再実行が要る（Apacheの設定の変更として、Claude Codeの自動許可では拒否された）。
+- CGIを直接実行する確認（`askgk_request.rb`）はApacheの拒否を通らない。Slackからの経路の確認には、Apache経由の署名付きPOSTを使う。
+
+未確認: Slackからの`/neko askgk`（修正後）、管理者のプロキシ（:8080）経由、`codex_prompt`（Codexのログインが必要）。
+
+### `/lib`のアクセス制限は何のためか、その前はどうだったか
+
+**対象**: 本体のdemoコンテナの公開Apache（:8443、`mygw.nekomaneki.work`、トンネル`nekoroot`）での`/lib`の拒否と、tunnels API（`/lib/api/tunnels`）の例外 — 今回のaskgkの403の背景として、制限を入れた目的と、入れる前の状態を記録する。根拠は本体リポジトリのコミット・SPECと、libのNOTICE（下の「根拠」）。
+
+#### 何のために制限したか（2026-11-11、利用者の判断「管理者だけ」）
+
+- **libには、コンテナの中を見せるページがある。** `/lib`はSSI（`#exec`を含む）とCGIを実行する。`ls_-la.shtml`・`printenv.shtml`・`ip.shtml`・`ps`系などは、コンテナの中でコマンドを実行し、その出力（ファイル一覧、環境、ネットワーク）をそのまま返す。誰でも開けると、コンテナの内部が外から見える。
+- **公開の入口は、何もしなければ全部を素通しにしていた。** 公開のApache（8443）は`/`以下をすべて`server.js`（8080）へ回す。本体のコミット[`1a9e0c62`](https://github.com/nekoserver/cloudflare-workers-github-oauth-1/commit/1a9e0c62)の説明は「拒否しないとトンネル経由で公開されていた」。
+- **そこで、`/lib`を見られる人を、本体ワーカーにログインした管理者に限った。** 同じコミットで、次の2つを同時に入れた。
+  - 公開の8443では`/lib`を拒否する。それまで拒否していた`/debug`・`/admin`（ログや通信の調査用）と同じ扱いにした。vhostの`<LocationMatch "^/(?:debug|admin|lib)(?:/|$)">`の`Require all denied`。
+  - 管理者用の入口を新しく作った。本体ワーカーの`/cf-containers/proxy/lib/...`（ログインと管理者の確認がある）から、`server.js`（8080）を経て、`127.0.0.1:8445`だけで待ち受ける内部のApache（`apache-lib.conf`、`Require local`）へ渡す。
+- 公開の入口とワーカー経由の入口は、同じ`/var/www/html/lib`を見る。違うのは、途中で誰を確かめるかだけである（本体`SPEC.cloudflare-workers-github-oauth-1.20261115.lib-access-via-worker.md`）。
+
+#### 制限する前はどうだったか（〜2026-11-10）
+
+| 経路 | 制限の前 | 制限の後 |
+|---|---|---|
+| `/lib/*.shtml`などのSSI・CGI | 本体のイメージには、そもそも`/lib`のSSIの入口が無かった。8443の`/`以下は`server.js`へ回るだけで、`/lib`を守る設定も無かった | 公開側は403。管理者はワーカー経由（`/cf-containers/proxy/lib/...` → 8445）で見る |
+| `/lib/api/tunnels`（Slackの`/neko askgk`） | `restore-claude-host.sh`（2026-11-02〜）が8443にCGIの別名を入れ、公開側から届いていた。Apacheは何も確かめず、CGIがHMAC署名かIP許可で確かめる。署名なしは401（CGI） | 2026-11-11のコミットには例外が無く、`/lib`の拒否にaskgkも巻き込まれた。2026-11-13に、署名ヘッダーがあるときだけ通す例外がイメージ側に入った。署名なしは403（Apache）、不正な署名は401（CGI） |
+| `/lib/conversation-embed.html`・`/lib/chat/`・`/lib/t/`・`/lib/api/chat/*`（AIチャットのパネル、tree-viewのワーカータブ） | `restore-claude-host.sh`がストリームのサーバー（8091・8092）へ回していた。ログイン・HMACのセッション・`frame-ancestors`で守られていた | 公開側は403になり、パネルに「Forbidden」が出た（2026-11-13）。起動オプション`LIB_ROUTE_ACCESS_CONTROL=1`のときだけ、経路IDのある要求を通す（PR #147、`NOTICE.lib.20261113.lib-admin-only-impact.md`） |
+| `/debug`・`/admin` | 2026-10-27から公開側は拒否（本体[`4fde15d1`](https://github.com/nekoserver/cloudflare-workers-github-oauth-1/commit/4fde15d1)） | 変わらない |
+
+#### 今回（2026-11-18）の403との関係
+
+- 2026-11-13・14のイメージでは、tunnels APIの例外があった（vhostの`^/lib(?:$|/(?!api/tunnels(?:[.]rb)?$))`、のちに`lib-askgk-api.conf`）。本体の`SPEC.cloudflare-workers-github-oauth-1.20261113.lib-access-control.md`は、これを「公開Apacheの例外」として書いている。
+- ところが、この例外は本体のmainの履歴に見当たらない。`containers/demo/apache-demo.conf`の変更は[`1a9e0c62`](https://github.com/nekoserver/cloudflare-workers-github-oauth-1/commit/1a9e0c62)が最後で、`git log --all -S`でも例外の正規表現・`lib-askgk-api.conf`は出てこない（2026-11-18確認）。今回のイメージのvhostはmainと同じで、例外が無い。例外がどこから入っていたか（未コミットの作業ツリーから作ったイメージなど）は未確認。
+- そのため、今回はlib側の`claude/ops/apache-lib-tunnels.conf`に同じ例外を足した。`/lib`のほかのパスの拒否（管理者専用）は変えていない。
+- **根本の対処の提案**: 例外を本体の`containers/demo/apache-demo.conf`（または`lib-askgk-api.conf`をコミットしてDockerfileで置く）に入れ、テストで固定する。イメージを作り直すたびに例外が消える状態を、イメージ側で直す。lib側の例外は、それまでのつなぎになる。
+
+#### 根拠
+
+- 本体のコミット[`1a9e0c62`](https://github.com/nekoserver/cloudflare-workers-github-oauth-1/commit/1a9e0c62)（2026-11-11）「本体コンテナでlibのSSI・CGIを、管理者だけが本体ワーカー経由で見られるようにする」と、その親での`apache-demo.conf`（`/debug`・`/admin`だけを拒否）。
+- 本体`SPEC.cloudflare-workers-github-oauth-1.20261113.lib-access-control.md`（入口ごとの制御、tunnels APIの例外）、`SPEC.cloudflare-workers-github-oauth-1.20261115.lib-access-via-worker.md`（2つの入口）。
+- lib`NOTICE.lib.20261113.lib-admin-only-impact.md`（制限で止まった機能、起動オプションの方針）、このNOTICEの2026-11-13・14の節（署名なしが401から403に変わったこと）。
+- 「制限の前」のSSIの行は、親コミットの`apache-demo.conf`と、[`1a9e0c62`](https://github.com/nekoserver/cloudflare-workers-github-oauth-1/commit/1a9e0c62)で`apache-lib.conf`・`server.js`の`/lib`の中継が新しく足されたことからの判断。2026-11-10以前に、公開側から`/lib/*.shtml`が実際に開けたかは確かめていない。

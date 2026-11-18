@@ -49,6 +49,24 @@ INCLUDE_SITE = """<VirtualHost *:8443>
 """
 
 
+# The demo image's internal vhost (main containers/demo/apache-lib.conf, 2026-11-11..18): 127.0.0.1:8445 only, reached
+# through server.js from the main Worker's proxies. It has no relay of the conversation stream, so tree-view's worker tab
+# got the static embed page and 404 for /lib/api/chat/session (2026-11-18: a blank tab).
+LIB_SITE = """Listen 127.0.0.1:8445
+
+<VirtualHost 127.0.0.1:8445>
+    ServerName localhost
+    DocumentRoot /var/www/html
+    <Directory /var/www/html/lib>
+        Require local
+    </Directory>
+
+    ErrorLog /var/log/apache2/lib-error.log
+    CustomLog /var/log/apache2/lib-access.log common
+</VirtualHost>
+"""
+
+
 class RestoreClaudeHostTest(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -102,6 +120,38 @@ class RestoreClaudeHostTest(unittest.TestCase):
         self.assertEqual(self.run_script().returncode, 0)
         self.assertEqual(self.site.read_text().count('lib-tunnels.conf'), 1)
         self.assertEqual(self.site.read_text().count('lib-chat.conf'), 1)
+
+
+    def test_relays_the_conversation_stream_on_the_internal_vhost(self):
+        lib_site = self.apache / 'sites-available/010-lib.conf'
+        lib_site.write_text(LIB_SITE)
+        self.assertEqual(self.run_script().returncode, 0)
+        lines = lib_site.read_text().splitlines()
+        include = lines.index(f'    Include {self.apache}/lib-internal-chat.conf')
+        self.assertLess(lines.index('<VirtualHost 127.0.0.1:8445>'), include)
+        self.assertLess(include, lines.index('</VirtualHost>'))
+        conf = (self.apache / 'lib-internal-chat.conf').read_text()
+        self.assertIn('ProxyPreserveHost On', conf)
+        self.assertIn('ProxyPass /lib/api/chat/ws ws://127.0.0.1:8091/lib/api/chat/ws', conf)
+        self.assertIn('ProxyPass /lib/api/chat/ http://127.0.0.1:8092/lib/api/chat/', conf)
+        self.assertLess(conf.index('ProxyPass /lib/api/chat/ws '), conf.index('ProxyPass /lib/api/chat/ '))
+        self.run_script()
+        self.assertEqual(lib_site.read_text().count('lib-internal-chat.conf'), 1)
+
+    def test_leaves_an_internal_vhost_that_already_relays_the_stream(self):
+        # The image after nekoserver/cloudflare-workers-github-oauth-1#2660 carries the relay itself.
+        lib_site = self.apache / 'sites-available/010-lib.conf'
+        own = LIB_SITE.replace('    ErrorLog', '    ProxyPass /lib/api/chat/ http://127.0.0.1:8092/lib/api/chat/ retry=0\n    ErrorLog')
+        lib_site.write_text(own)
+        result = self.run_script()
+        self.assertEqual(result.returncode, 0)
+        self.assertEqual(lib_site.read_text(), own)
+        self.assertIn('already relays', result.stdout)
+
+    def test_an_image_without_the_internal_vhost_is_not_an_error(self):
+        result = self.run_script()
+        self.assertEqual(result.returncode, 0)
+        self.assertFalse((self.apache / 'sites-available/010-lib.conf').exists())
 
     def test_secrets_are_private_and_prefer_the_explicit_token(self):
         self.run_script(LIB_TUNNELS_CF_TOKEN='cf-explicit')

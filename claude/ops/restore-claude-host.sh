@@ -5,6 +5,8 @@
 #   2. write /etc/apache2/lib-secrets.conf (0600) from ORIGIN_HMAC_SECRET and the Cloudflare token
 #   3. route /lib/api/tunnels to tunnels.claude.rb, and the AI chat embed page and streams
 #      to the stream servers, instead of server.js; then start or reload Apache and check port 8443
+#      (and on the image's internal vhost 127.0.0.1:8445, relay the conversation stream for tree-view's
+#      worker tab unless the image already does)
 #   4. start the LLM worker, the chat observer and the chat stream servers, replacing the
 #      original worker and observer that the demo image starts on the same sockets
 #   5. restore the main Worker repo's Claude Code hooks (restore-claude-hooks.sh)
@@ -63,6 +65,21 @@ if ! grep -q "Include $APACHE/lib-chat.conf" "$SITE"; then
   grep -q "Include $APACHE/lib-chat.conf" "$SITE" || { echo "No 'RewriteEngine On' in $SITE" >&2; exit 1; }
 fi
 echo "apache: /lib/conversation-embed.html, /lib/chat/, /lib/t/, /lib/api/chat/* -> 127.0.0.1:8092 (ws: 8091)"
+# The demo image's internal vhost (127.0.0.1:8445), where tree-view's worker tab arrives through the main Worker's
+# relay and server.js. Until the image carries the conversation stream relay itself (main repo PR #2660), add it.
+LIB_SITE=$APACHE/sites-available/010-lib.conf
+if [ ! -f "$LIB_SITE" ]; then
+  echo "apache: no internal lib vhost ($LIB_SITE), nothing to relay"
+elif grep -q '^[[:space:]]*ProxyPass /lib/api/chat/ ' "$LIB_SITE"; then
+  echo "apache: the internal lib vhost already relays the conversation stream"
+else
+  cp "$HERE/apache-lib-internal-chat.conf" "$APACHE/lib-internal-chat.conf"
+  if ! grep -q "Include $APACHE/lib-internal-chat.conf" "$LIB_SITE"; then
+    sed -i "0,/^<\/VirtualHost>/s##    Include $APACHE/lib-internal-chat.conf\n&#" "$LIB_SITE"
+    grep -q "Include $APACHE/lib-internal-chat.conf" "$LIB_SITE" || { echo "No '</VirtualHost>' in $LIB_SITE" >&2; exit 1; }
+  fi
+  echo "apache: 127.0.0.1:8445 /lib/api/chat/*, embed page, /lib/chat/, /lib/t/ -> 127.0.0.1:8092 (ws: 8091)"
+fi
 
 [ "${LIB_RESTORE_NO_START:-}" = 1 ] && exit 0
 # lib-chat.conf sets the route-id cookie with mod_headers, which the demo image does not enable.

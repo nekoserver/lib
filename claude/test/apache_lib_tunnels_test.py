@@ -6,6 +6,7 @@ exactly that path through when both headers are present; the CGI then verifies t
 Same exception as the main repo's SPEC lib-access-control (2026-11-13), whose lib-askgk-api.conf the
 demo image no longer ships (2026-11-18: askgk got HTTP 403).
 """
+import http.client
 from pathlib import Path
 import socket
 import subprocess
@@ -39,7 +40,7 @@ class LibTunnelsApacheTest(unittest.TestCase):
         cls.tmp = tempfile.TemporaryDirectory()
         root = Path(cls.tmp.name)
         cgi = root / 'tunnels.cgi'
-        cgi.write_text('#!/bin/sh\nprintf "Content-Type: text/plain\\r\\n\\r\\ncgi"\n')
+        cgi.write_text('#!/bin/sh\ncat >/dev/null\nprintf "Content-Type: text/plain\\r\\n\\r\\ncgi"\n')
         cgi.chmod(0o755)
         (root / 'lib-secrets.conf').write_text('')
         conf = CONF.read_text().replace('/etc/apache2/lib-secrets.conf', str(root / 'lib-secrets.conf')) \
@@ -67,6 +68,14 @@ ServerName localhost
                 break
             except OSError:
                 time.sleep(0.25)
+        # The port opens before mod_cgid's daemon is ready; an early CGI request can come back cut off.
+        for _ in range(40):
+            try:
+                if cls.post(cls, '/lib/api/tunnels') == (200, b'cgi'):
+                    break
+            except (OSError, ValueError, http.client.HTTPException):
+                pass
+            time.sleep(0.25)
 
     @classmethod
     def tearDownClass(cls):

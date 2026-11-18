@@ -4,6 +4,15 @@
 対象: `muse/dashboard/tailnet.shtml` / `muse/tailnet-health.sh`（SPEC.lib.tailnet-health.shtml）
 関連PR: nekoserver/lib#153（照合対象の X-Forwarded-User 切替）
 
+> **注記（2026-11-18 UTC、opus-5.5）**: この NOTICE はもとは #153 のブランチにだけあり（`3724117`、#153 のマージ後に push）、`main` に入っていなかったため、本文を変えずに取り込んだ。その後にわかったことを、ここにまとめる。
+>
+> | 本文の箇所 | 注記 |
+> |---|---|
+> | 1. 原因「リポジトリでは +x 付きで管理されているため、コンテナへ置く過程で失われた」 | **誤り**。`muse/tailnet-health.sh` はリポジトリでも、作られたとき（`55a6d3a`、2026-11-18）から `100644` だった。コンテナへ置く過程で失われたのではない。#158（`56e9aad`）でリポジトリ側を `100755` に直した。`/var/www/html/lib` は `/root/lib` の bind mount なので、リポジトリのモードがそのまま配信に出る |
+> | 1. 対処「他のスクリプトも…一括確認の対象」 | 確認済み。シェバンのある5本（`tailnet-health.sh`・`samples/receiver.py`・`sdk-ask-cgi.py`・`hooks.sh`・`sdk-auto-approve.py`）が `100644` で、#158 でまとめて直した。動作に影響していたのは `tailnet-health.sh` だけ（`EVAL.lib.20261118.opus-5.5.md` の REQ-MUSE-1） |
+> | 2. 対処「`010-lib.conf` の `</VirtualHost>` の前に `SetEnvIf …` を入れ…」 | 2026-11-18 22:19 UTC のコンテナの再起動の後、`/etc/apache2` のどこにもこの行は無い（`grep -r MUSE_TAILNET_HEALTH_OK /etc/apache2` で0件）。手で入れた設定は再起動で消える。そのため、今は正規ユーザーでも `(access denied)` になる。イメージ（本体 `containers/demo/apache-lib.conf`）か復元の手順に入れない限り、毎回入れ直しが要る（未対応） |
+> | 3. 未確定「lib vhost に AddDefaultCharset も無い」 | 今のコンテナの `010-lib.conf` には `AddDefaultCharset utf-8`（16行目）がある。文字化けが直ったかは、プロキシ経由のブラウザでは確かめていない |
+
 2026-11-18 夜から 19 日未明にかけて、本番コンテナ（cf-demo）で tailnet 区画の
 表示を確認した際に発生した事象と、切り分けで確定した原因を記録する。
 いずれも SPEC 版3 が固定している範囲（スクリプトの振る舞いと README

@@ -4,6 +4,19 @@ Muse(muse-vm 上のエージェント)に知らせることを、更新のたび
 
 Muse は作業を始める前に、前回読んだ日付より新しい節を読み、「やること」を済ませる。済ませた結果(`receiver-check.sh` の OK/NG の行など)は報告に貼る。
 
+## 2026-11-18
+
+### 変わったこと
+
+- `/neko askgk muse_prompt=`(経路6 `aichat-askgk-tunnels`)が、Museに届く前に本体コンテナのApacheで`HTTP 403`になっていた。2026-11-11に公開側で`/lib`を拒否した(管理者専用)後、tunnels APIだけを通す例外が新しいイメージから消えていたため。libの`claude/ops/apache-lib-tunnels.conf`に例外を足し、Apache経由の署名付きPOSTで`muse_prompt`が`done`(約28秒)になることを確かめた。その間、Museには要求が届いていない。
+- 起動後の確認送信(経路7 `libhost-askgk-selfcheck`)はApacheを通らないため、この403の間も答えが返っていた。経路7の点検が通っても、経路6が届いているとは限らない。
+- ワーカータブ(経路3)は、Museの鍵を使わない会話の表示で、Museには届かない。今のイメージでは表示できない可能性がある(本体側で確認中)。
+- 影響の一覧は本体 SPEC `SPEC.cloudflare-workers-github-oauth-1.20261112.muse-request-routes.md` の「libへのアクセスの厳格化による影響(2026-11-18)」。受信側・api-bridge・鍵は変えていない。
+
+### やること
+
+なし。2026-11-18の間に`[点検 libhost-askgk-selfcheck …]`以外のaskgk経由の要求が届いていなくても、それはこの403のためで、Muse側の不具合ではない。
+
 ## 2026-11-14
 
 ### 変わったこと

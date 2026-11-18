@@ -10,8 +10,8 @@
 # 仕様: SPEC.lib.tailnet-health.shtml
 set -u
 
-# アクセス制御 (REQ-TH-011): 配信側の Apache が SetEnvIfExpr で REMOTE_USER を
-# 正規ユーザー名と照合して立てたフラグがある場合にだけ表示する。フラグが無い・
+# アクセス制御 (REQ-TH-011): 配信側の Apache が SetEnvIf で X-Forwarded-User
+# ヘッダを正規ユーザー名と照合して立てたフラグがある場合にだけ表示する。フラグが無い・
 # 値が違う・認証されていない場合はすべて拒否で、拒否の1行だけを出す
 # (fail-closed)。設定サンプルは dashboard/README.md の「Apache 側の前提」。
 if [ "${MUSE_TAILNET_HEALTH_OK:-}" != "1" ]; then

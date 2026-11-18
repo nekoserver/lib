@@ -188,3 +188,11 @@
 - 本体`SPEC.cloudflare-workers-github-oauth-1.20261113.lib-access-control.md`（入口ごとの制御、tunnels APIの例外）、`SPEC.cloudflare-workers-github-oauth-1.20261115.lib-access-via-worker.md`（2つの入口）。
 - lib`NOTICE.lib.20261113.lib-admin-only-impact.md`（制限で止まった機能、起動オプションの方針）、このNOTICEの2026-11-13・14の節（署名なしが401から403に変わったこと）。
 - 「制限の前」のSSIの行は、親コミットの`apache-demo.conf`と、[`1a9e0c62`](https://github.com/nekoserver/cloudflare-workers-github-oauth-1/commit/1a9e0c62)で`apache-lib.conf`・`server.js`の`/lib`の中継が新しく足されたことからの判断。2026-11-10以前に、公開側から`/lib/*.shtml`が実際に開けたかは確かめていない。
+
+### tree-viewのワーカータブが真っ白になる（2026-11-18）
+
+- **原因**: ワーカータブは、dynamicneko → 本体の中継（`/api/tree-view/conversation-stream-external/lib/*`）→ `server.js` → 内部Apache 8445を通る。8445（`010-lib.conf`）に会話ストリームの中継が無く、`conversation-embed.html`はストリームのサーバーが作るページではなく静的なファイルのまま返り（CSPのnonce・資産のticketなし）、最初に呼ぶ`/lib/api/chat/session`が404だった。2026-11-13の修正が前提にした中継は、本体の作業ツリーの未コミットの変更のままで、11-13以降のイメージに入っていなかった。
+- **このコンテナでの対処**: 本体PR nekoserver/cloudflare-workers-github-oauth-1#2660 の`containers/demo/apache-lib.conf`を`/etc/apache2/sites-available/010-lib.conf`に置き、`apache2 -t`の後に`apache2 -k graceful`で読み直した。元の設定は、mainの`apache-lib.conf`と同じ。
+- **確かめたこと**: `server.js`（8080）経由で、`conversation-embed.html`がストリームのサーバーのログインのページ（`frame-ancestors`にdynamicnekoを含む）になり、署名付きの観測セッションの発行が200、SSEで`conversation`（40件）を受信した。askgk（8443）の`claude_prompt`も引き続き`done`。
+- **確かめていないこと**: 利用者のブラウザでのワーカータブの表示。本体の中継を通るWebSocket（`server.js`がupgradeを中継しないため、届かない見込み。SSEで表示できる）。
+- **注意**: この置き換えはコンテナを再起動すると消える。本体PR #2660をマージしてイメージを作り直すまでは、再起動のたびに同じ置き換えが要る。

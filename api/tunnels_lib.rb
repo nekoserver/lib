@@ -21,6 +21,7 @@ require "uri"
 require_relative "hmac_auth"
 require_relative "ask_sanbo"
 require_relative "llm_prompt"
+require_relative "conversation_stream"
 
 Encoding.default_external = Encoding::UTF_8
 Encoding.default_internal = nil
@@ -216,6 +217,7 @@ module TunnelsLib
     if raw.nil? || raw.empty?
       return attach_message!({
         "tunnels" => [],
+        "conversation_stream" => ConversationStream.metadata,
         "auth" => "error",
         "fetched_at" => fetched_at,
         "error" => redact(err)
@@ -226,6 +228,7 @@ module TunnelsLib
     if tunnels == :parse_error
       return attach_message!({
         "tunnels" => [],
+        "conversation_stream" => ConversationStream.metadata,
         "auth" => auth.to_s,
         "fetched_at" => fetched_at,
         "error" => "json_parse_error"
@@ -234,6 +237,7 @@ module TunnelsLib
 
     attach_message!({
       "tunnels" => apply_filters(tunnels, filters),
+      "conversation_stream" => ConversationStream.metadata,
       "auth" => auth.to_s,
       "fetched_at" => fetched_at
     }, filters, default_engine: default_engine)

@@ -159,6 +159,13 @@ function dashLayoutChanged() {
   <label><input type="radio" name="libdash_layout" value="compact" onchange="dashLayoutChanged()"<!--#if expr="$LIBDASH_LAYOUT = /compact/" --> checked<!--#endif -->> コンパクト</label>
   <p><button type="button" class="panelbtn" onclick="this.closest('dialog').close()">閉じる</button></p>
 </dialog>
+<script>
+// backdrop（何もないところ）のタップでも閉じる。dialog 自身が
+// クリックの対象になったときだけが backdrop 側のタップ
+document.getElementById('dashpanel').addEventListener('click', function (e) {
+  if (e.target === this) { this.close(); }
+});
+</script>
 <main class="pane-main">
 <!--#if expr="$LIBDASH_LAYOUT = /grid/" --><div class="layout layout-grid">
 <!--#elif expr="$LIBDASH_LAYOUT = /compact/" --><div class="layout layout-compact">

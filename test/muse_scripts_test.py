@@ -660,6 +660,9 @@ class PanelTest(unittest.TestCase):
         self.assertIn('<dialog id="dashpanel">', self.index)
         self.assertNotIn('<nav id="dashpanel">', self.index)
         self.assertIn("getElementById('dashpanel').showModal()", self.index)
+        # backdrop（何もないところ）のタップでも閉じる (REQ-PN-008 版7)
+        self.assertIn("addEventListener('click'", self.index)
+        self.assertIn('if (e.target === this)', self.index)
 
 
 class NoticeToMuseTest(unittest.TestCase):

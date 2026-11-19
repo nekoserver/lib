@@ -23,8 +23,9 @@ ROOT = Path(__file__).parents[1]
 MUSE = ROOT / 'muse'
 DASHBOARD = MUSE / 'dashboard'
 # SPEC.scripts.md の表にある読み取り用スクリプト。sdk-*.sh などの実行経路(SPEC.md)は、読み取り専用の規則の対象外。
-READ_ONLY_SCRIPTS = ['bridge-jobs.sh', 'git-heads.sh', 'graphs.sh', 'muse-status.sh', 'pkg-versions.sh',
-                     'ports.sh', 'procs.sh', 'recent-jobs.sh', 'tailnet-health.sh', 'vm-info.sh']
+READ_ONLY_SCRIPTS = ['boot-state.sh', 'bridge-jobs.sh', 'cron-state.sh', 'git-heads.sh', 'graphs.sh',
+                     'muse-status.sh', 'pkg-versions.sh', 'ports.sh', 'procs.sh', 'recent-jobs.sh',
+                     'tailnet-health.sh', 'vm-info.sh']
 SH = shutil.which('dash') or 'sh'
 
 
@@ -283,6 +284,152 @@ esac''')
             self.assertNotIn('REMOTE_USER', line)
 
 
+class BootStateTest(ScriptCase):
+    # SPEC.lib.dashboard-state.shtml (REQ-DS-001、REQ-BS-001〜005)。
+    # 版の前後は実物の dpkg --compare-versions で判定する (PATH に /usr/bin が入る)。
+    FLAG = {'MUSE_TAILNET_HEALTH_OK': '1'}
+    FIXED_JSON = {'rows': [
+        {'env': 'この VM', 'component': 'APT', 'fixed': '2.8.4ubuntu0.1'},
+        {'env': 'この VM', 'component': 'Node.js (nodesource)', 'fixed': '24.22.3'},
+        {'env': 'この VM', 'component': 'glibc (libc6)', 'fixed': '2.39-0ubuntu8.12（noble-security、出荷済み）'},
+        {'env': 'この VM', 'component': 'Pillow (python3-pil)', 'fixed': '10.2.0-1ubuntu1.5（noble-security、USN-9064-1）'},
+        {'env': 'demo コンテナ', 'component': 'APT', 'fixed': '9.9.9'},
+    ]}
+
+    def stub_dpkg_query(self, versions):
+        cases = '\n'.join(f'  *\" {name}\") printf \'{ver}\' ;;' for name, ver in versions.items())
+        self.stub('dpkg-query', f'''case \"$*\" in
+{cases}
+  *) exit 1 ;;
+esac''')
+
+    def write_fixed(self, data=None):
+        path = self.root / 'status-data.json'
+        path.write_text(json.dumps(data if data is not None else self.FIXED_JSON, ensure_ascii=False),
+                        encoding='utf-8')
+        return {'MUSE_BOOT_STATE_FIXED_JSON': str(path)}
+
+    def env_no_reboot(self):
+        return {'MUSE_BOOT_STATE_REBOOT_REQUIRED': str(self.root / 'no-reboot-required')}
+
+    def test_reports_boot_id_and_applied_packages(self):
+        self.stub_dpkg_query({'apt': '2.8.4ubuntu0.1', 'nodejs': '24.22.3',
+                              'libc6': '2.39-0ubuntu8.12', 'python3-pil': '10.2.0-1ubuntu1.5'})
+        env = {**self.FLAG, **self.write_fixed(), **self.env_no_reboot()}
+        r = self.run_script('boot-state.sh', extra_env=env)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        boot_id = Path('/proc/sys/kernel/random/boot_id').read_text().strip()
+        self.assertIn(boot_id, r.stdout)
+        for ver in ('2.8.4ubuntu0.1', '24.22.3', '2.39-0ubuntu8.12', '10.2.0-1ubuntu1.5'):
+            self.assertIn(ver, r.stdout)
+        self.assertIn('対応済み', r.stdout)
+        self.assertNotIn('>巻き戻り<', r.stdout)
+        self.assertNotIn('再起動が必要', r.stdout)
+
+    def test_reports_rolled_back_package(self):
+        self.stub_dpkg_query({'apt': '2.8.3', 'nodejs': '24.22.3',
+                              'libc6': '2.39-0ubuntu8.12', 'python3-pil': '10.2.0-1ubuntu1.5'})
+        env = {**self.FLAG, **self.write_fixed(), **self.env_no_reboot()}
+        r = self.run_script('boot-state.sh', extra_env=env)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn('>巻き戻り<', r.stdout)
+        self.assertIn('2.8.3', r.stdout)
+
+    def test_no_fixed_data_means_no_judgement(self):
+        self.stub_dpkg_query({'apt': '2.8.3', 'nodejs': '24.22.1-1nodesource1',
+                              'libc6': '2.39-0ubuntu8.9', 'python3-pil': '10.2.0-1ubuntu1.3'})
+        env = {**self.FLAG, 'MUSE_BOOT_STATE_FIXED_JSON': str(self.root / 'missing.json'),
+               **self.env_no_reboot()}
+        r = self.run_script('boot-state.sh', extra_env=env)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn('判定なし', r.stdout)
+        self.assertNotIn('>巻き戻り<', r.stdout)
+        self.assertIn('2.8.3', r.stdout)
+
+    def test_reports_reboot_required_when_file_exists(self):
+        self.stub_dpkg_query({'apt': '2.8.4ubuntu0.1', 'nodejs': '24.22.3',
+                              'libc6': '2.39-0ubuntu8.12', 'python3-pil': '10.2.0-1ubuntu1.5'})
+        marker = self.root / 'reboot-required'
+        marker.write_text('')
+        env = {**self.FLAG, **self.write_fixed(), 'MUSE_BOOT_STATE_REBOOT_REQUIRED': str(marker)}
+        r = self.run_script('boot-state.sh', extra_env=env)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn('再起動が必要', r.stdout)
+
+    def test_reports_not_installed_package(self):
+        self.stub_dpkg_query({'apt': '2.8.4ubuntu0.1', 'nodejs': '24.22.3',
+                              'libc6': '2.39-0ubuntu8.12'})
+        env = {**self.FLAG, **self.write_fixed(), **self.env_no_reboot()}
+        r = self.run_script('boot-state.sh', extra_env=env)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn('(not installed)', r.stdout)
+
+    def test_reports_dpkg_unavailable(self):
+        bindir = self.root / 'bin2'
+        bindir.mkdir()
+        (bindir / 'python3').symlink_to(shutil.which('python3'))
+        env = {**self.FLAG, 'PATH': str(bindir), **self.env_no_reboot()}
+        r = self.run_script('boot-state.sh', extra_env=env)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn('(dpkg unavailable)', r.stdout)
+
+    def test_denies_without_flag(self):
+        # REQ-DS-001 (AC-DS-001): フラグが無ければ拒否の1行だけで、外部コマンドも呼ばない。
+        self.stub_dpkg_query({'apt': '2.8.4ubuntu0.1', 'nodejs': '24.22.3',
+                              'libc6': '2.39-0ubuntu8.12', 'python3-pil': '10.2.0-1ubuntu1.5'})
+        r = self.run_script('boot-state.sh')
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(r.stdout.strip(), '(access denied)')
+        self.assertEqual(self.called(), '')
+
+
+class CronStateTest(ScriptCase):
+    # SPEC.lib.dashboard-state.shtml (REQ-DS-001、REQ-CS-001)。
+    FLAG = {'MUSE_TAILNET_HEALTH_OK': '1'}
+    STATE_REL = 'workspace/goals/musevm-kernel-build-environment/hidden_files'
+
+    def state_dir(self):
+        d = self.home / self.STATE_REL
+        d.mkdir(parents=True, exist_ok=True)
+        return d
+
+    def test_reports_state_files_and_missing_ones(self):
+        d = self.state_dir()
+        f = d / 'vm-auto-update-state.md'
+        f.write_text('# vm-auto-update 状態\n\n## 2026-11-19 10:35 の実行\n34件適用、残件0\n', encoding='utf-8')
+        os.utime(f, (1795050000, 1795050000))
+        r = self.run_script('cron-state.sh', extra_env=self.FLAG)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn('vm-auto-update', r.stdout)
+        self.assertIn('2026-11-19 10:35 の実行', r.stdout)
+        self.assertIn('vuln-watch', r.stdout)
+        self.assertIn('記録なし', r.stdout)
+
+    def test_escapes_state_file_content(self):
+        # REQ-DS-002 (AC-DS-002): 状態ファイル由来の見出しは HTML エスケープして出す。
+        d = self.state_dir()
+        (d / 'vuln-watch-state.md').write_text('## 2026-11-19 <script>alert(1)</script>\n', encoding='utf-8')
+        r = self.run_script('cron-state.sh', extra_env=self.FLAG)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn('&lt;script&gt;', r.stdout)
+        self.assertNotIn('<script>alert', r.stdout)
+
+    def test_empty_state_file(self):
+        d = self.state_dir()
+        (d / 'vm-auto-update-state.md').write_text('', encoding='utf-8')
+        r = self.run_script('cron-state.sh', extra_env=self.FLAG)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn('(empty)', r.stdout)
+
+    def test_denies_without_flag(self):
+        d = self.state_dir()
+        (d / 'vm-auto-update-state.md').write_text('## 2026-11-19 10:35 の実行\n', encoding='utf-8')
+        r = self.run_script('cron-state.sh')
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(r.stdout.strip(), '(access denied)')
+        self.assertNotIn('2026-11-19', r.stdout)
+
+
 class PkgVersionsTest(ScriptCase):
     def test_reads_nix_manifest_and_selected_deb_versions(self):
         profile = self.home / '.nix-profile'
@@ -399,6 +546,11 @@ class DashboardTest(unittest.TestCase):
                 used.add(cls.script_of(cmd).removeprefix('../'))
         return sorted(used)
 
+    # 完成した HTML を出すスクリプトの一覧 (SPEC.lib.dashboard-state.shtml REQ-DS-002)。
+    # これらは断片側の sed エスケープを通さず、動的な値のエスケープはスクリプト側が
+    # 行う (graphs.sh の方式。エスケープ自体は各スクリプトのテストで検査する)。
+    HTML_SCRIPTS = {'../graphs.sh', '../boot-state.sh', '../cron-state.sh'}
+
     def test_each_fragment_runs_an_existing_script_and_escapes_its_output(self):
         fragments = sorted(p for p in DASHBOARD.glob('*.shtml') if p.name != 'index.shtml')
         self.assertTrue(fragments)
@@ -408,7 +560,7 @@ class DashboardTest(unittest.TestCase):
             script = self.script_of(cmds[0])
             self.assertTrue(script.startswith('../'), frag.name)
             self.assertTrue((DASHBOARD / script).resolve().is_file(), f'{frag.name} -> {script}')
-            if script != '../graphs.sh':
+            if script not in self.HTML_SCRIPTS:
                 for needle in ("s/&/\\&amp;/g", "s/</\\&lt;/g", "s/>/\\&gt;/g", "s/$/<br>/"):
                     self.assertIn(needle, cmds[0], frag.name)
 

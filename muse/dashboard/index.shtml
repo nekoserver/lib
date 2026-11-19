@@ -22,6 +22,14 @@
   .ops button { background: #2a2a2a; color: #ddd; border: 1px solid #555;
                 border-radius: 4px; padding: .1em .6em; cursor: pointer; }
   .ops a { color: #8ab; margin-left: .6em; }
+  .kv { border-collapse: collapse; }
+  .kv th { text-align: left; font-weight: normal; color: #aaa; padding: .15em 1em .15em 0;
+           white-space: nowrap; vertical-align: top; }
+  .kv td { padding: .15em .6em .15em 0; }
+  .st { font-size: .78em; border-radius: 3px; padding: .08em .5em; white-space: nowrap; }
+  .st.ok { background: #2e7d32; color: #fff; }
+  .st.ng { background: #b71c1c; color: #fff; }
+  .st.na { background: #444; color: #ccc; }
   .grow { display: flex; align-items: center; gap: .5em; margin: .15em 0; }
   .glabel { width: 9em; text-align: right; font-family: monospace;
             font-size: .85em; overflow: hidden; white-space: nowrap; }
@@ -93,6 +101,11 @@ async function updateReview() {
   <div class="body"><!--#include virtual="tailnet.shtml" --></div>
 </section>
 
+<section class="read" data-frag="boot.shtml">
+  <h2>再起動と巻き戻り <span class="badge read">読み取り</span> <span class="ops"><button type="button" onclick="rerun(this)">再実行</button><a href="boot.shtml">開く</a></span></h2>
+  <div class="body"><!--#include virtual="boot.shtml" --></div>
+</section>
+
 <section class="read" data-frag="jobs.shtml">
   <h2>ジョブキュー <span class="badge read">読み取り</span> <span class="ops"><button type="button" onclick="rerun(this)">再実行</button><a href="jobs.shtml">開く</a></span></h2>
   <div class="body"><!--#include virtual="jobs.shtml" --></div>
@@ -137,6 +150,16 @@ async function updateReview() {
 <section class="read" data-frag="execlog.shtml">
   <h2>実行監査ログ <span class="badge read">読み取り</span> <span class="ops"><button type="button" onclick="rerun(this)">再実行</button><a href="execlog.shtml">開く</a></span></h2>
   <div class="body"><!--#include virtual="execlog.shtml" --></div>
+</section>
+
+<section class="read" data-frag="cron.shtml">
+  <h2>定期実行の状態 <span class="badge read">読み取り</span> <span class="ops"><button type="button" onclick="rerun(this)">再実行</button><a href="cron.shtml">開く</a></span></h2>
+  <div class="body"><!--#include virtual="cron.shtml" --></div>
+</section>
+
+<section class="read" data-frag="hooks.shtml">
+  <h2>フックの状態 <span class="badge read">読み取り</span> <span class="ops"><button type="button" onclick="rerun(this)">再実行</button><a href="hooks.shtml">開く</a></span></h2>
+  <div class="body"><!--#include virtual="hooks.shtml" --></div>
 </section>
 
 <section class="read" data-frag="pending.shtml">

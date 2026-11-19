@@ -48,6 +48,9 @@
 | `graphs.shtml` | `../graphs.sh` の HTML 出力を埋め込む断片（グラフ表示） |
 | `status.shtml` | `../muse-status.sh` の出力を埋め込む断片 |
 | `tailnet.shtml` | `../tailnet-health.sh` の出力を埋め込む断片（ノードのヘルス） |
+| `boot.shtml` | `../boot-state.sh` の HTML 出力を埋め込む断片（再起動と巻き戻り） |
+| `cron.shtml` | `../cron-state.sh` の HTML 出力を埋め込む断片（定期実行の状態） |
+| `hooks.shtml` | `../hooks.sh` の出力を埋め込む断片（フックの状態） |
 | `jobs.shtml` | `../bridge-jobs.sh` の出力を埋め込む断片 |
 | `pkgs.shtml` | `../pkg-versions.sh` の出力を埋め込む断片 |
 | `vm.shtml` | `../vm-info.sh` の出力を埋め込む断片 |
@@ -84,6 +87,10 @@ tailnet 区画（`tailnet.shtml`）は、ノードの状態や自身の IP を�
 # tailnet 区画は全員に (access denied) になる (fail-closed)。
 SetEnvIf X-Forwarded-User ^REGULAR_USER$ MUSE_TAILNET_HEALTH_OK=1
 ```
+
+このフラグは vhost 全体に立つため、同じフラグで `boot.shtml`（再起動と
+巻き戻り）と `cron.shtml`（定期実行の状態）の区画も正規ユーザーにだけ
+表示する（仕様は SPEC.lib.dashboard-state.shtml の REQ-DS-001）。
 
 - この照合が効くのは、要求が Worker プロキシ経路を通り、`X-Forwarded-User`
   が Worker によって認証済みユーザー名で設定される場合だけである

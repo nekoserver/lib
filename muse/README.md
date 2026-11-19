@@ -15,8 +15,10 @@ Muse（muse-vm 上のエージェント）が日常の確認作業で使うシ�
 | `git-heads.sh` | ローカルの git リポジトリの状態（ブランチ、先頭、未コミット変更数、未 push 数。ネットワークには出ない） |
 | `recent-jobs.sh` | bridge-jobs の直近の完了ジョブ |
 | `graphs.sh` | プロセスのメモリ使用量、メモリ／スワップ、ディスクの棒グラフを HTML 断片で出力（SSI から直接呼ばれる前提で、完成した HTML を出す） |
+| `boot-state.sh` | 再起動と巻き戻り。boot_id、起動日時、稼働時間、再起動要求の有無と、対象4件（apt、nodejs、libc6、python3-pil）の実測版を HTML 断片で出力。status-data.json が読める環境では fixed と比べて巻き戻り判定のチップも付ける。フラグ `MUSE_TAILNET_HEALTH_OK` が無いと `(access denied)` だけを出す。仕様は SPEC.lib.dashboard-state.shtml |
+| `cron-state.sh` | 定期実行の状態。状態ファイルを持つ定期実行（vm-auto-update、vuln-watch）の最終更新と直近の見出しを HTML 断片で出力。フラグ `MUSE_TAILNET_HEALTH_OK` が無いと `(access denied)` だけを出す。仕様は SPEC.lib.dashboard-state.shtml |
 
-前提: POSIX sh、python3（`bridge-jobs.sh` と `pkg-versions.sh`、`tailnet-health.sh` の JSON 読み取り用）、curl（`muse-status.sh` と `tailnet-health.sh` の health 確認用）。
+前提: POSIX sh、python3（`bridge-jobs.sh` と `pkg-versions.sh`、`tailnet-health.sh` の JSON 読み取り用、`boot-state.sh` と `cron-state.sh` の抽出と整形用）、curl（`muse-status.sh` と `tailnet-health.sh` の health 確認用）。
 
 ## Muse Code SDK 連携
 

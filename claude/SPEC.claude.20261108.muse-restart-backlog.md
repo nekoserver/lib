@@ -2,6 +2,9 @@
 
 作成日: 2026-11-08
 状態: 案。利用者の承認待ち（6章）。実装は承認の後。
+改訂: 2026-11-19、opus-5.5（Claude Opus 5.5、Claude Code）。案の中身は変えず、要件の番号（`REQ-MRB-…`）と、今の状態（7章）を足した
+評価: [`EVAL.claude.20261108.muse-restart-backlog.opus-5.5.20261119.md`](EVAL.claude.20261108.muse-restart-backlog.opus-5.5.20261119.md)
+定期的な見直し: このSPECは[`../SPEC.lib.20261119.spec-eval-refresh.md`](../SPEC.lib.20261119.spec-eval-refresh.md)の手順で、定期的に実情に合わせて改訂し、評価し直す
 
 関連: D1`agent-inquiries`の議題`muse-restart-backlog-20261108`（Codexの案`e3`、Museの案`e4`）、`muse-vm-reboots-20261108`の提案`mvr-p2`（接続に失敗したら1回だけ送り直す）、本体側の順番待ち`~/.claude/tools/muse-queue.py`。
 
@@ -53,3 +56,30 @@ muse-vmの変更なので、利用者の承認の後に行う。
 | 利用者がいないときの通知先 | 未定（Slackの`/neko`の流れに載せるかなど） |
 | Muse側の口（起動ID・重複の排除）を作ってよいか | 本体側の後、別に承認を得る |
 | `mvr-p2`の扱い | この議題に統合して不採用にする |
+
+## 7. 2026-11-19の現状
+
+**対象**: 案が承認・実装されたか、案の前提が変わったか。
+
+| 項目 | 状態 | 根拠 |
+|---|---|---|
+| 利用者の承認 | 記録が見つからない（承認待ちのまま） | libのコミット・文書に、この案の承認や実装の記録が無い（`git log --all --grep=restart-backlog`は案を足した`15378ae`だけ） |
+| `muse-queue.py`の固定ID・状態・復旧待ち | 未実装。今の`muse-queue.py`は、workerのジョブが`pending`・`running`かでMuseの忙しさを見て、順番待ちのファイルを送るだけ | `claude/ops/agent-tools/muse-queue.py`（11-08から変更なし） |
+| `inquiry.py`の積み直し | 未実装（`muse_connection_failed`で順番待ちへ積み直す処理が無い） | `claude/ops/agent-tools/inquiry.py` |
+| 前提の変化 | libのworkerが、muse-vmに届かないとき10秒で`muse_connection_failed`を返すようになった（2026-11-12、`e35b8ef`）。「届かなかった」と「処理されたが応答が消えた」を分けられない点（1章）は変わっていない。順番待ちのファイルの置き場所（`~/.claude/tools/muse-queue`）は、このコンテナには無い | `claude/ops/llm_worker_claude.py`、`ls ~/.claude/tools` |
+
+## 要件の番号（2026-11-19に付与。承認されたときの受け入れの条件）
+
+| 番号 | 要件 | 本書の章 |
+|---|---|---|
+| REQ-MRB-1 | 滞留分は本体側の順番待ちに一本化し、workerで接続に失敗したものは`inquiry.py`が本文ごと積み直す | 2・4 |
+| REQ-MRB-2 | 復旧した時点の滞留分を確定し、古い順に1件ずつ送る。新しい問い合わせはその後ろ | 2 |
+| REQ-MRB-3 | 問い合わせごとに固定IDを付け、状態（待機・送信中・成功・失敗・要確認）をファイルに残す | 2・4 |
+| REQ-MRB-4 | 応答が分からないものは自動で送り直さず「要確認」にする | 2・5 |
+| REQ-MRB-5 | 片付いたら1回だけ、件数と内訳・所要時間・失敗のIDと理由を知らせる | 2 |
+
+## 改訂の記録
+
+| 日付 | モデル | 箇所 | 内容 | 根拠 |
+|---|---|---|---|---|
+| 2026-11-19 | opus-5.5 | 冒頭・7章・要件の番号 | 今の状態と要件の番号を追加。1〜6章（案）は変えていない | 7章の表 |

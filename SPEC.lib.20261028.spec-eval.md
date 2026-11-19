@@ -1,5 +1,10 @@
 # 既存Codex会話を使ったtree-viewのEVAL作成
 
+作成日: 2026-10-28（コミット`a9c62d5`）
+改訂: 2026-11-19、opus-5.5（Claude Opus 5.5、Claude Code）。要件の番号（`REQ-SE-…`）と、今の稼働の状態（末尾の「2026-11-19の現状」）を足した。経路・保存の仕様は変えていない
+評価: [`EVAL.lib.20261028.spec-eval.opus-5.5.20261119.md`](EVAL.lib.20261028.spec-eval.opus-5.5.20261119.md)
+定期的な見直し: このSPECは[`SPEC.lib.20261119.spec-eval-refresh.md`](SPEC.lib.20261119.spec-eval-refresh.md)の手順で、定期的に実情に合わせて改訂し、評価し直す
+
 ## 経路と認証
 
 親tree-view → 許可済みoriginのconversation-embed → `POST /lib/api/chat/spec-eval` → observer Unix socket → 既存固定Codex会話の`turn/start`。
@@ -27,3 +32,26 @@ SPECと同じディレクトリに同じ接尾辞のEVALを作成する。既存
 5. dynamicneko側を反映。観察のみではボタン無効、送信許可後に有効、実保存後に日時表示になることを確認。
 
 Dockerビルド、本番反映、実モデルによる評価の実行確認はこの仕様文書の追加だけでは完了としない。
+
+## 要件の番号（2026-11-19に付与）
+
+| 番号 | 要件 | 本書の節 |
+|---|---|---|
+| REQ-SE-1 | 経路は埋め込みページ → `POST /lib/api/chat/spec-eval` → observerのソケット。inspectは観察セッション、createは投稿セッションが必要。Originと失効をサーバーで再検証する | 経路と認証 |
+| REQ-SE-2 | 対象は`LIB_SPEC_EVAL_REPOSITORIES`（省略時は既定の5リポジトリ）だけ。Gitのoriginが一致すること、symlink・リポジトリ外への脱出を拒否する | 正とするデータと保存 |
+| REQ-SE-3 | EVALはSPECと同じディレクトリに同じ接尾辞で作る。説明付き接尾辞のEVALは、本文にSPECへの明示的な参照があるときだけ対応付ける | 同上 |
+| REQ-SE-4 | 受付は`/var/lib/lib-chat-observer/evaluations/<SHA256>.json`に保存してから1回だけ送る。flockで競合を拒否し、自動で再送しない。破損はfail closed | 同上 |
+| REQ-SE-5 | 完成は対応ファイルと監査メタデータを実際に読んで確かめ、ハッシュを保存して後の改変を検出する | 同上 |
+
+## 2026-11-19の現状
+
+- 実装は`ops/spec_eval.py`（10-28から変更なし）。元のobserver（`ops/chat_observer.py`）と、Claude版（`claude/ops/chat_observer_claude.py`）の両方が`spec-eval`を受け付ける。
+- 本体のdemoコンテナ（mygw）で動いているのはClaude版のobserver。createは、監視中のClaude Codeのセッションへ`claude -p --resume`で依頼を送る。送られたセッションが対象リポジトリを読み書きする許可を持たないと、EVALの保存まで完了しない（`claude/SPEC.claude.20261102.md`の「未確認・未対応」）。
+- 既定の対象は本体・dynamicneko・rust-worker-sqlx-d1・rails-root・railwayの5つ。**lib自身は入っていない**ため、libのSPECはtree-viewからは評価できない（inspectは`evaluation_unavailable`）。libのSPECの評価は[`SPEC.lib.20261119.spec-eval-refresh.md`](SPEC.lib.20261119.spec-eval-refresh.md)の手順で行う。
+- 「反映」の1〜5のうち、dynamicneko側の反映とCodexの固定会話の接続は、このコンテナでは確かめていない。
+
+## 改訂の記録
+
+| 日付 | モデル | 箇所 | 内容 | 根拠 |
+|---|---|---|---|---|
+| 2026-11-19 | opus-5.5 | 冒頭・末尾 | 要件の番号と、今の稼働の状態を追加。本文は変えていない | `git log ops/spec_eval.py`（10-28の1件だけ）、observerへのinspectの実測 |

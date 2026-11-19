@@ -4,6 +4,9 @@
 作成: opus-5.5（Claude Opus 5.5、Claude Code）
 対象: [`claude/ops/restore-claude-host.sh`](ops/restore-claude-host.sh)（`main`の`14e82cb`時点）
 状態: 現状の記録。スクリプト・設定は変えていない。
+改訂: 2026-11-19、opus-5.5（Claude Opus 5.5、Claude Code）。2章に#12（PR #161、フックをユーザーの設定へ）を足し、4章の「コンテナの作り直しの直後」を起動時のログで確かめ直した。要件の番号（`REQ-RCH-…`）を5章に足した
+評価: [`EVAL.claude.20261118.restore-claude-host.opus-5.5.20261119.md`](EVAL.claude.20261118.restore-claude-host.opus-5.5.20261119.md)
+定期的な見直し: このSPECは[`../SPEC.lib.20261119.spec-eval-refresh.md`](../SPEC.lib.20261119.spec-eval-refresh.md)の手順で、定期的に実情に合わせて改訂し、評価し直す
 
 関連: [`SPEC.claude.20261102.md`](SPEC.claude.20261102.md)（別名版の全体と、復元の最初の形）、[`../SPEC.lib.20261118.opus-5.5.md`](../SPEC.lib.20261118.opus-5.5.md)の4章（復元の要件`REQ-RST-…`）、[`../EVAL.lib.20261118.opus-5.5.md`](../EVAL.lib.20261118.opus-5.5.md)（同日の実行結果）、[`../SETTINGS.claude-host.20261102.md`](../SETTINGS.claude-host.20261102.md)（手順）。
 
@@ -32,6 +35,7 @@
 
 | # | 日時（UTC） | コミット | PR | エージェント | 行数 | 起きていたこと | 追加でカバーしたこと |
 |---|---|---|---|---|---|---|---|
+| 12 | 2026-11-19 00:27 | [`2add69a`](https://github.com/nekoserver/lib/commit/2add69a0d1d90d0dc851f3db9ad1f0fc34e0584e) | [#161](https://github.com/nekoserver/lib/pull/161) | Claude Opus 5.5 | +3/−1（本体は`restore-claude-hooks.sh`） | `/root`で始めたClaude Codeのセッションでは本体のフックが1つも効かず、全体テストが止まらなかった。復元は`hooks: OK`と出ていた | **どのディレクトリでも働くガードを`~/.claude/settings.json`へ書き、全体テストのガードが実際に止めることを確かめる**（[`SPEC.claude.20261119.restore-claude-hooks.md`](SPEC.claude.20261119.restore-claude-hooks.md)） |
 | 11 | 2026-11-18 21:55 | [`b583c2a`](https://github.com/nekoserver/lib/commit/b583c2a96fc8e497763808d84d53687e86ca8236) | [#156](https://github.com/nekoserver/lib/pull/156) | Claude Opus 5.5 | +13/−7 | 本体のentrypointが`/root/lib`を`/var/www/html/lib`へbind mountしてから復元を呼ぶようになり（本体`lib-restore-wait.sh`、2026-11-18）、`cp -a`が「are the same file」で失敗、`set -e`で復元が止まっていた | **bind mountのときは複製を飛ばす**（`[ "$LIB" -ef "$WWW" ]`） |
 | 10 | 2026-11-18 21:50 | [`ba65005`](https://github.com/nekoserver/lib/commit/ba65005e5fa95904cf889915daa96074e854aef3) | [#155](https://github.com/nekoserver/lib/pull/155) | Claude Opus 5.5 | +17/−0 | イメージの内部Apache（`010-lib.conf`、8445）に会話ストリームの中継が無く、tree-viewのワーカータブが真っ白（`/lib/api/chat/session`が404） | **8445に中継が無ければ`apache-lib-internal-chat.conf`をIncludeする**。既にあれば何もしない、`010-lib.conf`が無ければ飛ばす（本体PR #2660がイメージに入るまでのつなぎ） |
 | 9 | 2026-11-14 21:59 | [`6b33eb7`](https://github.com/nekoserver/lib/commit/6b33eb707ffc7d4cff89eaeacf9d16d246a1b673) | [#149](https://github.com/nekoserver/lib/pull/149) | Claude Opus 5.5 | +3/−3 | イメージの`/lib/api/tunnels`の別名が`lib-askgk-api.conf`のIncludeの中へ移り、イメージの`askgk.cgi`が先に一致してトークンが渡らなかった | **`lib-askgk-api.conf`のIncludeより前にも**`lib-tunnels.conf`を入れる |
@@ -88,5 +92,32 @@
 | Cloudflare Tunnel | cloudflaredの起動・設定はしない（entrypointの担当）。`cfc-tunnel`は意図して停止中で、扱わない |
 | Museの実行権限 | `muse/`のスクリプトの実行権限は直さない。シェバンのある5本が`100644`で、うち`tailnet-health.sh`は作られたとき（2026-11-18）から実行できず、ダッシュボードの「tailnet」が空（`../EVAL.lib.20261118.opus-5.5.md`のREQ-MUSE-1） |
 | 常駐プロセスの監視 | 起動するだけで、落ちたら戻さない（systemdが無い）。もう一度実行すれば起動する |
-| コンテナの再作成 | 再作成の直後に1回で全部戻ることは、2026-11-18の時点で確かめていない（起動済みのコンテナで実行し直しただけ）。起動時のログ`/tmp/restore-claude-host.log`では、段1〜8が最後まで通っている |
+| コンテナの再作成 | 2026-11-19に確かめ直した: コンテナは2026-11-18 22:10:12に起動し、entrypointの呼んだ復元のログ（`/tmp/restore-claude-host.log`、22:22:50）で、段1〜8が1回で最後まで通っている（bind mountの検出、経路のアクセス制御on、8445は「already relays」、4つの常駐プロセスの起動、`npm ci`とフック5件のOK）。ただし、これは#12（PR #161）より前のスクリプトで、ユーザーの設定へのフックの書き込みは、作り直しの直後には未確認 |
 | 公開URL・本体ワーカーから | Cloudflare経由・本体ワーカー経由の結果は、2026-11-18には確かめていない（コンテナの中から8443・8445へ送っただけ） |
+
+---
+
+## 5. 要件の番号（2026-11-19に付与）
+
+3章の段ごとの処理を、評価のための要件にする。
+
+| 番号 | 要件 | 3章の段 |
+|---|---|---|
+| REQ-RCH-1 | `ORIGIN_HMAC_SECRET`とトークンが無ければ止まる | 0 |
+| REQ-RCH-2 | bind mountなら複製しない。そうでなければ決まったファイルを複製する | 1 |
+| REQ-RCH-3 | `lib-secrets.conf`を0600で書く | 2 |
+| REQ-RCH-4 | tunnels APIのIncludeを、イメージの`ScriptAliasMatch`・`lib-askgk-api.conf`・`ProxyPass /`のうち最初のものより前に置く | 3 |
+| REQ-RCH-5 | チャットのIncludeを`RewriteEngine On`の直後に置き、起動オプションが`1`のときだけ経路の許可を置く | 4 |
+| REQ-RCH-6 | 8445に中継が無ければ足し、あれば何もしない | 5 |
+| REQ-RCH-7 | Apacheを`apache2 -k`で起動または`graceful`し、8443を確かめる | 6 |
+| REQ-RCH-8 | 元のworker・observerを止め、Claude版の4つの常駐プロセスを起動する（動いていれば何もしない） | 7 |
+| REQ-RCH-9 | 最後にフックを復元する。失敗しても前の段は戻さない | 8 |
+| REQ-RCH-10 | 何度実行してもよい（Includeを重ねない） | 全体 |
+
+## 改訂の記録
+
+| 日付 | モデル | 箇所 | 内容 | 根拠 |
+|---|---|---|---|---|
+| 2026-11-19 | opus-5.5 | 2章・3章の段8 | PR #161の行を追加、段8の説明を更新（段8の更新は#161と同じ変更） | `git log -- claude/ops/` |
+| 2026-11-19 | opus-5.5 | 4章 | コンテナの再作成の行を、起動時のログで確かめ直した内容に更新 | `/tmp/restore-claude-host.log`、`uptime -s` |
+| 2026-11-19 | opus-5.5 | 5章 | 要件の番号を追加 | — |

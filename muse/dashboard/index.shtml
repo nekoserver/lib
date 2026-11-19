@@ -6,8 +6,8 @@
 <title>muse dashboard</title>
 <style>
   body { font-family: sans-serif; margin: 0; background: #111; color: #ddd;
-    display: grid; grid-template-rows: auto 1fr; grid-template-columns: 12.5em 1fr;
-    grid-template-areas: "head head" "side main"; height: 100vh; }
+    display: grid; grid-template-rows: auto 1fr; grid-template-columns: 1fr;
+    grid-template-areas: "head" "main"; height: 100vh; }
   h1 { font-size: 1.2em; }
   h2 { font-size: 1em; border-bottom: 1px solid #444; padding-bottom: .2em; }
   h3 { font-size: .95em; margin: .6em 0 .3em; }
@@ -49,21 +49,20 @@
   .pane-head { grid-area: head; padding: .6em 1em .3em; border-bottom: 1px solid #333; }
   .pane-head h1 { margin: 0; }
   .pane-head .meta { margin: .3em 0 .4em; }
-  #dashpanel { grid-area: side; background: #181818; border-right: 1px solid #333;
-    padding: .8em .7em; overflow-y: auto; font-size: .88em; box-sizing: border-box;
-    min-height: 0; }
+  /* 表示スイッチはモーダル (dialog)。常駐のサイドパネルは置かない */
+  #dashpanel { background: #181818; color: #ddd; border: 1px solid #444;
+    padding: 1em 1.2em; font-size: .92em; box-sizing: border-box;
+    width: min(26em, 92vw); max-height: 86vh; overflow-y: auto; }
+  #dashpanel::backdrop { background: rgba(0, 0, 0, .65); }
   #dashpanel h2 { border: none; font-size: .95em; margin: .7em 0 .3em; }
   #dashpanel label { display: block; padding: .12em 0; cursor: pointer; }
+  .panelbtn { background: #222; color: #ddd; border: 1px solid #444;
+    padding: .3em .9em; cursor: pointer; font-size: .9em; }
   .pane-main { grid-area: main; overflow-y: auto; padding: 1em;
     min-width: 0; min-height: 0; }
   .sectoggle { background: none; border: none; color: #8ab; cursor: pointer;
     font-size: .9em; padding: 0 .25em 0 0; }
   @media (max-width: 900px) {
-    /* 狭い画面ではペイン構成を解いて通常の文書フローに戻す。100vh の
-       グリッドを維持すると、サイドパネルが全画面を占めて本文に届かない */
-    body { display: block; height: auto; }
-    #dashpanel { border-right: none; border-bottom: 1px solid #333; }
-    .pane-main { overflow-y: visible; }
     .layout-grid { grid-template-columns: 1fr; }
   }
   .layout-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1em; }
@@ -133,9 +132,10 @@ function dashLayoutChanged() {
 <p class="meta">generated: <!--#echo var="DATE_LOCAL" --> /
   <span class="badge read">読み取り</span> 緑は読み取り専用（表示時に実行） /
   <span class="badge exec">実行</span> 赤は実行系（ページ表示では実行されず、下部の精査を経て手動実行のみ）</p>
+<p><button type="button" class="panelbtn" onclick="document.getElementById('dashpanel').showModal()">表示設定</button></p>
 </header>
 
-<nav id="dashpanel">
+<dialog id="dashpanel">
   <h2>区画の表示</h2>
   <label><input type="checkbox" data-sec="graphs" onchange="dashPanelChanged()"<!--#if expr="$LIBDASH_OFF != /,graphs,/" --> checked<!--#endif -->> グラフ</label>
   <label><input type="checkbox" data-sec="status" onchange="dashPanelChanged()"<!--#if expr="$LIBDASH_OFF != /,status,/" --> checked<!--#endif -->> 常駐物</label>
@@ -157,7 +157,8 @@ function dashLayoutChanged() {
   <label><input type="radio" name="libdash_layout" value="stack" onchange="dashLayoutChanged()"<!--#if expr="$LIBDASH_LAYOUT = /^(stack)?$/" --> checked<!--#endif -->> 縦積み</label>
   <label><input type="radio" name="libdash_layout" value="grid" onchange="dashLayoutChanged()"<!--#if expr="$LIBDASH_LAYOUT = /grid/" --> checked<!--#endif -->> 2カラム</label>
   <label><input type="radio" name="libdash_layout" value="compact" onchange="dashLayoutChanged()"<!--#if expr="$LIBDASH_LAYOUT = /compact/" --> checked<!--#endif -->> コンパクト</label>
-</nav>
+  <p><button type="button" class="panelbtn" onclick="this.closest('dialog').close()">閉じる</button></p>
+</dialog>
 <main class="pane-main">
 <!--#if expr="$LIBDASH_LAYOUT = /grid/" --><div class="layout layout-grid">
 <!--#elif expr="$LIBDASH_LAYOUT = /compact/" --><div class="layout layout-compact">

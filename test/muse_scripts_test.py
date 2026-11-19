@@ -644,25 +644,22 @@ class PanelTest(unittest.TestCase):
         self.assertIn("'libdash_layout='", self.index)
         self.assertIn('location.reload()', self.index)
 
-    def test_narrow_layout_falls_back_to_document_flow(self):
-        # 狭い画面ではペイン構成を解く (REQ-PN-008)。100vh のグリッドを
-        # 維持するとサイドパネルが全画面を占め、本文に届かなくなる
-        media = self.index.split('@media (max-width: 900px)', 1)[1]
-        media = media.split('</style>', 1)[0]
-        self.assertRegex(media, r'body\s*\{[^}]*display:\s*block')
-        self.assertRegex(media, r'\.pane-main\s*\{[^}]*overflow-y:\s*visible')
-
-    def test_page_is_a_three_pane_layout(self):
-        # 3ペイン構成（REQ-PN-008）: 見出し、サイドパネル、本文。
-        # 本文ペインだけがスクロールし、パネルは重ねずにペインとして置く
+    def test_page_is_a_two_pane_layout(self):
+        # 2ペイン構成（REQ-PN-008 版6）: 見出しと本文だけ。本文ペイン
+        # だけがスクロールする。サイドパネルの領域は置かない
         self.assertIn('<header', self.index)
         self.assertIn('<main', self.index)
         self.assertRegex(self.index,
-                         r'grid-template-areas:\s*"head head"\s*"side main"')
+                         r'grid-template-areas:\s*"head"\s*"main"')
         self.assertRegex(self.index, r'\.pane-main\s*\{[^}]*overflow-y:\s*auto')
-        self.assertRegex(self.index, r'#dashpanel\s*\{[^}]*overflow-y:\s*auto')
-        self.assertNotRegex(self.index,
-                            r'#dashpanel\s*\{[^}]*position:\s*fixed')
+        self.assertNotIn('grid-area: side', self.index)
+
+    def test_switches_live_in_a_modal_opened_from_the_header(self):
+        # 表示スイッチはボタンで開くモーダル (dialog) の中 (REQ-PN-008 版6)。
+        # 常駐のサイドパネルは画面を占有するので置かない
+        self.assertIn('<dialog id="dashpanel">', self.index)
+        self.assertNotIn('<nav id="dashpanel">', self.index)
+        self.assertIn("getElementById('dashpanel').showModal()", self.index)
 
 
 class NoticeToMuseTest(unittest.TestCase):

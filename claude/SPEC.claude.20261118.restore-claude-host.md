@@ -69,7 +69,7 @@
 | 5 | 8445（`010-lib.conf`）に会話ストリームの中継が無ければ`lib-internal-chat.conf`をInclude | #10 | `restore_claude_host_test.py`、`apache_lib_internal_chat_test.py` | イメージの側に中継があり、何もしなかった |
 | 6 | `a2enmod headers`、`apache2ctl configtest`、`apache2 -k start|graceful`、8443の確認 | #3・#7 | — | `Syntax OK`、`listening on 8443` |
 | 7 | 元のworker・observerを止め、Claude版のworker・observerとストリームのサーバーを起動（動いていれば起動し直さない） | #1・#2・#4 | — | 2回目の実行で4つとも`already running` |
-| 8 | 本体リポジトリのhooksの復元（`restore-claude-hooks.sh`） | #5 | `restore_claude_hooks_test.py` | `hooks: OK`が5件 |
+| 8 | 本体リポジトリのhooksの復元（`restore-claude-hooks.sh`）。2026-11-19から、どのディレクトリでも働くガードを`~/.claude/settings.json`へ書き、全体テストのガードが実際に止めることを確かめる（[`SPEC.claude.20261119.restore-claude-hooks.md`](SPEC.claude.20261119.restore-claude-hooks.md)） | #5 | `restore_claude_hooks_test.py` | `hooks: OK`が5件（2026-11-19は`hooks: works`も） |
 
 呼び出し元: 本体のentrypointが、`/root/lib`が届くまで待ってからbind mountと復元を行う（本体`containers/demo/lib-restore-wait.sh`、`entrypoint.sh:388`、本体コミット`2fc8110c`、2026-11-18）。ログは`/tmp/restore-claude-host.log`。
 

@@ -9,7 +9,9 @@
 #      worker tab unless the image already does)
 #   4. start the LLM worker, the chat observer and the chat stream servers, replacing the
 #      original worker and observer that the demo image starts on the same sockets
-#   5. restore the main Worker repo's Claude Code hooks (restore-claude-hooks.sh)
+#   5. restore the main Worker repo's Claude Code hooks after the container start (restore-claude-hooks.sh):
+#      check the hook scripts, and copy the guards that work in any directory (full test, Japanese,
+#      self check) into ~/.claude/settings.json, so a session started in /root has them too
 #
 # Token: LIB_TUNNELS_CF_TOKEN, else CF_CONTAINER_API_TOKEN of the caller. The token that
 # entrypoint.sh hands Apache (/etc/profile.d/cf-env.sh) lists no tunnels, so it is not used.

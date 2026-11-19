@@ -98,14 +98,26 @@ def main():
         errors.append("指示が空です")
     if len(instruction) > MAX_INSTRUCTION:
         errors.append(f"指示が長すぎます（{len(instruction)} 文字 > {MAX_INSTRUCTION}）")
+    use_default_workspace = False
     if not workspace:
-        # 既定ワークスペースは受付では作らない（REQ-EP-033）。作成はホスト側の setup。
-        workspace = os.path.join(OPS_HOME, "sdk-ask-workspace")
-        if not os.path.isdir(workspace):
-            errors.append(f"既定ワークスペースが存在しません。ホスト側で用意してください: {workspace}")
+        # 既定ワークスペースは BASE 配下（REQ-EP-033 版4）。運用ホーム配下は
+        # 受付の実行ユーザーが辿れるとは限らない。作成は登録の段で行う。
+        workspace = os.path.join(BASE, "workspace")
+        use_default_workspace = True
     else:
         ws_real = os.path.realpath(os.path.expanduser(workspace))
-        if not (ws_real == OPS_HOME or ws_real.startswith(OPS_HOME + os.sep)):
+        try:
+            os.stat(ws_real)
+            statable = True
+        except PermissionError:
+            statable = False
+        except OSError:
+            statable = True
+        if not statable:
+            # 確認できないものは受付で判定せず、承認時の再検証（REQ-EP-017）に
+            # 委ねる（REQ-EP-035）
+            workspace = ws_real
+        elif not (ws_real == OPS_HOME or ws_real.startswith(OPS_HOME + os.sep)):
             errors.append(f"ワークスペースはホーム配下のみ許可されています: {workspace}")
         elif not os.path.isdir(ws_real):
             errors.append(f"ワークスペースが存在しません: {workspace}")
@@ -166,6 +178,8 @@ def main():
     # 登録の段のファイルシステムの失敗は、例外ではなく理由付きの拒否にする（REQ-EP-033）
     pending_path = os.path.join(PENDING_DIR, req_id + ".json")
     try:
+        if use_default_workspace:
+            os.makedirs(workspace, exist_ok=True)
         os.makedirs(PENDING_DIR, mode=0o700, exist_ok=True)
         fd = os.open(pending_path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
         with os.fdopen(fd, "w", encoding="utf-8") as f:

@@ -25,6 +25,8 @@
 | `git-heads.sh` | `<HOMEからの相対パス> [<ブランチ>] <短いハッシュ> <件名> (dirty: <件数>, unpushed: <件数か?>)` | 0 | `~/muse-vm-hacks` と `~/workspace` の下(深さ3まで)の `.git` |
 | `graphs.sh` | 棒グラフのHTML断片(プロセスのメモリ、メモリ・スワップ、ディスク)。幅は0〜100% | 0 | `ps`・`free`・`df` |
 | `tailnet-health.sh` | 環境変数 `MUSE_TAILNET_HEALTH_OK` が `1` でない場合は `(access denied)` の1行だけ（配信側が SetEnvIfExpr で正規ユーザーの場合にだけ立てるフラグ。REQ-TH-011）。`1` の場合は `== tailscaled ==`(PIDと開始時刻、または `not running`)、`== node ==`(LocalAPI から抽出した state・版・自身のIPv4・ホスト名・DNS名・online、取得できなければ `(local API unavailable)`)、`== receiver (:8090) ==` と `== API Bridge ==`(`/health` の本文、または `(no response)`)。仕様は SPEC.lib.tailnet-health.shtml | 0 | `pgrep`・`ps`・`curl`(LocalAPI の unix ソケット、`127.0.0.1:8090`、`127.0.0.1:8080`)・`python3`(応答の抽出) |
+| `boot-state.sh` | 環境変数 `MUSE_TAILNET_HEALTH_OK` が `1` でない場合は `(access denied)` の1行だけ（フラグは lib vhost 全体に立つ。SPEC.lib.dashboard-state.shtml の REQ-DS-001）。`1` の場合は完成した HTML（boot_id・起動日時・稼働時間・再起動要求の有無の表と、対象4件（apt・nodejs・libc6・python3-pil）の実測版と巻き戻り判定のチップ）。判定の基準は status-data.json の「この VM」行の fixed の先頭トークンで、読めない環境では判定なし。仕様は SPEC.lib.dashboard-state.shtml | 0 | `/proc/sys/kernel/random/boot_id`・`/proc/stat`・`/proc/uptime`・`/var/run/reboot-required`（環境変数 `MUSE_BOOT_STATE_REBOOT_REQUIRED` で差し替え可）・`dpkg-query`・`dpkg --compare-versions`・`python3`（抽出と整形）。基準データは環境変数 `MUSE_BOOT_STATE_FIXED_JSON`、無ければ `~/workspace/security-patterns/status-data.json` |
+| `cron-state.sh` | 環境変数 `MUSE_TAILNET_HEALTH_OK` が `1` でない場合は `(access denied)` の1行だけ（REQ-DS-001）。`1` の場合は完成した HTML（状態ファイルを持つ定期実行（vm-auto-update・vuln-watch）の最終更新と直近の見出し。ファイルが無ければ「記録なし」）。仕様は SPEC.lib.dashboard-state.shtml | 0 | `~/workspace/goals/musevm-kernel-build-environment/hidden_files/` の状態ファイル・`python3`（整形） |
 
 ### bridge-jobs のジョブの形
 

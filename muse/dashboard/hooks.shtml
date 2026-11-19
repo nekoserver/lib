@@ -1,0 +1,1 @@
+<!--#exec cmd="../hooks.sh | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g' -e 's/$/<br>/'" -->

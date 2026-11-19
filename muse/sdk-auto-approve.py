@@ -25,7 +25,8 @@ import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 HOME = os.path.expanduser("~")
-BASE = os.path.join(HOME, ".local/share/muse-sdk")
+# BASE の解決は全構成要素で同一の規則（REQ-EP-031）
+BASE = os.environ.get("MUSE_SDK_BASE") or os.path.join(HOME, ".local/share/muse-sdk")
 PENDING_DIR = os.path.join(BASE, "pending")
 AUDIT_LOG = os.path.join(BASE, "exec-audit.jsonl")
 SALT_PATH = os.path.join(BASE, "sender-salt")

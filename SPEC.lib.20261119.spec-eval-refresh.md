@@ -81,6 +81,6 @@
 
 | 日付 | モデル | 区分A・D | 区分B | 区分C | PR |
 |---|---|---|---|---|---|
-| 2026-11-19 | opus-5.5 | `claude/SPEC.claude.20261102.md` | `SPEC.ipv6range.20260217.md`、`SPEC.lib.20261028.spec-eval.md`、`SPEC.lib.20261104.console-stream-adhoc.md`、`SPEC.lib.20261111.muse-tailnet-lessons.md`、`SPEC.lib.20261118.lib-features-access.md`、`claude/SPEC.claude.20261108.muse-restart-backlog.md`、`claude/SPEC.claude.20261118.restore-claude-host.md`、`claude/SPEC.claude.20261119.restore-claude-hooks.md`、`muse/SPEC.md`、`muse/SPEC.scripts.md` | `SPEC.lib.20261118.opus-5.5.md`（EVALは`EVAL.lib.20261118.opus-5.5.md`。翌日の変更はPR #156〜#161の文書・復元のフックで、要件に関わる分は次回に見直す） | この実行のPR |
+| 2026-11-19 | opus-5.5 | `claude/SPEC.claude.20261102.md` | `SPEC.ipv6range.20260217.md`、`SPEC.lib.20261028.spec-eval.md`、`SPEC.lib.20261104.console-stream-adhoc.md`、`SPEC.lib.20261111.muse-tailnet-lessons.md`、`SPEC.lib.20261118.lib-features-access.md`、`claude/SPEC.claude.20261108.muse-restart-backlog.md`、`claude/SPEC.claude.20261118.restore-claude-host.md`、`claude/SPEC.claude.20261119.restore-claude-hooks.md`、`muse/SPEC.md`、`muse/SPEC.scripts.md` | `SPEC.lib.20261118.opus-5.5.md`（EVALは`EVAL.lib.20261118.opus-5.5.md`。翌日の変更はPR #156〜#161の文書・復元のフックで、要件に関わる分は次回に見直す） | [#162](https://github.com/nekoserver/lib/pull/162) |
 
 次回の実行では、このSPEC自身（区分B）と、`SPEC.lib.20261118.opus-5.5.md`（区分D: 11-18の後に復元のフックの段が変わった）を含める。

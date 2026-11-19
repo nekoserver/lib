@@ -26,7 +26,12 @@ import urllib.parse
 HOME = os.path.expanduser("~")
 ALLOWED_PROFILES = (":read-only", ":ask-me", ":auto-review")
 MAX_INSTRUCTION = 8000
-BASE = os.path.join(HOME, ".local/share/muse-sdk")
+# 状態の置き場所（BASE）と運用ホームの解決は全構成要素で同一の規則
+# （SPEC.lib.muse.execution-path REQ-EP-031 / REQ-EP-032）。
+# 受付と承認で実行ユーザーが異なる配置（CGI は www-data、承認は root 等）では、
+# 配信側が MUSE_SDK_BASE / MUSE_SDK_HOME を渡して同じ場所を指させる。
+BASE = os.environ.get("MUSE_SDK_BASE") or os.path.join(HOME, ".local/share/muse-sdk")
+OPS_HOME = os.path.realpath(os.environ.get("MUSE_SDK_HOME") or HOME)
 PENDING_DIR = os.path.join(BASE, "pending")
 AUDIT_LOG = os.path.join(BASE, "exec-audit.jsonl")
 
@@ -50,12 +55,17 @@ def page(title, body_html):
 
 
 def audit(event, **fields):
+    """監査に追記する。書けない場合は例外にせず False を返す（REQ-EP-033）。"""
     rec = {"ts": datetime.datetime.now().astimezone().isoformat(timespec="seconds"),
            "event": event}
     rec.update(fields)
-    os.makedirs(BASE, exist_ok=True)
-    with open(AUDIT_LOG, "a", encoding="utf-8") as f:
-        f.write(json.dumps(rec, ensure_ascii=False) + "\n")
+    try:
+        os.makedirs(BASE, exist_ok=True)
+        with open(AUDIT_LOG, "a", encoding="utf-8") as f:
+            f.write(json.dumps(rec, ensure_ascii=False) + "\n")
+    except OSError:
+        return False
+    return True
 
 
 def fail(messages):
@@ -89,11 +99,13 @@ def main():
     if len(instruction) > MAX_INSTRUCTION:
         errors.append(f"指示が長すぎます（{len(instruction)} 文字 > {MAX_INSTRUCTION}）")
     if not workspace:
-        workspace = os.path.join(HOME, "sdk-ask-workspace")
-        os.makedirs(workspace, exist_ok=True)
+        # 既定ワークスペースは受付では作らない（REQ-EP-033）。作成はホスト側の setup。
+        workspace = os.path.join(OPS_HOME, "sdk-ask-workspace")
+        if not os.path.isdir(workspace):
+            errors.append(f"既定ワークスペースが存在しません。ホスト側で用意してください: {workspace}")
     else:
         ws_real = os.path.realpath(os.path.expanduser(workspace))
-        if not (ws_real == HOME or ws_real.startswith(HOME + os.sep)):
+        if not (ws_real == OPS_HOME or ws_real.startswith(OPS_HOME + os.sep)):
             errors.append(f"ワークスペースはホーム配下のみ許可されています: {workspace}")
         elif not os.path.isdir(ws_real):
             errors.append(f"ワークスペースが存在しません: {workspace}")
@@ -128,9 +140,14 @@ def main():
     sender_token = None
     if sender_user and login_at:
         salt_path = os.path.join(BASE, "sender-salt")
-        if os.path.isfile(salt_path):
-            with open(salt_path, encoding="utf-8") as f:
-                salt = f.read().strip()
+        salt = None
+        try:
+            if os.path.isfile(salt_path):
+                with open(salt_path, encoding="utf-8") as f:
+                    salt = f.read().strip()
+        except OSError:
+            salt = None
+        if salt is not None:
             sender_token = hashlib.sha256(
                 f"{salt}\n{sender_user}\n{login_at}".encode("utf-8")).hexdigest()
     record = {
@@ -146,14 +163,24 @@ def main():
         "login_at": login_at or None,
         "sender_token": sender_token,
     }
-    os.makedirs(PENDING_DIR, mode=0o700, exist_ok=True)
-    fd = os.open(os.path.join(PENDING_DIR, req_id + ".json"),
-                 os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-    with os.fdopen(fd, "w", encoding="utf-8") as f:
-        json.dump(record, f, ensure_ascii=False, indent=2)
-    audit("submitted", id=req_id, profile=profile, workspace=workspace,
-          instruction_sha256=digest, instruction_len=len(instruction),
-          sender_user=sender_user or None)
+    # 登録の段のファイルシステムの失敗は、例外ではなく理由付きの拒否にする（REQ-EP-033）
+    pending_path = os.path.join(PENDING_DIR, req_id + ".json")
+    try:
+        os.makedirs(PENDING_DIR, mode=0o700, exist_ok=True)
+        fd = os.open(pending_path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            json.dump(record, f, ensure_ascii=False, indent=2)
+    except OSError:
+        fail(["ホスト側の状態により受け付けできませんでした（状態の置き場所へ書けません）"])
+    if not audit("submitted", id=req_id, profile=profile, workspace=workspace,
+                 instruction_sha256=digest, instruction_len=len(instruction),
+                 sender_user=sender_user or None):
+        # 監査に残らない登録は成立させない（REQ-EP-008）
+        try:
+            os.unlink(pending_path)
+        except OSError:
+            pass
+        fail(["ホスト側の状態により受け付けできませんでした（監査ログへ書けません）"])
 
     body_html = (
         "<p>受け付けました。<strong>まだ実行されていません。</strong>"

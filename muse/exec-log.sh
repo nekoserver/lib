@@ -2,7 +2,7 @@
 # exec-log.sh - SDK 実行系の監査ログを表示する（読み取り専用）
 set -u
 
-LOG="$HOME/.local/share/muse-sdk/exec-audit.jsonl"
+LOG="${MUSE_SDK_BASE:-$HOME/.local/share/muse-sdk}/exec-audit.jsonl"
 if [ ! -f "$LOG" ]; then
   echo "（実行ログはまだありません）"
   exit 0

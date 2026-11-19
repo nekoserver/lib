@@ -17,7 +17,9 @@ import subprocess
 import sys
 
 HOME = os.path.expanduser("~")
-BASE = os.path.join(HOME, ".local/share/muse-sdk")
+# BASE と運用ホームの解決は全構成要素で同一の規則（REQ-EP-031 / REQ-EP-032）
+BASE = os.environ.get("MUSE_SDK_BASE") or os.path.join(HOME, ".local/share/muse-sdk")
+OPS_HOME = os.path.realpath(os.environ.get("MUSE_SDK_HOME") or HOME)
 PENDING_DIR = os.path.join(BASE, "pending")
 AUDIT_LOG = os.path.join(BASE, "exec-audit.jsonl")
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -115,7 +117,7 @@ def validate_record(record, req_id):
     if record.get("profile") not in ALLOWED_PROFILES:
         problems.append(f"profile not allowed: {record.get('profile')}")
     ws = os.path.realpath(os.path.expanduser(record.get("workspace") or ""))
-    if not (ws == HOME or ws.startswith(HOME + os.sep)) or not os.path.isdir(ws):
+    if not (ws == OPS_HOME or ws.startswith(OPS_HOME + os.sep)) or not os.path.isdir(ws):
         problems.append(f"workspace invalid: {record.get('workspace')}")
     instruction = record.get("instruction") or ""
     if len(instruction) > MAX_INSTRUCTION:

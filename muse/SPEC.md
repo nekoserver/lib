@@ -49,6 +49,16 @@
   記録が残る（イベント: submitted / submit_refused / approved / rejected /
   executed / integrity_failed / diag_blocked / diag_gate_skipped /
   emergency_stop / emergency_stop_released / approve_refused）。
+- 状態の置き場所（BASE）は全構成要素で同一の規則で解決する。環境変数
+  `MUSE_SDK_BASE` があればその値、無ければ `~/.local/share/muse-sdk`。
+  ワークスペース検証の「ホーム」（運用ホーム）も同様に `MUSE_SDK_HOME`
+  があればその値、無ければ実行プロセスのホームとする。受付と承認で
+  実行ユーザーが異なる配置（CGI は www-data、承認は root 等）では、
+  配信側がこの2つを CGI の環境へ渡し、BASE の実体は受付側が書けて
+  承認者が読める専用ディレクトリとして用意する。
+- 受付はファイルシステムの失敗で例外を出さない。検証を先に返し、
+  登録の段の失敗は理由付きの拒否とする。既定ワークスペースは受付では
+  作らない（作成はホスト側の setup）。
 
 ## 3. 正規の使い方（目的内使用）
 

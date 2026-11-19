@@ -10,7 +10,7 @@
 # 監査ログに残る。制御不能な事態でも、ホストのシェルからこの1操作で止められる。
 # Web 側からは操作できない。
 set -u
-BASE="$HOME/.local/share/muse-sdk"
+BASE="${MUSE_SDK_BASE:-$HOME/.local/share/muse-sdk}"
 STOPFILE="$BASE/STOP"
 AUDIT="$BASE/exec-audit.jsonl"
 

@@ -583,6 +583,57 @@ class DashboardTest(unittest.TestCase):
 
 
 
+class PanelTest(unittest.TestCase):
+    """サイドパネルとレイアウト (SPEC.lib.dashboard-state.shtml 版2、REQ-PN-001〜007)。
+
+    表示・非表示は SSI の #if で区画そのものを切り替え、状態は Cookie から
+    サーバ側で描く。前提 (Cookie を SetEnvIf で環境変数へ写し、旧式パーサの
+    #if で隠した区画の #exec が実行されない) は SPEC の前提 P8 で実測済み。
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls.index = (DASHBOARD / 'index.shtml').read_text(encoding='utf-8')
+        cls.frags = re.findall(r'data-frag="([^"]+)"', cls.index)
+        cls.ids = [f.removesuffix('.shtml') for f in cls.frags]
+
+    def test_panel_lists_a_checkbox_for_every_read_section(self):
+        self.assertIn('id="dashpanel"', self.index)
+        self.assertTrue(self.ids)
+        for sec_id in self.ids:
+            self.assertIn(f'data-sec="{sec_id}"', self.index, sec_id)
+
+    def test_each_section_is_wrapped_in_an_ssi_if_on_libdash_off(self):
+        for sec_id in self.ids:
+            cond = f'<!--#if expr="$LIBDASH_OFF != /,{sec_id},/" -->'
+            self.assertIn(cond, self.index, sec_id)
+            if_at = self.index.index(cond)
+            sec_at = self.index.index(f'data-frag="{sec_id}.shtml"')
+            self.assertLess(if_at, sec_at, sec_id)
+            end_at = self.index.index('</section>', sec_at)
+            self.assertIn('<!--#endif -->', self.index[end_at:end_at + 80], sec_id)
+
+    def test_checkbox_state_is_rendered_by_ssi(self):
+        for sec_id in self.ids:
+            self.assertIn(
+                f'<!--#if expr="$LIBDASH_OFF != /,{sec_id},/" --> checked<!--#endif -->',
+                self.index, sec_id)
+
+    def test_layout_samples_are_selectable_and_switched_by_ssi(self):
+        for name in ('stack', 'grid', 'compact'):
+            self.assertRegex(
+                self.index,
+                r'name="libdash_layout"[^>]*value="' + name + '"', name)
+            self.assertIn(f'.layout-{name}', self.index, name)
+        self.assertIn('expr="$LIBDASH_LAYOUT = /grid/"', self.index)
+        self.assertIn('expr="$LIBDASH_LAYOUT = /compact/"', self.index)
+
+    def test_script_writes_both_cookies_and_reloads(self):
+        self.assertIn("'libdash_off=,", self.index)
+        self.assertIn("'libdash_layout='", self.index)
+        self.assertIn('location.reload()', self.index)
+
+
 class NoticeToMuseTest(unittest.TestCase):
     """muse/NOTICE-TO-MUSE.md(Muse への伝達事項)。更新のたびに新しい日付の節を先頭に書き足す。"""
 

@@ -44,6 +44,23 @@
     padding: .4em 1.2em; cursor: pointer; }
   .exec .run:disabled { background: #555; cursor: not-allowed; }
   .warn { color: #f88; font-size: .85em; }
+  #dashpanel { position: fixed; left: 0; top: 0; bottom: 0; width: 11.5em;
+    background: #181818; border-right: 1px solid #333; padding: .8em .7em;
+    overflow-y: auto; font-size: .88em; box-sizing: border-box; z-index: 10; }
+  #dashpanel h2 { border: none; font-size: .95em; margin: .7em 0 .3em; }
+  #dashpanel label { display: block; padding: .12em 0; cursor: pointer; }
+  body { margin-left: 12.5em; }
+  @media (max-width: 900px) {
+    #dashpanel { position: static; width: auto; border-right: none;
+      border-bottom: 1px solid #333; }
+    body { margin-left: 1em; }
+    .layout-grid { grid-template-columns: 1fr; }
+  }
+  .layout-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1em; }
+  .layout-grid section { margin-bottom: 0; }
+  .layout-compact section { padding: .3em .6em; margin-bottom: .5em; }
+  .layout-compact .body { font-size: .82em; line-height: 1.35; }
+  .layout-stack section { margin-bottom: 1em; }
 </style>
 <script>
 function rerun(btn) {
@@ -76,6 +93,19 @@ async function updateReview() {
     '送信では受付のみが行われ、実行には受ける側ホストでの承認が要ります。受付と承認・実行は監査ログに記録されます。';
   document.getElementById('runbtn').disabled = !(document.getElementById('confirm').checked && text.trim());
 }
+function dashPanelChanged() {
+  var off = [];
+  document.querySelectorAll('#dashpanel input[data-sec]').forEach(function (cb) {
+    if (!cb.checked) { off.push(cb.getAttribute('data-sec')); }
+  });
+  document.cookie = 'libdash_off=,' + off.join(',') + ',; path=/; max-age=31536000; SameSite=Lax';
+  location.reload();
+}
+function dashLayoutChanged() {
+  var v = document.querySelector('input[name="libdash_layout"]:checked').value;
+  document.cookie = 'libdash_layout=' + v + '; path=/; max-age=31536000; SameSite=Lax';
+  location.reload();
+}
 </script>
 </head>
 <body>
@@ -86,87 +116,147 @@ async function updateReview() {
   <span class="badge read">読み取り</span> 緑は読み取り専用（表示時に実行） /
   <span class="badge exec">実行</span> 赤は実行系（ページ表示では実行されず、下部の精査を経て手動実行のみ）</p>
 
+<nav id="dashpanel">
+  <h2>区画の表示</h2>
+  <label><input type="checkbox" data-sec="graphs" onchange="dashPanelChanged()"<!--#if expr="$LIBDASH_OFF != /,graphs,/" --> checked<!--#endif -->> グラフ</label>
+  <label><input type="checkbox" data-sec="status" onchange="dashPanelChanged()"<!--#if expr="$LIBDASH_OFF != /,status,/" --> checked<!--#endif -->> 常駐物</label>
+  <label><input type="checkbox" data-sec="tailnet" onchange="dashPanelChanged()"<!--#if expr="$LIBDASH_OFF != /,tailnet,/" --> checked<!--#endif -->> ノードのヘルス</label>
+  <label><input type="checkbox" data-sec="boot" onchange="dashPanelChanged()"<!--#if expr="$LIBDASH_OFF != /,boot,/" --> checked<!--#endif -->> 再起動と巻き戻り</label>
+  <label><input type="checkbox" data-sec="jobs" onchange="dashPanelChanged()"<!--#if expr="$LIBDASH_OFF != /,jobs,/" --> checked<!--#endif -->> ジョブキュー</label>
+  <label><input type="checkbox" data-sec="pkgs" onchange="dashPanelChanged()"<!--#if expr="$LIBDASH_OFF != /,pkgs,/" --> checked<!--#endif -->> パッケージ</label>
+  <label><input type="checkbox" data-sec="vm" onchange="dashPanelChanged()"<!--#if expr="$LIBDASH_OFF != /,vm,/" --> checked<!--#endif -->> VM 情報</label>
+  <label><input type="checkbox" data-sec="procs" onchange="dashPanelChanged()"<!--#if expr="$LIBDASH_OFF != /,procs,/" --> checked<!--#endif -->> プロセス</label>
+  <label><input type="checkbox" data-sec="ports" onchange="dashPanelChanged()"<!--#if expr="$LIBDASH_OFF != /,ports,/" --> checked<!--#endif -->> 待ち受けポート</label>
+  <label><input type="checkbox" data-sec="git" onchange="dashPanelChanged()"<!--#if expr="$LIBDASH_OFF != /,git,/" --> checked<!--#endif -->> ローカル git</label>
+  <label><input type="checkbox" data-sec="recent" onchange="dashPanelChanged()"<!--#if expr="$LIBDASH_OFF != /,recent,/" --> checked<!--#endif -->> 直近の完了ジョブ</label>
+  <label><input type="checkbox" data-sec="diag" onchange="dashPanelChanged()"<!--#if expr="$LIBDASH_OFF != /,diag,/" --> checked<!--#endif -->> 診断サマリ</label>
+  <label><input type="checkbox" data-sec="execlog" onchange="dashPanelChanged()"<!--#if expr="$LIBDASH_OFF != /,execlog,/" --> checked<!--#endif -->> 実行監査ログ</label>
+  <label><input type="checkbox" data-sec="cron" onchange="dashPanelChanged()"<!--#if expr="$LIBDASH_OFF != /,cron,/" --> checked<!--#endif -->> 定期実行の状態</label>
+  <label><input type="checkbox" data-sec="hooks" onchange="dashPanelChanged()"<!--#if expr="$LIBDASH_OFF != /,hooks,/" --> checked<!--#endif -->> フックの状態</label>
+  <label><input type="checkbox" data-sec="pending" onchange="dashPanelChanged()"<!--#if expr="$LIBDASH_OFF != /,pending,/" --> checked<!--#endif -->> 承認待ち</label>
+  <h2>レイアウト</h2>
+  <label><input type="radio" name="libdash_layout" value="stack" onchange="dashLayoutChanged()"<!--#if expr="$LIBDASH_LAYOUT = /^(stack)?$/" --> checked<!--#endif -->> 縦積み</label>
+  <label><input type="radio" name="libdash_layout" value="grid" onchange="dashLayoutChanged()"<!--#if expr="$LIBDASH_LAYOUT = /grid/" --> checked<!--#endif -->> 2カラム</label>
+  <label><input type="radio" name="libdash_layout" value="compact" onchange="dashLayoutChanged()"<!--#if expr="$LIBDASH_LAYOUT = /compact/" --> checked<!--#endif -->> コンパクト</label>
+</nav>
+<!--#if expr="$LIBDASH_LAYOUT = /grid/" --><div class="layout layout-grid">
+<!--#elif expr="$LIBDASH_LAYOUT = /compact/" --><div class="layout layout-compact">
+<!--#else --><div class="layout layout-stack">
+<!--#endif -->
+<!--#if expr="$LIBDASH_OFF != /,graphs,/" -->
 <section class="read" data-frag="graphs.shtml">
   <h2>グラフ <span class="badge read">読み取り</span> <span class="ops"><button type="button" onclick="rerun(this)">再実行</button><a href="graphs.shtml">開く</a></span></h2>
   <div class="body"><!--#include virtual="graphs.shtml" --></div>
 </section>
+<!--#endif -->
 
+<!--#if expr="$LIBDASH_OFF != /,status,/" -->
 <section class="read" data-frag="status.shtml">
   <h2>常駐物（tailscaled / API Bridge） <span class="badge read">読み取り</span> <span class="ops"><button type="button" onclick="rerun(this)">再実行</button><a href="status.shtml">開く</a></span></h2>
   <div class="body"><!--#include virtual="status.shtml" --></div>
 </section>
+<!--#endif -->
 
+<!--#if expr="$LIBDASH_OFF != /,tailnet,/" -->
 <section class="read" data-frag="tailnet.shtml">
   <h2>ノードのヘルス（tailnet） <span class="badge read">読み取り</span> <span class="ops"><button type="button" onclick="rerun(this)">再実行</button><a href="tailnet.shtml">開く</a></span></h2>
   <div class="body"><!--#include virtual="tailnet.shtml" --></div>
 </section>
+<!--#endif -->
 
+<!--#if expr="$LIBDASH_OFF != /,boot,/" -->
 <section class="read" data-frag="boot.shtml">
   <h2>再起動と巻き戻り <span class="badge read">読み取り</span> <span class="ops"><button type="button" onclick="rerun(this)">再実行</button><a href="boot.shtml">開く</a></span></h2>
   <div class="body"><!--#include virtual="boot.shtml" --></div>
 </section>
+<!--#endif -->
 
+<!--#if expr="$LIBDASH_OFF != /,jobs,/" -->
 <section class="read" data-frag="jobs.shtml">
   <h2>ジョブキュー <span class="badge read">読み取り</span> <span class="ops"><button type="button" onclick="rerun(this)">再実行</button><a href="jobs.shtml">開く</a></span></h2>
   <div class="body"><!--#include virtual="jobs.shtml" --></div>
 </section>
+<!--#endif -->
 
+<!--#if expr="$LIBDASH_OFF != /,pkgs,/" -->
 <section class="read" data-frag="pkgs.shtml">
   <h2>パッケージ（Nix / .deb） <span class="badge read">読み取り</span> <span class="ops"><button type="button" onclick="rerun(this)">再実行</button><a href="pkgs.shtml">開く</a></span></h2>
   <div class="body"><!--#include virtual="pkgs.shtml" --></div>
 </section>
+<!--#endif -->
 
+<!--#if expr="$LIBDASH_OFF != /,vm,/" -->
 <section class="read" data-frag="vm.shtml">
   <h2>VM 情報 <span class="badge read">読み取り</span> <span class="ops"><button type="button" onclick="rerun(this)">再実行</button><a href="vm.shtml">開く</a></span></h2>
   <div class="body"><!--#include virtual="vm.shtml" --></div>
 </section>
+<!--#endif -->
 
+<!--#if expr="$LIBDASH_OFF != /,procs,/" -->
 <section class="read" data-frag="procs.shtml">
   <h2>プロセス（メモリ上位） <span class="badge read">読み取り</span> <span class="ops"><button type="button" onclick="rerun(this)">再実行</button><a href="procs.shtml">開く</a></span></h2>
   <div class="body"><!--#include virtual="procs.shtml" --></div>
 </section>
+<!--#endif -->
 
+<!--#if expr="$LIBDASH_OFF != /,ports,/" -->
 <section class="read" data-frag="ports.shtml">
   <h2>待ち受けポート <span class="badge read">読み取り</span> <span class="ops"><button type="button" onclick="rerun(this)">再実行</button><a href="ports.shtml">開く</a></span></h2>
   <div class="body"><!--#include virtual="ports.shtml" --></div>
 </section>
+<!--#endif -->
 
+<!--#if expr="$LIBDASH_OFF != /,git,/" -->
 <section class="read" data-frag="git.shtml">
   <h2>ローカル git リポジトリ <span class="badge read">読み取り</span> <span class="ops"><button type="button" onclick="rerun(this)">再実行</button><a href="git.shtml">開く</a></span></h2>
   <div class="body"><!--#include virtual="git.shtml" --></div>
 </section>
+<!--#endif -->
 
+<!--#if expr="$LIBDASH_OFF != /,recent,/" -->
 <section class="read" data-frag="recent.shtml">
   <h2>直近の完了ジョブ <span class="badge read">読み取り</span> <span class="ops"><button type="button" onclick="rerun(this)">再実行</button><a href="recent.shtml">開く</a></span></h2>
   <div class="body"><!--#include virtual="recent.shtml" --></div>
 </section>
+<!--#endif -->
 
+<!--#if expr="$LIBDASH_OFF != /,diag,/" -->
 <section class="read" data-frag="diag.shtml">
   <h2>診断サマリ（全33項目） <span class="badge read">読み取り</span> <span class="ops"><button type="button" onclick="rerun(this)">再実行</button><a href="diag.shtml">開く</a></span></h2>
   <div class="body"><!--#include virtual="diag.shtml" --></div>
   <p class="meta">WARN/FAIL の見方: <a href="matrix.html">診断マトリックス</a>（想定インシデントとの対応表）。この診断は防波堤として実行系の承認の直前にも走り、FAIL がある間は実行されません。</p>
 </section>
+<!--#endif -->
 
+<!--#if expr="$LIBDASH_OFF != /,execlog,/" -->
 <section class="read" data-frag="execlog.shtml">
   <h2>実行監査ログ <span class="badge read">読み取り</span> <span class="ops"><button type="button" onclick="rerun(this)">再実行</button><a href="execlog.shtml">開く</a></span></h2>
   <div class="body"><!--#include virtual="execlog.shtml" --></div>
 </section>
+<!--#endif -->
 
+<!--#if expr="$LIBDASH_OFF != /,cron,/" -->
 <section class="read" data-frag="cron.shtml">
   <h2>定期実行の状態 <span class="badge read">読み取り</span> <span class="ops"><button type="button" onclick="rerun(this)">再実行</button><a href="cron.shtml">開く</a></span></h2>
   <div class="body"><!--#include virtual="cron.shtml" --></div>
 </section>
+<!--#endif -->
 
+<!--#if expr="$LIBDASH_OFF != /,hooks,/" -->
 <section class="read" data-frag="hooks.shtml">
   <h2>フックの状態 <span class="badge read">読み取り</span> <span class="ops"><button type="button" onclick="rerun(this)">再実行</button><a href="hooks.shtml">開く</a></span></h2>
   <div class="body"><!--#include virtual="hooks.shtml" --></div>
 </section>
+<!--#endif -->
 
+<!--#if expr="$LIBDASH_OFF != /,pending,/" -->
 <section class="read" data-frag="pending.shtml">
   <h2>承認待ち（実行系の受付分） <span class="badge read">読み取り</span> <span class="ops"><button type="button" onclick="rerun(this)">再実行</button><a href="pending.shtml">開く</a></span></h2>
   <div class="body"><!--#include virtual="pending.shtml" --></div>
   <p class="meta">承認・却下は受ける側ホストの <code>sdk-approve.sh</code> でのみ行えます。</p>
 </section>
+<!--#endif -->
+</div><!-- /layout -->
 
 <section class="exec">
   <h2>Muse Code 実行（SDK） <span class="badge exec">実行</span></h2>

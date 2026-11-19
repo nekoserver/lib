@@ -603,15 +603,26 @@ class PanelTest(unittest.TestCase):
         for sec_id in self.ids:
             self.assertIn(f'data-sec="{sec_id}"', self.index, sec_id)
 
-    def test_each_section_is_wrapped_in_an_ssi_if_on_libdash_off(self):
+    def test_each_section_body_is_wrapped_in_an_ssi_if_on_libdash_off(self):
+        # 版4 (REQ-PN-009): #if で囲むのは本文だけ。見出し行は残る
         for sec_id in self.ids:
             cond = f'<!--#if expr="$LIBDASH_OFF != /,{sec_id},/" -->'
-            self.assertIn(cond, self.index, sec_id)
-            if_at = self.index.index(cond)
+            self.assertIn(cond + '\n  <div class="body">', self.index, sec_id)
             sec_at = self.index.index(f'data-frag="{sec_id}.shtml"')
-            self.assertLess(if_at, sec_at, sec_id)
-            end_at = self.index.index('</section>', sec_at)
-            self.assertIn('<!--#endif -->', self.index[end_at:end_at + 80], sec_id)
+            body_at = self.index.index('<div class="body">', sec_at)
+            end_sec = self.index.index('</section>', sec_at)
+            self.assertIn('<!--#endif -->', self.index[body_at:end_sec], sec_id)
+
+    def test_each_section_heading_has_a_toggle_linked_to_the_panel(self):
+        for sec_id in self.ids:
+            self.assertIn(f'onclick="dashToggleSection(\'{sec_id}\')"',
+                          self.index, sec_id)
+            self.assertIn(
+                f'<!--#if expr="$LIBDASH_OFF != /,{sec_id},/" -->'
+                '▼<!--#else -->▲<!--#endif -->',
+                self.index, sec_id)
+        # トグルはサイドパネルと同じ Cookie 書き込み経路を通る
+        self.assertIn('function dashToggleSection(', self.index)
 
     def test_checkbox_state_is_rendered_by_ssi(self):
         for sec_id in self.ids:

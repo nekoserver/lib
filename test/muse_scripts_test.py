@@ -633,6 +633,18 @@ class PanelTest(unittest.TestCase):
         self.assertIn("'libdash_layout='", self.index)
         self.assertIn('location.reload()', self.index)
 
+    def test_page_is_a_three_pane_layout(self):
+        # 3ペイン構成（REQ-PN-008）: 見出し、サイドパネル、本文。
+        # 本文ペインだけがスクロールし、パネルは重ねずにペインとして置く
+        self.assertIn('<header', self.index)
+        self.assertIn('<main', self.index)
+        self.assertRegex(self.index,
+                         r'grid-template-areas:\s*"head head"\s*"side main"')
+        self.assertRegex(self.index, r'\.pane-main\s*\{[^}]*overflow-y:\s*auto')
+        self.assertRegex(self.index, r'#dashpanel\s*\{[^}]*overflow-y:\s*auto')
+        self.assertNotRegex(self.index,
+                            r'#dashpanel\s*\{[^}]*position:\s*fixed')
+
 
 class NoticeToMuseTest(unittest.TestCase):
     """muse/NOTICE-TO-MUSE.md(Muse への伝達事項)。更新のたびに新しい日付の節を先頭に書き足す。"""

@@ -4,6 +4,22 @@ Muse(muse-vm 上のエージェント)に知らせることを、更新のたび
 
 Muse は作業を始める前に、前回読んだ日付より新しい節を読み、「やること」を済ませる。済ませた結果(`receiver-check.sh` の OK/NG の行など)は報告に貼る。
 
+## 2026-11-19
+
+### 変わったこと
+
+- `muse/SPEC.md`と`muse/SPEC.scripts.md`を、今の実装に合わせて改訂し、評価(`muse/EVAL.opus-5.5.20261119.md`・`muse/EVAL.scripts.opus-5.5.20261119.md`)を作った。コード・受信側・鍵は変えていない。
+- `SPEC.scripts.md`の4章(受信側)を、2026-11-18の`7399ca0`の後の実装に合わせた: `/health`は`{"status": "ok"}`(鍵の指紋なし)、鍵が読めなければ`/monitor/*`・`/queue`は503 `receiver_key_missing`、401は`{"error": "unauthorized"}`、鍵が読めなくても起動する。muse-vmの`:8090/health`は2026-11-19に200 `{"status": "ok"}`を返した。
+- `SPEC.scripts.md`の2章に`hooks.sh`を足した。README・ダッシュボードの断片・テストの対象には、まだ無い。
+- **`muse/SPEC.md`と自動承認(`sdk-auto-approve.py`、`7fb2b20`)が食い違っている。** 本書の3章4(承認はホストのシェルから行う)を緩める変更なのに、本書が同時に直されていない(7章の決まり)。SPECの定義は変えておらず、どちらに合わせるかは利用者の判断待ち(`muse/SPEC.md`の8.1)。
+- これらのSPECは、`SPEC.lib.20261119.spec-eval-refresh.md`の手順で、定期的に改訂し、評価し直す。
+
+### やること
+
+1. muse-vmの`~/lib`で`git pull`する(SPEC・EVALだけの変更で、スクリプト・受信側は変わらない。受信側の再起動は不要)。
+2. muse-vmのcronで`sdk-auto-approve.py`が動いているかを確かめ、報告に書く(`crontab -l`の該当行の有無だけ。中身や鍵は貼らない)。利用者の判断が出るまで、設定は変えない。
+3. `SPEC.lib.muse.execution-path`(REQ-EP-026〜030)と`SPEC.lib.tailnet-health.shtml`が muse-vm のどこにあるかを報告に書く。libには無い。
+
 ## 2026-11-18
 
 ### 変わったこと

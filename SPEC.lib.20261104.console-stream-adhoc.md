@@ -2,6 +2,10 @@
 
 記録日: 2026-11-04。対象はmygwの会話ストリーム閲覧・投稿。ユーザーの承認を受けて実施した暫定対応であり、恒久設計として採用したものではない。
 
+改訂: 2026-11-19、opus-5.5（Claude Opus 5.5、Claude Code）。要件の番号（`REQ-CS-…`）と、mygwのobserverがClaude版に替わった今の状態（末尾の「2026-11-19の現状」）を足した。11-04・11-05の記録は変えていない
+評価: [`EVAL.lib.20261104.console-stream-adhoc.opus-5.5.20261119.md`](EVAL.lib.20261104.console-stream-adhoc.opus-5.5.20261119.md)
+定期的な見直し: このSPECは[`SPEC.lib.20261119.spec-eval-refresh.md`](SPEC.lib.20261119.spec-eval-refresh.md)の手順で、定期的に実情に合わせて改訂し、評価し直す
+
 ## 今回のアドホック対応（実施済み）
 
 mygwのobserverはSSH上のCodexと同じ会話の履歴を読んでいた。しかし閲覧用App Serverではその会話がnotLoadedで、turn/startはthread not foundとなった。投稿時だけthread/resumeする修正を加えたところ、元のSSH Codexが書き込みを所有しているため、already has an active writerで拒否された。
@@ -68,3 +72,29 @@ App Serverの履歴分岐と投稿仕様の根拠: [公式OpenAIドキュメン�
 ### 後続ターンでの配信確認
 
 同じ会話でテスト投稿を実受信し、assistantのSTREAM_POST_OK_20261105応答を公開observer配信でも確認した。native queueの該当件数は0となった。前節の取り込み・実応答未確認は解消。実ブラウザ操作・再作成後の復元・通信断時の手動再送の重複排除は引き続き未検証。
+
+## 要件の番号（2026-11-19に付与）
+
+11-05の一本化の方針を正とする（11-04の別会話の運用は採用しない）。
+
+| 番号 | 要件 | 本書の節 |
+|---|---|---|
+| REQ-CS-1 | 投稿は閲覧中と同じ会話IDへ向ける。別の会話への分岐・別IDへの再送はしない | 2026-11-05 |
+| REQ-CS-2 | 書き込み中の会話（active writer）には、ロックを壊さず`thread/queue/add`で入力を足す（Codex版）。キューの登録を確かめたときだけ`accepted`・`queued`を返す。エラーや不明な応答は自動で送り直さない | 2026-11-05 |
+| REQ-CS-3 | 競合を解決できないときは`console_in_use`（HTTP 409）を返す | 今回のアドホック対応 |
+| REQ-CS-4 | 閲覧だけでは`thread/resume`・`turn/start`（Claude版では`claude -p`）を呼ばない | 同上 |
+| REQ-CS-5 | HMAC認証・Origin制限・投稿用の期限付き許可を保つ。ブラウザから任意の会話IDやRPCを指定させない | 同上 |
+| REQ-CS-6 | 画面は`accepted=true`を確かめ、`queued=true`なら「この会話の送信待ち」と表示する。受付を応答の完了として扱わない | 2026-11-05 |
+
+## 2026-11-19の現状
+
+- **mygwのobserverは、Codex版からClaude版（`claude/ops/chat_observer_claude.py`）に替わっている。** 本体のdemoコンテナの起動処理が、`restore-claude-host.sh`で元のobserverを止めてClaude版を起動する（2026-11-13〜）。監視対象は`workspace:/root`（そのプロジェクトで最新のClaude Codeのセッション）。
+- Claude版の投稿は、`claude -p --resume <session> -- <text>`を監視中のセッションのcwdで起動する。同じ会話IDへ向ける点（REQ-CS-1）は同じ。ただし、**Claude Codeには`thread/queue/add`に当たる仕組みが無い**。人が操作中のセッションへ送ると、2つのプロセスが同じ記録に書く（`claude/SPEC.claude.20261102.md`のREQ-CL-13）。REQ-CS-2はCodex版にだけ当てはまる。
+- Codex版の実装（`ops/chat_observer.py`の`thread/resume`→`console_in_use`→`thread/queue/add`）と、HTTP側の409（`ops/chat_http_stream.py`）は11-05のまま残っている。
+- 恒久設計（6項目）は未実装のまま。
+
+## 改訂の記録
+
+| 日付 | モデル | 箇所 | 内容 | 根拠 |
+|---|---|---|---|---|
+| 2026-11-19 | opus-5.5 | 冒頭・末尾 | 要件の番号と、observerがClaude版に替わった今の状態を追加。11-04・11-05の記録は変えていない | 稼働中のプロセス（`chat_observer_claude.py`、`LIB_CHAT_CLAUDE_SESSION=workspace:/root`）、`restore-claude-host.sh`、`git grep queue/add ops/` |

@@ -1,5 +1,9 @@
 # SPEC: lib/muse の読み取り用スクリプト
 
+改訂: 2026-11-19、opus-5.5（Claude Opus 5.5、Claude Code）。2章に`hooks.sh`（2026-11-18に追加、表に無かった）を足し、表に無いスクリプトと、参照先の無いSPECを7章に記録した。5章の「確かめていないこと」のうち、ApacheでのSSIを本体のdemoコンテナで確かめた。要件の番号（`REQ-MS-…`）を7章に足した
+評価: [`EVAL.scripts.opus-5.5.20261119.md`](EVAL.scripts.opus-5.5.20261119.md)
+定期的な見直し: このSPECは[`../SPEC.lib.20261119.spec-eval-refresh.md`](../SPEC.lib.20261119.spec-eval-refresh.md)の手順で、定期的に実情に合わせて改訂し、評価し直す
+
 **対象**: `lib/muse/` の読み取り用スクリプト(下の表)・ダッシュボードの緑の区画・サンプル — Muse(muse-vm上のエージェント)とmuse-monitorが、muse-vmの状態を読み取るための部品。何を返すか、どこまでを保証するかを定める。
 
 ## 1. 原則
@@ -23,6 +27,7 @@
 | `procs.sh` | `PID COMMAND RSS` と、メモリ上位10件(MiB) | 0 | `ps` |
 | `ports.sh` | `tcp/udp <待ち受けアドレス>`。`ss` が無ければ `ss not found` | 0 | `ss -tuln` |
 | `git-heads.sh` | `<HOMEからの相対パス> [<ブランチ>] <短いハッシュ> <件名> (dirty: <件数>, unpushed: <件数か?>)` | 0 | `~/muse-vm-hacks` と `~/workspace` の下(深さ3まで)の `.git` |
+| `hooks.sh` | `hooks: <件数> 件`の後、`~/hooks/definitions/*.json`(バックアップ`*.before-*`を除く)ごとに`[<ID>] 有効/無効`・poll間隔・delivery・`script:`・`直近の実行:`・`直近の wake:`。定義の`prompt`は出さない。壊れた定義・ログ行は注記して続ける(2026-11-18、`7fb2b20`で追加。**README・ダッシュボードの断片・テストの対象にはまだ無い**。7章) | 0 | `~/hooks/definitions/*.json`・`~/hooks/logs/<id>.jsonl`(`python3`) |
 | `graphs.sh` | 棒グラフのHTML断片(プロセスのメモリ、メモリ・スワップ、ディスク)。幅は0〜100% | 0 | `ps`・`free`・`df` |
 | `tailnet-health.sh` | 環境変数 `MUSE_TAILNET_HEALTH_OK` が `1` でない場合は `(access denied)` の1行だけ（配信側が SetEnvIfExpr で正規ユーザーの場合にだけ立てるフラグ。REQ-TH-011）。`1` の場合は `== tailscaled ==`(PIDと開始時刻、または `not running`)、`== node ==`(LocalAPI から抽出した state・版・自身のIPv4・ホスト名・DNS名・online、取得できなければ `(local API unavailable)`)、`== receiver (:8090) ==` と `== API Bridge ==`(`/health` の本文、または `(no response)`)。仕様は SPEC.lib.tailnet-health.shtml | 0 | `pgrep`・`ps`・`curl`(LocalAPI の unix ソケット、`127.0.0.1:8090`、`127.0.0.1:8080`)・`python3`(応答の抽出) |
 
@@ -43,19 +48,19 @@ muse-monitorが呼ぶ受信側(`docs/RECEIVER.md`、nekoserver/muse-monitor)の�
 
 | 要求 | 応答 |
 |---|---|
-| `GET /health` | 200 `{"status": "ok", "keyFingerprint": "<鍵の指紋>"}`(認証なし。muse-monitorが相手を探すのに使う) |
-| `GET /monitor/<section>`、鍵が未設定 | 503 `receiver_key_not_configured` |
-| `Authorization: Bearer <鍵>` が無い・違う | 401 `{"error": "unauthorized", "expectedKeyFingerprint", "presentedKeyFingerprint"}`(比較はタイミングセーフ。前後の空白は除いて比べる) |
+| `GET /health` | 200 `{"status": "ok"}`(認証なし。muse-monitorが相手を探すのに使う。2026-11-18の`7399ca0`から鍵の指紋は出さない) |
+| `GET /monitor/<section>`・`GET /queue`、鍵が読めない | 503 `receiver_key_missing` |
+| `Authorization: Bearer <鍵>` が無い・違う | 401 `{"error": "unauthorized"}`(比較はタイミングセーフ) |
 | 未知の section、スクリプトが無い | 404 `unknown_section`(何も実行しない) |
 | 正常 | 200 `{"section", "rc", "output", "truncated", "ts"}`。`output` は標準出力と標準エラー、64 KiBで切り詰め |
 | 60秒を超えた | 504 `timeout`。子プロセスごと止める(プロセスグループで起動して `SIGKILL`) |
 | `POST` など | 405 |
 
-- 鍵は `~/.config/muse-receiver.env` の `TS_API_KEY`(muse-monitorの `TS_API_KEY` と同じ値)だけから読む。シェルの環境変数 `TS_API_KEY` は使わない(muse-vm では別の用途の値が入っていることがある。食い違っていれば起動時に名前だけ知らせる)。値の前後の空白・CRLF・引用符は除く。
-- 鍵の指紋は sha256 の先頭8桁。起動時・`/health`・401 の本文に出す。鍵そのものは出さない。muse-monitor の `receiver_unauthorized` は受信側の本文を `receiver` に入れて返すので、`expectedKeyFingerprint`(受信側の鍵)と `presentedKeyFingerprint`(muse-monitor が送った鍵)を見比べれば、どちらが違うか分かる。
+- 鍵は `~/.config/muse-receiver.env`(`--key-env-file`で変えられる)の `TS_API_KEY`(muse-monitorの `TS_API_KEY` と同じ値)だけから読む。最後の `TS_API_KEY=` 行が勝ち、前後の空白は除く。シェルの環境変数 `TS_API_KEY` は使わない。契約は muse-monitor の `docs/RECEIVER.md`(`SPEC.muse-monitor.security.hardening` の REQ-SEC-001/002/004/020)。
+- 鍵の指紋は、2026-11-18の`7399ca0`(「鍵照合を稼働中実装(muse-vm)に統一」)から `/health`・401の本文に出さない。どちらの鍵が違うかは `receiver-check.sh` で確かめる。
 - 扱う section は、スクリプトのある `status`・`jobs`・`pkgs`・`vm`・`procs`・`ports`・`git`・`recent`。muse-monitorの許可リストのうち、`diag`・`pending`・`execlog`・`sdk*` はスクリプトが無いので404。
 - 既定で全アドレス(`0.0.0.0`)に待ち受ける。`127.0.0.1` では tailnet 経由の muse-monitor から接続拒否になる(2026-11-11 に起きた)。絞るときは `--host` に tailnet のアドレスを指定する。
-- `TS_API_KEY` が無ければ起動しない(鍵なしで全アドレスに出さない)。
+- 鍵が読めなくても起動し、鍵の要る経路(`/monitor/*`・`/queue`)だけを503にする(鍵なしで通さない。起動時に `auth: unavailable` と出す)。2026-11-18より前の「鍵が無ければ起動しない」から変わった。
 
 ### 4.0 muse-vm での最善の状態(必ずこの状態にする)
 
@@ -120,10 +125,44 @@ python3 -m unittest test/muse_scripts_test.py test/muse_samples_test.py
 
 - `test/muse_scripts_test.py`: 外部コマンドを `PATH` の先頭の偽物に差し替え、`dash` で各スクリプトの出力を確かめる。原則(1章)とダッシュボードの対応(3章)も検査する。
 - `test/muse_samples_test.py`: 受信側のサンプルを空いているポートで実際に起動し、HTTPで4章の表を確かめる。並行処理とキュー(4.1、同時実行の上限・到着順・あふれ・待ち時間・まとめ・使い回し・`/queue`)と、項目の追加(4.2、不正な指定の拒否)も確かめる。bridge-jobsの見本を、実際のスクリプトで読めることも確かめる。
-- **確かめていないこと**: muse-vmの実環境(Nix・tailscaled・API Bridge・実際のキュー)での実行と、Apacheに置いたときのSSIの動作。
+- **確かめていないこと**: muse-vmの実環境(Nix・tailscaled・API Bridge・実際のキュー)での実行。ApacheでのSSIは、2026-11-19に本体のdemoコンテナの内部Apache(8445)で確かめた(`index.shtml`は200、`tailnet.shtml`は正規ユーザーのフラグが無いので`(access denied)`)。
 
 ## 6. 変えるときの注意
 
 - スクリプトを足したら、`README.md` の表・`dashboard/` の断片と `index.shtml` の区画・このSPECの2章を同時に直す(テストが漏れを落とす)。
 - muse-monitorの受信側から呼ばせるなら、`samples/receiver.py` の `SECTIONS` と、muse-monitorの許可リスト(`src/do.ts`・`src/index.ts`・`docs/RECEIVER.md`)を合わせる。
 - Museへの経路全体で決めておくべきことは、`SPEC.lib.20261111.muse-tailnet-lessons.md`(リポジトリの直下)。
+
+## 7. 2026-11-19の現状と要件の番号(改訂で追記)
+
+### 7.1 表と実物の食い違い
+
+| 項目 | 内容 |
+|---|---|
+| `hooks.sh` | 2026-11-18の`7fb2b20`で追加された読み取り専用のスクリプト。6章の決まり(READMEの表・`dashboard/`の断片と`index.shtml`の区画・このSPECの2章を同時に直す)に沿っておらず、2章には今回の改訂で足した。READMEと断片は無いまま。テスト(`test/muse_scripts_test.py`)の`READ_ONLY_SCRIPTS`は固定の一覧で、`hooks.sh`を含まないため、漏れを落とせていない |
+| `daemon-check.sh`・`exec-log.sh`・`pending.sh`・`diag.sh` | READMEにはあるが、2章の表にも`SPEC.md`の章にも、出力の形の定めが無い(`diag.sh`は`SPEC.md`の診断ゲートで名前だけ出る)。どちらのSPECが定めるかが決まっていない |
+| 4章の受信側 | 2026-11-18の`7399ca0`で鍵の照合が変わったのに、4章が直されていなかった(`/health`の指紋、503のコード、401の本文、鍵が無いときの起動)。今回の改訂で実装に合わせた |
+| `SPEC.lib.tailnet-health.shtml` | 2章の`tailnet-health.sh`の行とREADMEが「仕様は SPEC.lib.tailnet-health.shtml」とするが、libリポジトリに無い(muse-vmの側にあるとみられるが未確認)。`REQ-TH-011`もそこにある |
+| テストの環境 | `GitHeadsTest`は`PATH`を`/usr/bin:/bin`に絞る。gitが`/usr/local/bin/git`にある環境(本体のdemoコンテナ)では、gitが見つからず出力が空になって落ちる。コードの不具合ではない |
+
+### 7.2 要件の番号
+
+| 番号 | 要件 | 本書の章 |
+|---|---|---|
+| REQ-MS-1 | 読み取り専用。状態を変えるコマンドを使わない | 1 |
+| REQ-MS-2 | tailscale CLIを呼ばない。外へ出るのはloopbackとunixソケットだけ | 1 |
+| REQ-MS-3 | POSIX shと`set -u`、`dash`で動く。シェバンのあるファイルはgitで`100755` | 1 |
+| REQ-MS-4 | 各スクリプトの出力・終了コードは2章の表のとおり | 2 |
+| REQ-MS-5 | ダッシュボードの断片はHTMLエスケープし、全スクリプトに断片がある | 3 |
+| REQ-MS-6 | 受信側のサンプルは4章の表のとおり。鍵は`~/.config/muse-receiver.env`の`TS_API_KEY`だけ。既定で`0.0.0.0:8090` | 4・4.0 |
+| REQ-MS-7 | 並行処理とキューは4.1の表のとおり | 4.1 |
+| REQ-MS-8 | スクリプトを足したら、README・断片・本書の2章を同時に直す | 6 |
+
+### 7.3 改訂の記録
+
+| 日付 | モデル | 箇所 | 内容 | 根拠 |
+|---|---|---|---|---|
+| 2026-11-19 | opus-5.5 | 2章 | `hooks.sh`の行を追加 | `muse/hooks.sh`、`git show 7fb2b20` |
+| 2026-11-19 | opus-5.5 | 4章 | `/health`の本文、鍵が無いときの503のコード、401の本文、鍵の読み方、鍵が無いときの起動を、`7399ca0`の後の実装に合わせた | `muse/samples/receiver.py`、`test/muse_samples_test.py`(通過)、muse-vmの`:8090/health`の実測(`{"status": "ok"}`) |
+| 2026-11-19 | opus-5.5 | 5章 | ApacheでのSSIを確かめた旨に更新 | 8445の実測 |
+| 2026-11-19 | opus-5.5 | 7章 | 食い違いと要件の番号を追加 | 7.1の表 |

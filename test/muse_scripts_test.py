@@ -603,15 +603,26 @@ class PanelTest(unittest.TestCase):
         for sec_id in self.ids:
             self.assertIn(f'data-sec="{sec_id}"', self.index, sec_id)
 
-    def test_each_section_is_wrapped_in_an_ssi_if_on_libdash_off(self):
+    def test_each_section_body_is_wrapped_in_an_ssi_if_on_libdash_off(self):
+        # 版4 (REQ-PN-009): #if で囲むのは本文だけ。見出し行は残る
         for sec_id in self.ids:
             cond = f'<!--#if expr="$LIBDASH_OFF != /,{sec_id},/" -->'
-            self.assertIn(cond, self.index, sec_id)
-            if_at = self.index.index(cond)
+            self.assertIn(cond + '\n  <div class="body">', self.index, sec_id)
             sec_at = self.index.index(f'data-frag="{sec_id}.shtml"')
-            self.assertLess(if_at, sec_at, sec_id)
-            end_at = self.index.index('</section>', sec_at)
-            self.assertIn('<!--#endif -->', self.index[end_at:end_at + 80], sec_id)
+            body_at = self.index.index('<div class="body">', sec_at)
+            end_sec = self.index.index('</section>', sec_at)
+            self.assertIn('<!--#endif -->', self.index[body_at:end_sec], sec_id)
+
+    def test_each_section_heading_has_a_toggle_linked_to_the_panel(self):
+        for sec_id in self.ids:
+            self.assertIn(f'onclick="dashToggleSection(\'{sec_id}\')"',
+                          self.index, sec_id)
+            self.assertIn(
+                f'<!--#if expr="$LIBDASH_OFF != /,{sec_id},/" -->'
+                '▼<!--#else -->▲<!--#endif -->',
+                self.index, sec_id)
+        # トグルはサイドパネルと同じ Cookie 書き込み経路を通る
+        self.assertIn('function dashToggleSection(', self.index)
 
     def test_checkbox_state_is_rendered_by_ssi(self):
         for sec_id in self.ids:
@@ -632,6 +643,14 @@ class PanelTest(unittest.TestCase):
         self.assertIn("'libdash_off=,", self.index)
         self.assertIn("'libdash_layout='", self.index)
         self.assertIn('location.reload()', self.index)
+
+    def test_narrow_layout_falls_back_to_document_flow(self):
+        # 狭い画面ではペイン構成を解く (REQ-PN-008)。100vh のグリッドを
+        # 維持するとサイドパネルが全画面を占め、本文に届かなくなる
+        media = self.index.split('@media (max-width: 900px)', 1)[1]
+        media = media.split('</style>', 1)[0]
+        self.assertRegex(media, r'body\s*\{[^}]*display:\s*block')
+        self.assertRegex(media, r'\.pane-main\s*\{[^}]*overflow-y:\s*visible')
 
     def test_page_is_a_three_pane_layout(self):
         # 3ペイン構成（REQ-PN-008）: 見出し、サイドパネル、本文。

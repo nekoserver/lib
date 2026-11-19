@@ -56,10 +56,14 @@
   #dashpanel label { display: block; padding: .12em 0; cursor: pointer; }
   .pane-main { grid-area: main; overflow-y: auto; padding: 1em;
     min-width: 0; min-height: 0; }
+  .sectoggle { background: none; border: none; color: #8ab; cursor: pointer;
+    font-size: .9em; padding: 0 .25em 0 0; }
   @media (max-width: 900px) {
-    body { grid-template-columns: 1fr; grid-template-rows: auto auto 1fr;
-      grid-template-areas: "head" "side" "main"; }
+    /* 狭い画面ではペイン構成を解いて通常の文書フローに戻す。100vh の
+       グリッドを維持すると、サイドパネルが全画面を占めて本文に届かない */
+    body { display: block; height: auto; }
     #dashpanel { border-right: none; border-bottom: 1px solid #333; }
+    .pane-main { overflow-y: visible; }
     .layout-grid { grid-template-columns: 1fr; }
   }
   .layout-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1em; }
@@ -72,6 +76,7 @@
 function rerun(btn) {
   var sec = btn.closest('section');
   var body = sec.querySelector('.body');
+  if (!body) { return; }
   var frag = sec.getAttribute('data-frag');
   btn.disabled = true;
   fetch(frag + '?t=' + Date.now(), { cache: 'no-store' })
@@ -98,6 +103,12 @@ async function updateReview() {
     '指示: ' + text.length + ' 文字 / sha256: ' + hash + '\n' +
     '送信では受付のみが行われ、実行には受ける側ホストでの承認が要ります。受付と承認・実行は監査ログに記録されます。';
   document.getElementById('runbtn').disabled = !(document.getElementById('confirm').checked && text.trim());
+}
+function dashToggleSection(id) {
+  var cb = document.querySelector('#dashpanel input[data-sec="' + id + '"]');
+  if (!cb) { return; }
+  cb.checked = !cb.checked;
+  dashPanelChanged();
 }
 function dashPanelChanged() {
   var off = [];
@@ -152,119 +163,119 @@ function dashLayoutChanged() {
 <!--#elif expr="$LIBDASH_LAYOUT = /compact/" --><div class="layout layout-compact">
 <!--#else --><div class="layout layout-stack">
 <!--#endif -->
-<!--#if expr="$LIBDASH_OFF != /,graphs,/" -->
 <section class="read" data-frag="graphs.shtml">
-  <h2>グラフ <span class="badge read">読み取り</span> <span class="ops"><button type="button" onclick="rerun(this)">再実行</button><a href="graphs.shtml">開く</a></span></h2>
+  <h2><button type="button" class="sectoggle" onclick="dashToggleSection('graphs')"><!--#if expr="$LIBDASH_OFF != /,graphs,/" -->▼<!--#else -->▲<!--#endif --></button> グラフ <span class="badge read">読み取り</span> <span class="ops"><button type="button" onclick="rerun(this)">再実行</button><a href="graphs.shtml">開く</a></span></h2>
+  <!--#if expr="$LIBDASH_OFF != /,graphs,/" -->
   <div class="body"><!--#include virtual="graphs.shtml" --></div>
+  <!--#endif -->
 </section>
-<!--#endif -->
 
-<!--#if expr="$LIBDASH_OFF != /,status,/" -->
 <section class="read" data-frag="status.shtml">
-  <h2>常駐物（tailscaled / API Bridge） <span class="badge read">読み取り</span> <span class="ops"><button type="button" onclick="rerun(this)">再実行</button><a href="status.shtml">開く</a></span></h2>
+  <h2><button type="button" class="sectoggle" onclick="dashToggleSection('status')"><!--#if expr="$LIBDASH_OFF != /,status,/" -->▼<!--#else -->▲<!--#endif --></button> 常駐物（tailscaled / API Bridge） <span class="badge read">読み取り</span> <span class="ops"><button type="button" onclick="rerun(this)">再実行</button><a href="status.shtml">開く</a></span></h2>
+  <!--#if expr="$LIBDASH_OFF != /,status,/" -->
   <div class="body"><!--#include virtual="status.shtml" --></div>
+  <!--#endif -->
 </section>
-<!--#endif -->
 
-<!--#if expr="$LIBDASH_OFF != /,tailnet,/" -->
 <section class="read" data-frag="tailnet.shtml">
-  <h2>ノードのヘルス（tailnet） <span class="badge read">読み取り</span> <span class="ops"><button type="button" onclick="rerun(this)">再実行</button><a href="tailnet.shtml">開く</a></span></h2>
+  <h2><button type="button" class="sectoggle" onclick="dashToggleSection('tailnet')"><!--#if expr="$LIBDASH_OFF != /,tailnet,/" -->▼<!--#else -->▲<!--#endif --></button> ノードのヘルス（tailnet） <span class="badge read">読み取り</span> <span class="ops"><button type="button" onclick="rerun(this)">再実行</button><a href="tailnet.shtml">開く</a></span></h2>
+  <!--#if expr="$LIBDASH_OFF != /,tailnet,/" -->
   <div class="body"><!--#include virtual="tailnet.shtml" --></div>
+  <!--#endif -->
 </section>
-<!--#endif -->
 
-<!--#if expr="$LIBDASH_OFF != /,boot,/" -->
 <section class="read" data-frag="boot.shtml">
-  <h2>再起動と巻き戻り <span class="badge read">読み取り</span> <span class="ops"><button type="button" onclick="rerun(this)">再実行</button><a href="boot.shtml">開く</a></span></h2>
+  <h2><button type="button" class="sectoggle" onclick="dashToggleSection('boot')"><!--#if expr="$LIBDASH_OFF != /,boot,/" -->▼<!--#else -->▲<!--#endif --></button> 再起動と巻き戻り <span class="badge read">読み取り</span> <span class="ops"><button type="button" onclick="rerun(this)">再実行</button><a href="boot.shtml">開く</a></span></h2>
+  <!--#if expr="$LIBDASH_OFF != /,boot,/" -->
   <div class="body"><!--#include virtual="boot.shtml" --></div>
+  <!--#endif -->
 </section>
-<!--#endif -->
 
-<!--#if expr="$LIBDASH_OFF != /,jobs,/" -->
 <section class="read" data-frag="jobs.shtml">
-  <h2>ジョブキュー <span class="badge read">読み取り</span> <span class="ops"><button type="button" onclick="rerun(this)">再実行</button><a href="jobs.shtml">開く</a></span></h2>
+  <h2><button type="button" class="sectoggle" onclick="dashToggleSection('jobs')"><!--#if expr="$LIBDASH_OFF != /,jobs,/" -->▼<!--#else -->▲<!--#endif --></button> ジョブキュー <span class="badge read">読み取り</span> <span class="ops"><button type="button" onclick="rerun(this)">再実行</button><a href="jobs.shtml">開く</a></span></h2>
+  <!--#if expr="$LIBDASH_OFF != /,jobs,/" -->
   <div class="body"><!--#include virtual="jobs.shtml" --></div>
+  <!--#endif -->
 </section>
-<!--#endif -->
 
-<!--#if expr="$LIBDASH_OFF != /,pkgs,/" -->
 <section class="read" data-frag="pkgs.shtml">
-  <h2>パッケージ（Nix / .deb） <span class="badge read">読み取り</span> <span class="ops"><button type="button" onclick="rerun(this)">再実行</button><a href="pkgs.shtml">開く</a></span></h2>
+  <h2><button type="button" class="sectoggle" onclick="dashToggleSection('pkgs')"><!--#if expr="$LIBDASH_OFF != /,pkgs,/" -->▼<!--#else -->▲<!--#endif --></button> パッケージ（Nix / .deb） <span class="badge read">読み取り</span> <span class="ops"><button type="button" onclick="rerun(this)">再実行</button><a href="pkgs.shtml">開く</a></span></h2>
+  <!--#if expr="$LIBDASH_OFF != /,pkgs,/" -->
   <div class="body"><!--#include virtual="pkgs.shtml" --></div>
+  <!--#endif -->
 </section>
-<!--#endif -->
 
-<!--#if expr="$LIBDASH_OFF != /,vm,/" -->
 <section class="read" data-frag="vm.shtml">
-  <h2>VM 情報 <span class="badge read">読み取り</span> <span class="ops"><button type="button" onclick="rerun(this)">再実行</button><a href="vm.shtml">開く</a></span></h2>
+  <h2><button type="button" class="sectoggle" onclick="dashToggleSection('vm')"><!--#if expr="$LIBDASH_OFF != /,vm,/" -->▼<!--#else -->▲<!--#endif --></button> VM 情報 <span class="badge read">読み取り</span> <span class="ops"><button type="button" onclick="rerun(this)">再実行</button><a href="vm.shtml">開く</a></span></h2>
+  <!--#if expr="$LIBDASH_OFF != /,vm,/" -->
   <div class="body"><!--#include virtual="vm.shtml" --></div>
+  <!--#endif -->
 </section>
-<!--#endif -->
 
-<!--#if expr="$LIBDASH_OFF != /,procs,/" -->
 <section class="read" data-frag="procs.shtml">
-  <h2>プロセス（メモリ上位） <span class="badge read">読み取り</span> <span class="ops"><button type="button" onclick="rerun(this)">再実行</button><a href="procs.shtml">開く</a></span></h2>
+  <h2><button type="button" class="sectoggle" onclick="dashToggleSection('procs')"><!--#if expr="$LIBDASH_OFF != /,procs,/" -->▼<!--#else -->▲<!--#endif --></button> プロセス（メモリ上位） <span class="badge read">読み取り</span> <span class="ops"><button type="button" onclick="rerun(this)">再実行</button><a href="procs.shtml">開く</a></span></h2>
+  <!--#if expr="$LIBDASH_OFF != /,procs,/" -->
   <div class="body"><!--#include virtual="procs.shtml" --></div>
+  <!--#endif -->
 </section>
-<!--#endif -->
 
-<!--#if expr="$LIBDASH_OFF != /,ports,/" -->
 <section class="read" data-frag="ports.shtml">
-  <h2>待ち受けポート <span class="badge read">読み取り</span> <span class="ops"><button type="button" onclick="rerun(this)">再実行</button><a href="ports.shtml">開く</a></span></h2>
+  <h2><button type="button" class="sectoggle" onclick="dashToggleSection('ports')"><!--#if expr="$LIBDASH_OFF != /,ports,/" -->▼<!--#else -->▲<!--#endif --></button> 待ち受けポート <span class="badge read">読み取り</span> <span class="ops"><button type="button" onclick="rerun(this)">再実行</button><a href="ports.shtml">開く</a></span></h2>
+  <!--#if expr="$LIBDASH_OFF != /,ports,/" -->
   <div class="body"><!--#include virtual="ports.shtml" --></div>
+  <!--#endif -->
 </section>
-<!--#endif -->
 
-<!--#if expr="$LIBDASH_OFF != /,git,/" -->
 <section class="read" data-frag="git.shtml">
-  <h2>ローカル git リポジトリ <span class="badge read">読み取り</span> <span class="ops"><button type="button" onclick="rerun(this)">再実行</button><a href="git.shtml">開く</a></span></h2>
+  <h2><button type="button" class="sectoggle" onclick="dashToggleSection('git')"><!--#if expr="$LIBDASH_OFF != /,git,/" -->▼<!--#else -->▲<!--#endif --></button> ローカル git リポジトリ <span class="badge read">読み取り</span> <span class="ops"><button type="button" onclick="rerun(this)">再実行</button><a href="git.shtml">開く</a></span></h2>
+  <!--#if expr="$LIBDASH_OFF != /,git,/" -->
   <div class="body"><!--#include virtual="git.shtml" --></div>
+  <!--#endif -->
 </section>
-<!--#endif -->
 
-<!--#if expr="$LIBDASH_OFF != /,recent,/" -->
 <section class="read" data-frag="recent.shtml">
-  <h2>直近の完了ジョブ <span class="badge read">読み取り</span> <span class="ops"><button type="button" onclick="rerun(this)">再実行</button><a href="recent.shtml">開く</a></span></h2>
+  <h2><button type="button" class="sectoggle" onclick="dashToggleSection('recent')"><!--#if expr="$LIBDASH_OFF != /,recent,/" -->▼<!--#else -->▲<!--#endif --></button> 直近の完了ジョブ <span class="badge read">読み取り</span> <span class="ops"><button type="button" onclick="rerun(this)">再実行</button><a href="recent.shtml">開く</a></span></h2>
+  <!--#if expr="$LIBDASH_OFF != /,recent,/" -->
   <div class="body"><!--#include virtual="recent.shtml" --></div>
+  <!--#endif -->
 </section>
-<!--#endif -->
 
-<!--#if expr="$LIBDASH_OFF != /,diag,/" -->
 <section class="read" data-frag="diag.shtml">
-  <h2>診断サマリ（全33項目） <span class="badge read">読み取り</span> <span class="ops"><button type="button" onclick="rerun(this)">再実行</button><a href="diag.shtml">開く</a></span></h2>
+  <h2><button type="button" class="sectoggle" onclick="dashToggleSection('diag')"><!--#if expr="$LIBDASH_OFF != /,diag,/" -->▼<!--#else -->▲<!--#endif --></button> 診断サマリ（全33項目） <span class="badge read">読み取り</span> <span class="ops"><button type="button" onclick="rerun(this)">再実行</button><a href="diag.shtml">開く</a></span></h2>
+  <!--#if expr="$LIBDASH_OFF != /,diag,/" -->
   <div class="body"><!--#include virtual="diag.shtml" --></div>
+  <!--#endif -->
   <p class="meta">WARN/FAIL の見方: <a href="matrix.html">診断マトリックス</a>（想定インシデントとの対応表）。この診断は防波堤として実行系の承認の直前にも走り、FAIL がある間は実行されません。</p>
 </section>
-<!--#endif -->
 
-<!--#if expr="$LIBDASH_OFF != /,execlog,/" -->
 <section class="read" data-frag="execlog.shtml">
-  <h2>実行監査ログ <span class="badge read">読み取り</span> <span class="ops"><button type="button" onclick="rerun(this)">再実行</button><a href="execlog.shtml">開く</a></span></h2>
+  <h2><button type="button" class="sectoggle" onclick="dashToggleSection('execlog')"><!--#if expr="$LIBDASH_OFF != /,execlog,/" -->▼<!--#else -->▲<!--#endif --></button> 実行監査ログ <span class="badge read">読み取り</span> <span class="ops"><button type="button" onclick="rerun(this)">再実行</button><a href="execlog.shtml">開く</a></span></h2>
+  <!--#if expr="$LIBDASH_OFF != /,execlog,/" -->
   <div class="body"><!--#include virtual="execlog.shtml" --></div>
+  <!--#endif -->
 </section>
-<!--#endif -->
 
-<!--#if expr="$LIBDASH_OFF != /,cron,/" -->
 <section class="read" data-frag="cron.shtml">
-  <h2>定期実行の状態 <span class="badge read">読み取り</span> <span class="ops"><button type="button" onclick="rerun(this)">再実行</button><a href="cron.shtml">開く</a></span></h2>
+  <h2><button type="button" class="sectoggle" onclick="dashToggleSection('cron')"><!--#if expr="$LIBDASH_OFF != /,cron,/" -->▼<!--#else -->▲<!--#endif --></button> 定期実行の状態 <span class="badge read">読み取り</span> <span class="ops"><button type="button" onclick="rerun(this)">再実行</button><a href="cron.shtml">開く</a></span></h2>
+  <!--#if expr="$LIBDASH_OFF != /,cron,/" -->
   <div class="body"><!--#include virtual="cron.shtml" --></div>
+  <!--#endif -->
 </section>
-<!--#endif -->
 
-<!--#if expr="$LIBDASH_OFF != /,hooks,/" -->
 <section class="read" data-frag="hooks.shtml">
-  <h2>フックの状態 <span class="badge read">読み取り</span> <span class="ops"><button type="button" onclick="rerun(this)">再実行</button><a href="hooks.shtml">開く</a></span></h2>
+  <h2><button type="button" class="sectoggle" onclick="dashToggleSection('hooks')"><!--#if expr="$LIBDASH_OFF != /,hooks,/" -->▼<!--#else -->▲<!--#endif --></button> フックの状態 <span class="badge read">読み取り</span> <span class="ops"><button type="button" onclick="rerun(this)">再実行</button><a href="hooks.shtml">開く</a></span></h2>
+  <!--#if expr="$LIBDASH_OFF != /,hooks,/" -->
   <div class="body"><!--#include virtual="hooks.shtml" --></div>
+  <!--#endif -->
 </section>
-<!--#endif -->
 
-<!--#if expr="$LIBDASH_OFF != /,pending,/" -->
 <section class="read" data-frag="pending.shtml">
-  <h2>承認待ち（実行系の受付分） <span class="badge read">読み取り</span> <span class="ops"><button type="button" onclick="rerun(this)">再実行</button><a href="pending.shtml">開く</a></span></h2>
+  <h2><button type="button" class="sectoggle" onclick="dashToggleSection('pending')"><!--#if expr="$LIBDASH_OFF != /,pending,/" -->▼<!--#else -->▲<!--#endif --></button> 承認待ち（実行系の受付分） <span class="badge read">読み取り</span> <span class="ops"><button type="button" onclick="rerun(this)">再実行</button><a href="pending.shtml">開く</a></span></h2>
+  <!--#if expr="$LIBDASH_OFF != /,pending,/" -->
   <div class="body"><!--#include virtual="pending.shtml" --></div>
+  <!--#endif -->
   <p class="meta">承認・却下は受ける側ホストの <code>sdk-approve.sh</code> でのみ行えます。</p>
 </section>
-<!--#endif -->
 </div><!-- /layout -->
 
 <section class="exec">

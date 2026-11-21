@@ -1,41 +1,96 @@
 #!/bin/sh
-# pkg-versions.sh - Nix 側と .deb 側のパッケージ版を分けて表示する（読み取り専用）
-#
-# Nix 側は ~/.nix-profile/manifest.json から、.deb 側は dpkg から読む。
-# 「最新」はここでは引かない（ネットワーク取得は呼び出し側の判断）。
+# 設定済み配布元の候補とインストール済みの版を表示する。
 set -u
+exec python3 - <<'PY'
+import json
+import os
+from pathlib import Path
+import re
+import shutil
+import subprocess
 
-echo "== Nix profile =="
-manifest="$HOME/.nix-profile/manifest.json"
-if [ -f "$manifest" ]; then
-  python3 - "$manifest" <<'PY'
-import json, sys
 
-with open(sys.argv[1], encoding="utf-8") as f:
-    data = json.load(f)
-for el in data.get("elements", []):
-    for name in el.get("storePaths", []):
-        base = name.rsplit("/", 1)[-1]
-        print(base)
+def query(*command):
+    try:
+        result = subprocess.run(
+            command, env={**os.environ, 'LC_ALL': 'C'}, text=True,
+            stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, timeout=12,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return ''
+    return result.stdout if result.returncode == 0 else ''
+
+
+def nix_versions():
+    home = Path.home()
+    local_nix = home / 'bin/nix-env'
+    nix = str(local_nix) if os.access(local_nix, os.X_OK) else shutil.which('nix-env')
+    compared = {}
+    if nix:
+        for line in query(nix, '-q', '--compare-versions').splitlines():
+            row = re.fullmatch(r'(\S+)\s+[<=>-]\s+(\S+)', line)
+            if row:
+                compared[row[1]] = row[2] if row[2] != '?' else None
+    manifest = home / '.nix-profile/manifest.json'
+    if manifest.is_file():
+        try:
+            elements = json.loads(manifest.read_text(encoding='utf-8'))['elements']
+            if isinstance(elements, dict):
+                elements = elements.values()
+            for element in elements:
+                if not isinstance(element, dict):
+                    continue
+                for store_path in element.get('storePaths', []):
+                    name = Path(store_path).name.partition('-')[2]
+                    if name:
+                        compared.setdefault(name, None)
+        except (OSError, ValueError, KeyError, TypeError):
+            pass
+    elif not compared and nix:
+        compared = dict.fromkeys(query(nix, '-q').splitlines())
+    for package, candidate in sorted(compared.items()):
+        parts = re.fullmatch(r'(.+?)-([0-9]\S*)', package)
+        yield (parts[1], parts[2], candidate) if parts else (package, '未確認', candidate)
+
+
+def apt_candidates(packages):
+    if not packages:
+        return {}
+    candidates = {}
+    # Installed-only entries also appear as Candidate in APT. Confirm that the
+    # candidate is listed in a configured package index before calling it current.
+    policy = query('apt-cache', 'policy', *packages)
+    package = candidate = version = None
+    for line in policy.splitlines():
+        if line and not line[0].isspace() and line.endswith(':'):
+            package, candidate, version = line[:-1], None, None
+        elif line.lstrip().startswith('Candidate: '):
+            candidate = line.split('Candidate: ', 1)[1]
+        elif match := re.fullmatch(r'\s*(?:\*\*\*\s+)?(\S+)\s+-?\d+\s*', line):
+            version = match[1]
+        elif candidate and version == candidate and line.strip().endswith(' Packages'):
+            candidates[package] = candidate
+    return candidates
+
+
+def deb_versions():
+    installed = {}
+    for line in query('dpkg-query', '-W', '-f=${db:Status-Abbrev}\\t${binary:Package}\\t${Version}\\n').splitlines():
+        fields = line.split('\t')
+        if len(fields) == 3 and fields[0][1:2] == 'i':
+            installed[fields[1]] = fields[2]
+    available = apt_candidates(installed)
+    for package, version in sorted(installed.items()):
+        yield package, version, available.get(package)
+
+
+for label, rows in (
+    ('Nix プロファイル（設定済みの Nix 式）', nix_versions()),
+    ('.deb（設定済みの APT 索引）', deb_versions()),
+):
+    print(f'== {label} ==')
+    print('パッケージ\tインストール済み\t最新版候補')
+    for package, installed, candidate in rows:
+        print(package, installed, candidate or '未確認', sep='\t')
+    print()
 PY
-elif [ -x "$HOME/bin/nix-env" ]; then
-  # nix-env 管理のプロファイルはこちら（manifest.nix 形式）
-  "$HOME/bin/nix-env" -q 2>/dev/null | sort
-elif command -v nix-env >/dev/null 2>&1; then
-  nix-env -q 2>/dev/null | sort
-else
-  echo "(nix profile unavailable)"
-fi
-
-echo
-echo "== .deb (dpkg) =="
-if command -v dpkg-query >/dev/null 2>&1; then
-  total=$(dpkg-query -W -f='${binary:Package}\n' 2>/dev/null | wc -l)
-  echo "installed packages: $total"
-  for p in git curl python3 ruby qemu-system-x86 busybox; do
-    v=$(dpkg-query -W -f='${Version}' "$p" 2>/dev/null || true)
-    if [ -n "$v" ]; then echo "$p $v"; fi
-  done
-else
-  echo "(dpkg not available)"
-fi

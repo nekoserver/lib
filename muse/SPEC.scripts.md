@@ -18,7 +18,7 @@
 | `muse-status.sh` | `== tailscaled ==`(PIDと開始時刻、または `not running`)、`== API Bridge ==`(`/health` の本文、または `(no response)`)、`== uptime ==` | 0 | `pgrep`・`ps`・`curl`・`/proc/uptime` |
 | `bridge-jobs.sh [基点]` | `status` が `queued` のジョブを `prio <優先度>  <job_id>  <依頼の先頭80文字>` の形で、優先度の降順・同点は `created` の昇順に並べる。無ければ `queued: 0`。最後に `done: <件数>` | 0。キューが無いときは1(標準エラーに `queue not found`) | `<基点>/queue/*.json`・`<基点>/done/*.json`。基点の既定は `~/workspace/bridge-jobs` |
 | `recent-jobs.sh [基点]` | `done/*.md` を新しい順に10件、`YYYY-MM-DD HH:MM  <見出し>`。見出しが無ければファイル名 | 0。置き場所が無いときは1 | `<基点>/done/*.md` |
-| `pkg-versions.sh` | `== Nix profile ==`(ストアのパス名)と `== .deb (dpkg) ==`(導入数と主な版) | 0(主なパッケージが無くても0) | `~/.nix-profile/manifest.json`、無ければ `nix-env -q`。`dpkg-query` |
+| `pkg-versions.sh` | Nix プロファイルと dpkg の導入済みパッケージ名・導入版・最新版候補をタブ区切りで表示する | 0 | 設定済みの Nix 式とローカルの APT 索引から候補を取得。候補が確認できない場合は「未確認」 |
 | `vm-info.sh` | CPU・メモリ・ディスク・OS | 0 | `nproc`・`/proc/cpuinfo`・`free`・`df`・`/etc/os-release` |
 | `procs.sh` | `PID COMMAND RSS` と、メモリ上位10件(MiB) | 0 | `ps` |
 | `ports.sh` | `tcp/udp <待ち受けアドレス>`。`ss` が無ければ `ss not found` | 0 | `ss -tuln` |

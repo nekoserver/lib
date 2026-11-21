@@ -1,5 +1,6 @@
 #!/bin/sh
 # 設定済み配布元の候補とインストール済みの版を表示する。
+set -u
 exec python3 - <<'PY'
 import json
 import os

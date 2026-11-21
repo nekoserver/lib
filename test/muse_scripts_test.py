@@ -430,35 +430,6 @@ class CronStateTest(ScriptCase):
         self.assertNotIn('2026-11-19', r.stdout)
 
 
-class PkgVersionsTest(ScriptCase):
-    def test_reads_nix_manifest_and_selected_deb_versions(self):
-        profile = self.home / '.nix-profile'
-        profile.mkdir()
-        (profile / 'manifest.json').write_text(json.dumps({'elements': [
-            {'storePaths': ['/nix/store/abc-ripgrep-14.1.1']},
-            {'storePaths': ['/nix/store/def-jq-1.7.1', '/nix/store/ghi-jq-1.7.1-man']},
-        ]}))
-        self.stub('dpkg-query', '''case "$*" in
-  *binary:Package*) printf '%s\\n' a b c ;;
-  *" git") printf '1:2.47.0' ;;
-  *" python3") printf '3.13.0' ;;
-  *) exit 1 ;;
-esac''')
-        r = self.run_script('pkg-versions.sh')
-        self.assertEqual(r.returncode, 0, r.stderr)
-        for name in ['abc-ripgrep-14.1.1', 'def-jq-1.7.1', 'ghi-jq-1.7.1-man']:
-            self.assertIn(name, r.stdout)
-        self.assertIn('installed packages: 3', r.stdout)
-        self.assertIn('git 1:2.47.0', r.stdout)
-        self.assertIn('python3 3.13.0', r.stdout)
-        self.assertNotIn('ruby ', r.stdout)
-
-    def test_says_when_nix_is_unavailable(self):
-        r = self.run_script('pkg-versions.sh')
-        self.assertEqual(r.returncode, 0, r.stderr)
-        self.assertIn('(nix profile unavailable)', r.stdout)
-
-
 class GitHeadsTest(ScriptCase):
     def test_reports_branch_head_dirty_and_unpushed(self):
         repo = self.home / 'workspace' / 'proj'

@@ -58,7 +58,7 @@ muse-monitorが呼ぶ受信側(`docs/RECEIVER.md`、nekoserver/muse-monitor)の�
 - 鍵の正はこのファイル(`~/.config/muse-receiver.env`)である。muse-monitor のシークレットはここから配られた写しで、食い違った場合はこちらに合わせる(SPEC.muse-monitor.security.hardening REQ-SEC-059)。
 - ローテーション: 鍵ファイルに `TS_API_KEY_PREVIOUS`(旧値)と `TS_API_KEY_PREVIOUS_UNTIL`(UNIX epoch 秒)がある間は、旧値も受け付ける(重ね期間の既定は24時間、REQ-SEC-063)。期限のない旧値は受け付けない。旧値で通した場合は、ログに指紋で残す。
 - 鍵ファイルは、gated な要求ごとに更新時刻を見て読み直す(再起動は不要、REQ-SEC-064)。
-- 鍵の付け替えは `samples/receiver-key.sh` で行う(`status` は指紋だけを表示、`rotate` は新しい値を生成して旧値を期限まで併用、`finish` は旧値を消す、`set` は標準入力の値を正にする)。値が表示されるのは `rotate` の一度だけ(Worker のシークレットへ設定するため)。
+- 鍵の付け替えは `samples/receiver-key.sh` で行う(`status` は指紋だけを表示、`rotate` は新しい値を生成して旧値を期限まで併用、`finish` は旧値を消す、`set` は標準入力の値を正にする)。値が表示されるのは `rotate` の一度だけ(Worker のシークレットへ設定するため)。なお対象ファイルは `$MUSE_RECEIVER_ENV` があればその値、無ければ `$HOME/.config/muse-receiver.env` で決まる。SSH ログインのシェルは HOME が /root になるため、そのシェルから実行するときは `MUSE_RECEIVER_ENV=/home/hatch/.config/muse-receiver.env` を付けて対象を本体に固定する(付けないと /root 側の同名ファイルを読み書きし、本体には届かない)。
 - 扱う section は、スクリプトのある `status`・`jobs`・`pkgs`・`vm`・`procs`・`ports`・`git`・`recent`。muse-monitorの許可リストのうち、`diag`・`pending`・`execlog`・`sdk*` はスクリプトが無いので404。
 - 既定で全アドレス(`0.0.0.0`)に待ち受ける。`127.0.0.1` では tailnet 経由の muse-monitor から接続拒否になる(2026-11-11 に起きた)。絞るときは `--host` に tailnet のアドレスを指定する。
 - `TS_API_KEY` が無くても起動はするが、gated な経路は 503 `receiver_key_not_configured` になる(2026-11-18 に稼働中実装へ統一)。

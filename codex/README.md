@@ -51,3 +51,16 @@ ruby claude/test/manual/askgk_request.rb claude/api/tunnels.claude.rb 'codex_pro
 ```
 
 askgkは`"via": "codex"`、`"ask_status": "done"`、`reply`を返す。
+
+## ログイン時のネットワーク検査
+
+このコンテナでは root の対話ログイン時に `ops/network-boot.sh` をバックグラウンドで実行する。結果は `/root/boot.log` に追記し、ファイアウォールの最新採取結果は `/root/firewall-login/` に保存する。手動で実行する場合は次のコマンドを使う。
+
+```sh
+/root/lib/codex/ops/network-boot.sh
+/root/lib/codex/ops/network-boot.sh --prompt --panel
+```
+
+通常実行は既存のサービスを検査し、Codex の専用認証と app-server ソケットを確認する。内部 Apache は、現在の設定が既知の退避版と一致するときだけ復元する。初回のサービス配置には上記の `restore-claude-host.sh` を使う。署名付き検査は明示された ENV を優先し、未指定時は稼働中の配信プロセスの設定を参照する。
+
+`--prompt` は Codex の実応答を検査する。`--panel` は公開パネルに1件投稿して返信を検査する。どちらも明示指定時だけ実行する。更新候補はログに記録し、パッケージの適用は行わない。

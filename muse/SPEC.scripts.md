@@ -45,7 +45,7 @@ muse-monitorが呼ぶ受信側(`docs/RECEIVER.md`、nekoserver/muse-monitor)の�
 
 | 要求 | 応答 |
 |---|---|
-| `GET /health` | 200 `{"status": "ok", "keyFingerprint": "<鍵の指紋>"}`(認証なし。muse-monitorが相手を探すのに使う) |
+| `GET /health` | 200 `{"status": "ok", "keyFingerprint": "<鍵の指紋>", "previousKeyFingerprint": "<旧値の指紋、無ければ null>", "previousKeyUntil": <旧値の期限(epoch 秒)、無ければ null>}`(認証なし。muse-monitorが相手を探すのに使う) |
 | `GET /monitor/<section>`、鍵が未設定 | 503 `receiver_key_not_configured` |
 | `Authorization: Bearer <鍵>` が無い・違う | 401 `{"error": "unauthorized", "expectedKeyFingerprint", "presentedKeyFingerprint"}`(比較はタイミングセーフ。前後の空白は除いて比べる) |
 | 未知の section、スクリプトが無い | 404 `unknown_section`(何も実行しない) |
@@ -55,9 +55,13 @@ muse-monitorが呼ぶ受信側(`docs/RECEIVER.md`、nekoserver/muse-monitor)の�
 
 - 鍵は `~/.config/muse-receiver.env` の `TS_API_KEY`(muse-monitorの `TS_API_KEY` と同じ値)だけから読む。シェルの環境変数 `TS_API_KEY` は使わない(muse-vm では別の用途の値が入っていることがある。食い違っていれば起動時に名前だけ知らせる)。値の前後の空白・CRLF・引用符は除く。
 - 鍵の指紋は sha256 の先頭8桁。起動時・`/health`・401 の本文に出す。鍵そのものは出さない。muse-monitor の `receiver_unauthorized` は受信側の本文を `receiver` に入れて返すので、`expectedKeyFingerprint`(受信側の鍵)と `presentedKeyFingerprint`(muse-monitor が送った鍵)を見比べれば、どちらが違うか分かる。
+- 鍵の正はこのファイル(`~/.config/muse-receiver.env`)である。muse-monitor のシークレットはここから配られた写しで、食い違った場合はこちらに合わせる(SPEC.muse-monitor.security.hardening REQ-SEC-059)。
+- ローテーション: 鍵ファイルに `TS_API_KEY_PREVIOUS`(旧値)と `TS_API_KEY_PREVIOUS_UNTIL`(UNIX epoch 秒)がある間は、旧値も受け付ける(重ね期間の既定は24時間、REQ-SEC-063)。期限のない旧値は受け付けない。旧値で通した場合は、ログに指紋で残す。
+- 鍵ファイルは、gated な要求ごとに更新時刻を見て読み直す(再起動は不要、REQ-SEC-064)。
+- 鍵の付け替えは `samples/receiver-key.sh` で行う(`status` は指紋だけを表示、`rotate` は新しい値を生成して旧値を期限まで併用、`finish` は旧値を消す、`set` は標準入力の値を正にする)。値が表示されるのは `rotate` の一度だけ(Worker のシークレットへ設定するため)。
 - 扱う section は、スクリプトのある `status`・`jobs`・`pkgs`・`vm`・`procs`・`ports`・`git`・`recent`。muse-monitorの許可リストのうち、`diag`・`pending`・`execlog`・`sdk*` はスクリプトが無いので404。
 - 既定で全アドレス(`0.0.0.0`)に待ち受ける。`127.0.0.1` では tailnet 経由の muse-monitor から接続拒否になる(2026-11-11 に起きた)。絞るときは `--host` に tailnet のアドレスを指定する。
-- `TS_API_KEY` が無ければ起動しない(鍵なしで全アドレスに出さない)。
+- `TS_API_KEY` が無くても起動はするが、gated な経路は 503 `receiver_key_not_configured` になる(2026-11-18 に稼働中実装へ統一)。
 
 ### 4.0 muse-vm での最善の状態(必ずこの状態にする)
 

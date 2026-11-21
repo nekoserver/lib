@@ -6,9 +6,15 @@
   （SPEC.muse-monitor.security.hardening REQ-SEC-001/002/004/020。2026-11-12 の照合無し指示は
   2026-11-16 のセキュリティ強化指示で置き換えられた）
 - 鍵は ~/.config/muse-receiver.env の TS_API_KEY から読む。読めなければ gated な経路は 503
+  (エラー名は receiver_key_not_configured に統一。SPEC.muse-monitor.security.hardening REQ-SEC-062)
+- 鍵の指紋(SHA-256 の先頭8文字、REQ-SEC-060)は /health と 401 の本文に出す。鍵そのものは出さない
+- ローテーションの間は、鍵ファイルの TS_API_KEY_PREVIOUS(旧値)を TS_API_KEY_PREVIOUS_UNTIL
+  (UNIX epoch 秒)まで併せて受け付ける(REQ-SEC-063)。鍵ファイルは要求ごとに更新を見て読み直す
+  (再起動不要、REQ-SEC-064)。/health にはオーバーラップの指紋と期限も出す(REQ-SEC-065)
 - 未知の section は 404
 - 応答は {"section", "rc", "output", "truncated", "ts"}。output は 64 KiB で切り詰め、60 秒で 504
-- GET /health は認証なしで {"status": "ok"}(muse-monitor が相手を探すときに叩く)
+- GET /health は認証なしで {"status": "ok", "keyFingerprint": ...} を返す
+  (muse-monitor が相手を探すときに叩く)
 
 このサンプルは lib/muse のスクリプトがある section だけを扱う(読み取り専用)。
 diag・pending・execlog・sdk* はスクリプトが無いので 404 を返す。
@@ -34,6 +40,7 @@ muse-vm に負荷をかけないための制御(契約の外。応答の形は�
 """
 import argparse
 from collections import deque
+import hashlib
 from datetime import datetime
 import hmac
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -81,6 +88,58 @@ def load_key(env_file):
         return value or None
     except OSError:
         return None
+
+
+def load_keys(env_file):
+    """鍵ファイルから (現在の値, 旧値, 旧値の期限) を読む。各名前は最後の行が勝つ
+    (load_key の読み方に合わせる)。期限は UNIX epoch 秒で、無い・解釈できない場合は
+    None とし、その場合は旧値を受け付けない(REQ-SEC-063)。読めなければ全て None。"""
+    try:
+        current = previous = until_raw = None
+        with open(env_file, encoding='utf-8') as f:
+            for line in f:
+                if line.startswith('TS_API_KEY_PREVIOUS_UNTIL='):
+                    until_raw = line[len('TS_API_KEY_PREVIOUS_UNTIL='):].strip()
+                elif line.startswith('TS_API_KEY_PREVIOUS='):
+                    previous = line[len('TS_API_KEY_PREVIOUS='):].strip()
+                elif line.startswith('TS_API_KEY='):
+                    current = line[len('TS_API_KEY='):].strip()
+    except OSError:
+        return None, None, None
+    until = None
+    if until_raw:
+        try:
+            until = int(until_raw)
+        except ValueError:
+            until = None
+    return current or None, previous or None, until
+
+
+def key_fingerprint(value):
+    """鍵の指紋: 値の SHA-256(16進) の先頭8文字(REQ-SEC-060)。None には None を返す。"""
+    if value is None:
+        return None
+    return hashlib.sha256(value.encode('utf-8')).hexdigest()[:8]
+
+
+class KeyFile:
+    """鍵ファイルのライブな読み手(REQ-SEC-064)。gated な要求ごとに更新時刻を見て、
+    変わっていれば読み直す。鍵ファイルが正であり、プロセスが旧値を握り続けないため。"""
+
+    def __init__(self, env_file):
+        self.env_file = env_file
+        self._mtime = None
+        self._keys = (None, None, None)
+
+    def keys(self):
+        try:
+            mtime = os.stat(self.env_file).st_mtime_ns
+        except OSError:
+            mtime = None
+        if mtime != self._mtime:
+            self._mtime = mtime
+            self._keys = load_keys(self.env_file)
+        return self._keys
 
 
 def load_sections(path):
@@ -226,6 +285,13 @@ def make_handler(key, scripts_dir=SCRIPTS_DIR, sections=None, timeout=TIMEOUT_SE
     sections = SECTIONS if sections is None else sections
     runner = Runner(timeout, limit, max_concurrent, max_queue, queue_wait, cache_seconds, stale_seconds)
 
+    def current_keys():
+        # key が KeyFile なら要求のたびに最新の (現在, 旧値, 期限) を引く(REQ-SEC-064)。
+        # 静的な値なら旧値なしとして扱う(単体テストや組み込み利用の従来の形)。
+        if isinstance(key, KeyFile):
+            return key.keys()
+        return key, None, None
+
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, *args):
             pass
@@ -241,18 +307,35 @@ def make_handler(key, scripts_dir=SCRIPTS_DIR, sections=None, timeout=TIMEOUT_SE
 
         def do_GET(self):
             path = self.path.split('?', 1)[0]
+            current, previous, previous_until = current_keys()
+            overlap = (previous is not None and previous_until is not None
+                       and time.time() < previous_until)
             if path == '/health':
-                return self.reply(200, {'status': 'ok'})
+                return self.reply(200, {
+                    'status': 'ok',
+                    'keyFingerprint': key_fingerprint(current),
+                    'previousKeyFingerprint': key_fingerprint(previous) if overlap else None,
+                    'previousKeyUntil': previous_until if overlap else None,
+                })
             if path != '/queue' and not path.startswith('/monitor/'):
                 return self.reply(404, {'error': 'not_found'})
             # Authorization の照合(REQ-SEC-001/002)。鍵は TS_API_KEY のみで、
             # TS_AUTHKEY(Tailscale の参加鍵)は受信側の鍵として扱わない(REQ-SEC-004)。
-            if key is None:
-                return self.reply(503, {'error': 'receiver_key_missing'})
+            if current is None:
+                return self.reply(503, {'error': 'receiver_key_not_configured'})
             auth = self.headers.get('Authorization', '')
             token = auth[len('Bearer '):] if auth.startswith('Bearer ') else ''
-            if not hmac.compare_digest(token, key):
-                return self.reply(401, {'error': 'unauthorized'})
+            if hmac.compare_digest(token, current):
+                pass
+            elif overlap and hmac.compare_digest(token, previous):
+                # ローテーションの合わせ込み中(REQ-SEC-063/065)。値は記録しない。
+                print(f'receiver: accepted the previous key (fingerprint {key_fingerprint(token)}); rotation in progress', flush=True)
+            else:
+                return self.reply(401, {
+                    'error': 'unauthorized',
+                    'expectedKeyFingerprint': key_fingerprint(current),
+                    'presentedKeyFingerprint': key_fingerprint(token) if token else None,
+                })
             if path == '/queue':
                 return self.reply(200, runner.snapshot())
             section = path[len('/monitor/'):]
@@ -278,8 +361,9 @@ def main():
     parser.add_argument('--max-concurrent', type=int, default=MAX_CONCURRENT)
     parser.add_argument('--max-queue', type=int, default=MAX_QUEUE)
     args = parser.parse_args()
-    key = load_key(args.key_env_file)
-    handler = make_handler(key, sections=load_sections(args.sections),
+    key_file = KeyFile(args.key_env_file)
+    key = key_file.keys()[0]
+    handler = make_handler(key_file, sections=load_sections(args.sections),
                            max_concurrent=args.max_concurrent, max_queue=args.max_queue)
     server = ThreadingHTTPServer((args.host, args.port), handler)
     threading.Thread(target=handler.runner.warm, args=(handler.sections, handler.scripts_dir), daemon=True).start()

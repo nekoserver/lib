@@ -8,6 +8,7 @@ receiver.py(muse-monitor が呼ぶ受信側のサンプル)の故障想定:
 - section の一覧が muse-monitor の許可リストから外れる、スクリプトが実在しない
 bridge-jobs の見本の故障想定: 見本の形が実際のスクリプトと合わなくなる。
 """
+import hashlib
 import importlib.util
 import json
 import os
@@ -129,7 +130,8 @@ class ReceiverTest(unittest.TestCase):
         base = self.start(None, {'ok': 'ok.sh'})
         status, body = self.get('/monitor/ok', base=base)
         self.assertEqual(status, 503)
-        self.assertEqual(body['error'], 'receiver_key_missing')
+        # 名前は receiver_key_not_configured に統一(REQ-SEC-062。monitor 自身の未設定は receiver_key_missing で別)
+        self.assertEqual(body['error'], 'receiver_key_not_configured')
 
     def test_unknown_missing_or_crafted_sections_are_404_and_run_nothing(self):
         for section in ('nope', 'missing', '../ok', 'ok/extra', '', 'OK'):
@@ -137,20 +139,31 @@ class ReceiverTest(unittest.TestCase):
             self.assertEqual(status, 404, section)
             self.assertEqual(body['error'], 'unknown_section')
 
-    def test_health_answers_ok_only_without_any_key_material(self):
-        # /health は鍵なしで引ける代わりに、鍵の指紋も値も一切出さない(稼働中実装の形)
+    def test_health_carries_fingerprints_but_never_key_values(self):
+        # /health は鍵なしで引ける。鍵の指紋(sha256 の先頭8文字)は出すが、値そのものは
+        # 出さない(REQ-SEC-060/065。版21で「指紋も出さない」から変更した)
         status, body = self.get('/health', key=None)
         self.assertEqual(status, 200)
-        self.assertEqual(body, {'status': 'ok'})
+        self.assertEqual(body['status'], 'ok')
+        self.assertEqual(body['keyFingerprint'], hashlib.sha256(self.KEY.encode()).hexdigest()[:8])
+        self.assertIsNone(body['previousKeyFingerprint'])
+        self.assertIsNone(body['previousKeyUntil'])
         self.assertNotIn(self.KEY, json.dumps(body))
 
-    def test_401_is_bare_unauthorized_without_fingerprints(self):
-        # 不一致の 401 は {'error': 'unauthorized'} だけ。どちらの鍵が違うかは応答からは
-        # 分からない(切り分けは NOTICE に記録した設定時の指紋で行う)
+    def test_401_carries_both_fingerprints_but_no_key_values(self):
+        # 不一致の 401 は、受信側の鍵の指紋と提示された鍵の指紋を出す(REQ-SEC-060)。
+        # どちらが違うかは指紋の見比べで分かる。値そのものは出さない
+        fp = lambda v: hashlib.sha256(v.encode()).hexdigest()[:8]
         status, body = self.get('/monitor/ok', key='wrong')
         self.assertEqual(status, 401)
-        self.assertEqual(body, {'error': 'unauthorized'})
+        self.assertEqual(body['error'], 'unauthorized')
+        self.assertEqual(body['expectedKeyFingerprint'], fp(self.KEY))
+        self.assertEqual(body['presentedKeyFingerprint'], fp('wrong'))
         self.assertNotIn(self.KEY, json.dumps(body))
+        # Bearer が無い場合、提示側の指紋は null
+        status, body = self.get('/monitor/ok', key=None)
+        self.assertEqual(status, 401)
+        self.assertIsNone(body['presentedKeyFingerprint'])
 
     def test_a_bearer_with_surrounding_spaces_is_rejected(self):
         # 照合は完全一致のみ。前後の空白や Bearer の後の余分な空白は通さない
@@ -163,6 +176,117 @@ class ReceiverTest(unittest.TestCase):
         with self.assertRaises(HTTPError) as ctx:
             urlopen(req, timeout=10)
         self.assertEqual(ctx.exception.code, 405)
+
+
+class ReceiverRotationTest(unittest.TestCase):
+    """ローテーション(REQ-SEC-063/064): 鍵ファイルが正で、書き換えは再起動なしに効き、
+    旧値は期限までだけ受け付ける。"""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.dir = Path(self.tmp.name)
+        (self.dir / 'ok.sh').write_text('#!/bin/sh\necho hello\n')
+        self.env = self.dir / 'muse-receiver.env'
+        self.server = None
+
+    def tearDown(self):
+        if self.server:
+            self.server.shutdown()
+            self.server.server_close()
+        self.tmp.cleanup()
+
+    def start(self):
+        handler = receiver.make_handler(receiver.KeyFile(self.env), self.dir, {'ok': 'ok.sh'}, 1, 64 * 1024)
+        self.server = receiver.ThreadingHTTPServer(('127.0.0.1', 0), handler)
+        threading.Thread(target=self.server.serve_forever, daemon=True).start()
+        return f'http://127.0.0.1:{self.server.server_address[1]}'
+
+    def get(self, base, path, key):
+        headers = {} if key is None else {'Authorization': f'Bearer {key}'}
+        try:
+            with urlopen(Request(base + path, headers=headers), timeout=10) as res:
+                return res.status, json.loads(res.read())
+        except HTTPError as e:
+            return e.code, json.loads(e.read())
+
+    def test_rotation_overlap_and_reread(self):
+        self.env.write_text('TS_API_KEY=old-key\n')
+        base = self.start()
+        self.assertEqual(self.get(base, '/monitor/ok', 'old-key')[0], 200)
+        until = int(time.time()) + 3600
+        self.env.write_text(f'TS_API_KEY=new-key\nTS_API_KEY_PREVIOUS=old-key\nTS_API_KEY_PREVIOUS_UNTIL={until}\n')
+        # 再起動なしで新しい値が効き、旧値も期限まで通る
+        self.assertEqual(self.get(base, '/monitor/ok', 'new-key')[0], 200)
+        self.assertEqual(self.get(base, '/monitor/ok', 'old-key')[0], 200)
+        status, body = self.get(base, '/health', None)
+        self.assertEqual(body['previousKeyUntil'], until)
+        # 期限を過ぎたら旧値は 401(指紋で旧値と分かる)
+        self.env.write_text(f'TS_API_KEY=new-key\nTS_API_KEY_PREVIOUS=old-key\nTS_API_KEY_PREVIOUS_UNTIL={int(time.time()) - 10}\n')
+        status, body = self.get(base, '/monitor/ok', 'old-key')
+        self.assertEqual(status, 401)
+        self.assertEqual(body['presentedKeyFingerprint'], hashlib.sha256(b'old-key').hexdigest()[:8])
+        self.assertEqual(self.get(base, '/monitor/ok', 'new-key')[0], 200)
+        # 期限のない旧値は受け付けない
+        self.env.write_text('TS_API_KEY=new-key\nTS_API_KEY_PREVIOUS=old-key\n')
+        self.assertEqual(self.get(base, '/monitor/ok', 'old-key')[0], 401)
+
+
+class ReceiverKeyScriptTest(unittest.TestCase):
+    """receiver-key.sh: 付け替えの形(旧値と期限が残る、値は status に出ない、権限 600)。"""
+
+    SCRIPT = SAMPLES / 'receiver-key.sh'
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.dir = Path(self.tmp.name)
+        self.env_file = self.dir / 'muse-receiver.env'
+        self.env = dict(os.environ, MUSE_RECEIVER_ENV=str(self.env_file))
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def run_script(self, *args, stdin=''):
+        return subprocess.run(['sh', str(self.SCRIPT), *args], input=stdin,
+                              capture_output=True, text=True, env=self.env, timeout=30)
+
+    def read_env(self):
+        out = {}
+        for line in self.env_file.read_text(encoding='utf-8').splitlines():
+            if '=' in line:
+                k, v = line.split('=', 1)
+                out[k] = v
+        return out
+
+    def test_set_rotate_finish_cycle(self):
+        fp = lambda v: hashlib.sha256(v.encode()).hexdigest()[:8]
+        r = self.run_script('set', stdin='first-value\n')
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(self.read_env()['TS_API_KEY'], 'first-value')
+        self.assertEqual(oct(self.env_file.stat().st_mode & 0o777), '0o600')
+        r = self.run_script('status')
+        self.assertIn(fp('first-value'), r.stdout)
+        self.assertNotIn('first-value', r.stdout)
+
+        before = int(time.time())
+        r = self.run_script('rotate')
+        self.assertEqual(r.returncode, 0, r.stderr)
+        values = self.read_env()
+        new_value = values['TS_API_KEY']
+        self.assertNotEqual(new_value, 'first-value')
+        self.assertEqual(values['TS_API_KEY_PREVIOUS'], 'first-value')
+        until = int(values['TS_API_KEY_PREVIOUS_UNTIL'])
+        self.assertTrue(before + 23 * 3600 <= until <= int(time.time()) + 25 * 3600)
+        # 新しい値は rotate の出力に一度だけ出る(Worker へ設定するため)。status には出ない
+        self.assertIn(new_value, r.stdout)
+        r = self.run_script('status')
+        self.assertIn(fp(new_value), r.stdout)
+        self.assertNotIn(new_value, r.stdout)
+
+        r = self.run_script('finish')
+        self.assertEqual(r.returncode, 0, r.stderr)
+        values = self.read_env()
+        self.assertNotIn('TS_API_KEY_PREVIOUS', values)
+        self.assertEqual(values['TS_API_KEY'], new_value)
 
 
 class ReceiverSectionsTest(unittest.TestCase):
